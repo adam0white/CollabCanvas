@@ -1,0 +1,85 @@
+### CollabCanvas MVP — Pull Request Plan
+
+Guidelines
+- Each PR compiles independently and keeps main deployable.
+- Minimal scope per PR; no unrelated changes.
+- Use `npm init -y` to bootstrap; prefer small diffs.
+- Tests: Vitest where applicable. Manual 2-browser checks listed.
+- Dependencies are explicitly chosen to speed delivery and reduce tech debt.
+- CI/CD: Cloudflare Workers Git integration builds and deploys on push to `main`.
+- Single repo (no workspaces); Worker and web app live together.
+
+Chosen dependencies (locked for MVP)
+- Core: TypeScript, Vite, React, Konva, Yjs, y-protocols, Wrangler, Vitest, Biome
+- Realtime server: Cloudflare Durable Objects with y-durableobjects (Yjs sync + Awareness)
+- Auth: Clerk (frontend) + `@clerk/backend` (JWT verification)
+
+---
+
+PR 1 — Repo Bootstrap, Tooling
+- Initialize repo and root package: `npm init -y`
+- Add `.editorconfig`, `.gitignore` (node_modules, dist, .wrangler, .env*), `README.md`
+- Add TypeScript + Vitest baseline
+  - deps: `typescript`, `vitest`, `@types/node`
+  - `tsconfig.json` (strict, ES2022, moduleResolution bundler)
+  - `vitest.config.ts`
+- Formatter/Lint: `biome`
+- Acceptance: `npm run build` passes (tsc), `npm test` runs
+
+PR 2 — Wrangler + Durable Object Skeleton
+- Add `wrangler.toml` with DO binding `RoomDO` and static asset mount (for `web/dist`)
+- Add `src/worker.ts` (fetch handler) and `src/room-do.ts` (DO stub)
+- Routes (plain fetch):
+  - `GET /health` → 200 OK
+  - `GET /c/main` → serve SPA index.html
+  - `GET /c/main/ws` → WebSocket upgrade and route to DO
+- Scripts: `dev`, `build`, `deploy`
+- Acceptance: dev server up; WS route upgrades
+
+PR 3 — y-durableobjects + Presence (Awareness)
+- Add deps: `yjs`, `y-protocols`, `y-durableobjects`
+- In DO (`RoomDO`):
+  - Initialize `Y.Doc` and y-durableobjects wiring for sync + awareness
+  - Track connections; broadcast awareness (presence/cursors)
+  - Debounce persistence: snapshot state on idle (≥500ms) or window (≤2s), persist after broadcasts
+- Vitest: debounce util + storage snapshot/restore tests
+- Acceptance: two WS clients sync Yjs state; presence visible
+
+PR 4 — React + Vite + Konva SPA
+- `npm create vite@latest web -- --template react-ts`
+- Add `konva` and `react-konva`
+- Minimal UI: stage + layer + simple toolbar (Select, Rectangle)
+- Build to `web/dist`; worker serves `/c/main`
+- Acceptance: canvas loads at `/c/main`
+
+PR 5 — Auth: Clerk Frontend + Worker JWT Verification
+- Web: integrate `@clerk/clerk-react`, post-login redirect to `/c/main`
+- Pass JWT to WS (query/header)
+- Worker: verify JWT with `@clerk/backend` (JWKS)
+  - Valid → editable; missing/invalid → view-only
+- Acceptance: unauthenticated view-only, authenticated can edit
+
+PR 6 — Client Yjs Wiring (Awareness + Sync)
+- Web: init `Y.Doc`; connect to `/c/main/ws` (via y-durableobjects client approach or thin adapter)
+- Hook Yjs Awareness for presence/cursors (20 Hz throttle client-side)
+- Acceptance: two browsers reflect presence; basic shared state round-trip
+
+PR 7 — Shapes: Rectangle Create/Move via Yjs + Konva
+- Define shape schema in Yjs (rectangles)
+- Konva bindings:
+  - Create rectangle → write to Yjs; move rectangle → write to Yjs
+  - On Yjs updates → update Konva stage
+- Acceptance: rectangles create/move sync across browsers in <100ms
+
+PR 8 — Offline/Resync, Performance, Security, Docs
+- Offline/resync: verify Yjs buffers and merges on reconnect; add reconnect indicator
+- Performance: confirm 60 FPS; enforce ≤30 msgs/s per client; coalesce transforms
+- Security: enforce edit gating for Yjs mutations; sanitize display names; basic CSP headers
+- README: setup, architecture, deploy, troubleshooting; public URL; demo script outline
+- Acceptance: manual tests pass; deployment successful
+
+Notes
+- Awareness covers presence/cursors; no custom JSON channel required.
+- We chose Konva to avoid the tldraw ↔ Yjs binding risk in 24h.
+- We chose y-durableobjects to avoid bespoke WS protocol on DO.
+- Keep Clerk with guest fallback; anonymous view-only always allowed.
