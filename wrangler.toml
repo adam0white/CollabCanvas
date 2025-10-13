@@ -1,0 +1,18 @@
+name = "collabcanvas"
+main = "src/worker.ts"
+compatibility_date = "2025-10-13"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+binding = "ASSETS"
+directory = "web/dist"
+
+[durable_objects]
+bindings = [
+  { name = "RoomDO", class_name = "RoomDO" }
+]
+
+[[migrations]]
+tag = "v1"
+new_classes = ["RoomDO"]
+

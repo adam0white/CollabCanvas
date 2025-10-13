@@ -2,7 +2,9 @@ node_modules/
 dist/
 .wrangler/
 .env
+.env.*
 coverage/
 *.log
 *.tsbuildinfo
+worker-configuration.d.ts
 
