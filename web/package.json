@@ -9,6 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@clerk/clerk-react": "^5.7.1",
+    "@clerk/nextjs": "^6.1.5",
     "clsx": "^2.1.1",
     "konva": "^9.3.16",
     "react": "19.2.0",

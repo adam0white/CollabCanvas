@@ -16,3 +16,6 @@ bindings = [
 tag = "v1"
 new_classes = ["RoomDO"]
 
+[vars]
+CLERK_PUBLISHABLE_KEY = "pk_test_c21pbGluZy1jaGlja2VuLTUyLmNsZXJrLmFjY291bnRzLmRldiQ"
+

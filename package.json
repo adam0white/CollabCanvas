@@ -44,6 +44,7 @@
     "wrangler": "^4.42.2"
   },
   "dependencies": {
+    "@clerk/backend": "^1.5.1",
     "y-durableobjects": "^1.0.5",
     "y-protocols": "^1.0.6",
     "yjs": "^13.6.27"
