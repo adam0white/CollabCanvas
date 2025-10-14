@@ -53,7 +53,8 @@ export function YjsProvider({
   const doc = useMemo(() => new Doc(), []);
   const awareness = useMemo(() => new Awareness(doc), [doc]);
   const providerRef = useRef<WebsocketProvider | null>(null);
-  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("connecting");
+  const [connectionStatus, setConnectionStatus] =
+    useState<ConnectionStatus>("connecting");
   const [contextValue] = useState<ProviderContextValue>(() => ({
     doc,
     awareness,
@@ -105,7 +106,7 @@ export function YjsProvider({
       cancelled = true;
       const provider = providerRef.current;
       providerRef.current = null;
-      
+
       // Destroy provider only if it exists
       if (provider) {
         provider.disconnect();

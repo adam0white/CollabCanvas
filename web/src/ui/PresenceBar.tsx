@@ -20,10 +20,19 @@ export function PresenceBar({ presence }: PresenceBarProps): JSX.Element {
         <div
           key={`${participant.userId}-${participant.displayName}`}
           className={styles.presenceAvatar}
-          style={{ backgroundColor: participant.color }}
+          style={{
+            backgroundColor: participant.imageUrl
+              ? "transparent"
+              : participant.color,
+            backgroundImage: participant.imageUrl
+              ? `url(${participant.imageUrl})`
+              : undefined,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
           title={participant.displayName}
         >
-          {initials(participant.displayName)}
+          {!participant.imageUrl && initials(participant.displayName)}
         </div>
       ))}
       <span className={styles.presenceText}>

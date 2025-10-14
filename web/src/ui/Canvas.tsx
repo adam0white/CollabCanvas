@@ -9,8 +9,6 @@ import { createRectangle } from "../shapes/types";
 import { useShapes } from "../shapes/useShapes";
 import styles from "./Canvas.module.css";
 
-const CANVAS_WIDTH = 960;
-const CANVAS_HEIGHT = 600;
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 5;
 const ZOOM_SPEED = 1.1;
@@ -22,8 +20,10 @@ type CanvasProps = {
 
 export function Canvas({ presence, setPresence }: CanvasProps): JSX.Element {
   const stageRef = useRef<Konva.Stage | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const { activeTool } = useToolbar();
-  const { shapes, canEdit, createShape, updateShape } = useShapes();
+  const { shapes, canEdit, createShape, updateShape, deleteShape } =
+    useShapes();
 
   // State for rectangle creation (click-and-drag)
   const [isDrawing, setIsDrawing] = useState(false);
@@ -39,6 +39,40 @@ export function Canvas({ presence, setPresence }: CanvasProps): JSX.Element {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
 
+  // State for responsive canvas size
+  const [canvasSize, setCanvasSize] = useState({ width: 960, height: 600 });
+
+  // State for shape selection
+  const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
+
+  // Update canvas size based on container dimensions
+  useEffect(() => {
+    const updateSize = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        setCanvasSize({
+          width: Math.max(400, rect.width),
+          height: Math.max(300, rect.height),
+        });
+      }
+    };
+
+    updateSize();
+
+    // Use ResizeObserver for more reliable container size tracking
+    const resizeObserver = new ResizeObserver(updateSize);
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+
+    window.addEventListener("resize", updateSize);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", updateSize);
+    };
+  }, []);
+
   // Ensure Stage is focused when tool changes and cleanup any pending drawing state
   useEffect(() => {
     const stage = stageRef.current;
@@ -49,16 +83,43 @@ export function Canvas({ presence, setPresence }: CanvasProps): JSX.Element {
         container.focus();
       }
     }
-    
-    // Clean up drawing state when switching tools
-    setIsDrawing(false);
-    setNewRect(null);
+
+    // Clean up drawing state when switching tools (activeTool triggers this effect)
+    if (activeTool) {
+      setIsDrawing(false);
+      setNewRect(null);
+      setSelectedShapeId(null); // Deselect when switching tools
+    }
   }, [activeTool]);
+
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Delete selected shape with Delete or Backspace
+      if (
+        (e.key === "Delete" || e.key === "Backspace") &&
+        selectedShapeId &&
+        canEdit
+      ) {
+        e.preventDefault();
+        deleteShape(selectedShapeId);
+        setSelectedShapeId(null);
+      }
+
+      // Deselect with Escape
+      if (e.key === "Escape") {
+        setSelectedShapeId(null);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedShapeId, canEdit, deleteShape]);
 
   // Handle zoom with mouse wheel
   const handleWheel = (e: KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault();
-    
+
     const stage = stageRef.current;
     if (!stage) return;
 
@@ -104,8 +165,8 @@ export function Canvas({ presence, setPresence }: CanvasProps): JSX.Element {
 
     const clickedOnEmpty = e.target === stage;
 
-    // Handle rectangle creation
-    if (activeTool === "rectangle" && canEdit && clickedOnEmpty) {
+    // Handle rectangle creation (for authenticated users, anywhere on canvas)
+    if (activeTool === "rectangle" && canEdit) {
       const pos = stage.getPointerPosition();
       if (!pos) return;
 
@@ -125,8 +186,14 @@ export function Canvas({ presence, setPresence }: CanvasProps): JSX.Element {
       return;
     }
 
-    // Handle panning (when clicking on empty space in select mode)
-    if (clickedOnEmpty && activeTool === "select") {
+    // Handle panning:
+    // - For authenticated users: pan when clicking on empty space in select mode
+    // - For guests: always allow panning (they can't edit shapes anyway)
+    const shouldPan =
+      (canEdit && clickedOnEmpty && activeTool === "select") || // Authenticated: pan on empty in select mode
+      (!canEdit && activeTool === "select"); // Guests: always pan in select mode
+
+    if (shouldPan) {
       setIsPanning(true);
       stage.container().style.cursor = "grabbing";
     }
@@ -223,8 +290,57 @@ export function Canvas({ presence, setPresence }: CanvasProps): JSX.Element {
     (participant) => participant.cursor,
   );
 
+  // Calculate which cursors are visible and which need edge indicators
+  const visibleCursors: typeof remoteCursors = [];
+  const offScreenCursors: Array<{
+    participant: PresenceState;
+    edgeX: number;
+    edgeY: number;
+    angle: number;
+  }> = [];
+
+  for (const participant of remoteCursors) {
+    if (!participant.cursor) continue;
+
+    // Convert cursor position from canvas space to screen space
+    const screenX = participant.cursor.x * scale + position.x;
+    const screenY = participant.cursor.y * scale + position.y;
+
+    // Check if cursor is within visible viewport
+    const isVisible =
+      screenX >= 0 &&
+      screenX <= canvasSize.width &&
+      screenY >= 0 &&
+      screenY <= canvasSize.height;
+
+    if (isVisible) {
+      visibleCursors.push(participant);
+    } else {
+      // Calculate edge position for indicator
+      const edgeMargin = 20; // Distance from edge
+      const edgeX = Math.max(
+        edgeMargin,
+        Math.min(canvasSize.width - edgeMargin, screenX),
+      );
+      const edgeY = Math.max(
+        edgeMargin,
+        Math.min(canvasSize.height - edgeMargin, screenY),
+      );
+
+      // Calculate angle pointing to the off-screen cursor
+      const angle = Math.atan2(screenY - edgeY, screenX - edgeX);
+
+      offScreenCursors.push({
+        participant,
+        edgeX: (edgeX - position.x) / scale,
+        edgeY: (edgeY - position.y) / scale,
+        angle,
+      });
+    }
+  }
+
   return (
-    <div className={styles.canvasWrapper}>
+    <div ref={containerRef} className={styles.canvasWrapper}>
       {/* Zoom controls */}
       <div className={styles.zoomControls}>
         <button
@@ -256,25 +372,80 @@ export function Canvas({ presence, setPresence }: CanvasProps): JSX.Element {
       <Stage
         ref={stageRef}
         className={styles.stage}
-        width={CANVAS_WIDTH}
-        height={CANVAS_HEIGHT}
+        width={canvasSize.width}
+        height={canvasSize.height}
         scaleX={scale}
         scaleY={scale}
         x={position.x}
         y={position.y}
         tabIndex={0}
+        data-tool={activeTool}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
         onWheel={handleWheel}
       >
+        {/* Background grid layer */}
+        <Layer listening={false}>
+          {(() => {
+            const gridSize = 20; // Grid cell size in canvas units
+            const scaledGridSize = gridSize * scale;
+
+            // Calculate visible grid range
+            const startX = Math.floor(-position.x / scaledGridSize) * gridSize;
+            const startY = Math.floor(-position.y / scaledGridSize) * gridSize;
+            const endX =
+              Math.ceil((canvasSize.width - position.x) / scaledGridSize) *
+              gridSize;
+            const endY =
+              Math.ceil((canvasSize.height - position.y) / scaledGridSize) *
+              gridSize;
+
+            const lines = [];
+            let key = 0;
+
+            // Vertical lines
+            for (let x = startX; x <= endX; x += gridSize) {
+              lines.push(
+                <Rect
+                  key={`v-${key++}`}
+                  x={x}
+                  y={startY}
+                  width={1 / scale}
+                  height={endY - startY}
+                  fill="rgba(15, 23, 42, 0.05)"
+                />,
+              );
+            }
+
+            // Horizontal lines
+            for (let y = startY; y <= endY; y += gridSize) {
+              lines.push(
+                <Rect
+                  key={`h-${key++}`}
+                  x={startX}
+                  y={y}
+                  width={endX - startX}
+                  height={1 / scale}
+                  fill="rgba(15, 23, 42, 0.05)"
+                />,
+              );
+            }
+
+            return lines;
+          })()}
+        </Layer>
+
+        {/* Main content layer */}
         <Layer>
           {/* Render persisted shapes from Yjs */}
           <ShapeLayer
             shapes={shapes}
             canEdit={canEdit}
             selectedTool={activeTool}
+            selectedShapeId={selectedShapeId}
+            onShapeSelect={setSelectedShapeId}
             onShapeUpdate={updateShape}
             onDragMove={(screenX, screenY) => {
               // Adjust screen coordinates to canvas space for presence
@@ -300,17 +471,22 @@ export function Canvas({ presence, setPresence }: CanvasProps): JSX.Element {
             />
           )}
 
-          {/* Render remote cursors with labels */}
-          {remoteCursors.map((participant) => {
+          {/* Render visible remote cursors with labels */}
+          {visibleCursors.map((participant) => {
             if (!participant.cursor) return null;
             const labelText = participant.displayName;
             const labelWidth = labelText.length * 8 + 12; // Approximate width
-            
+
+            // Inverse scale to keep cursor/label at consistent size across zoom levels
+            const inverseScale = 1 / scale;
+
             return (
               <Group
                 key={`${participant.userId}-cursor`}
                 x={participant.cursor.x}
                 y={participant.cursor.y}
+                scaleX={inverseScale}
+                scaleY={inverseScale}
               >
                 {/* Cursor dot */}
                 <Rect
@@ -343,6 +519,59 @@ export function Canvas({ presence, setPresence }: CanvasProps): JSX.Element {
                   fill="#fff"
                   shadowColor="rgba(0, 0, 0, 0.5)"
                   shadowBlur={2}
+                />
+              </Group>
+            );
+          })}
+
+          {/* Render edge indicators for off-screen cursors */}
+          {offScreenCursors.map(({ participant, edgeX, edgeY, angle }) => {
+            const inverseScale = 1 / scale;
+            const arrowSize = 12;
+
+            return (
+              <Group
+                key={`${participant.userId}-edge-indicator`}
+                x={edgeX}
+                y={edgeY}
+                rotation={(angle * 180) / Math.PI}
+                scaleX={inverseScale}
+                scaleY={inverseScale}
+                opacity={0.9}
+              >
+                {/* Arrow pointer */}
+                <Rect
+                  x={0}
+                  y={-arrowSize / 2}
+                  width={arrowSize * 1.5}
+                  height={arrowSize}
+                  fill={participant.color}
+                  cornerRadius={2}
+                  shadowColor="rgba(0, 0, 0, 0.3)"
+                  shadowBlur={4}
+                />
+                {/* Arrow tip */}
+                <Rect
+                  x={arrowSize * 1.5}
+                  y={0}
+                  width={arrowSize / 2}
+                  height={arrowSize / 2}
+                  offsetX={arrowSize / 4}
+                  offsetY={arrowSize / 4}
+                  rotation={45}
+                  fill={participant.color}
+                  shadowColor="rgba(0, 0, 0, 0.3)"
+                  shadowBlur={4}
+                />
+                {/* User initials on the indicator */}
+                <Text
+                  x={4}
+                  y={-4}
+                  text={participant.displayName.substring(0, 2).toUpperCase()}
+                  fontSize={8}
+                  fontFamily="system-ui, -apple-system, sans-serif"
+                  fontStyle="bold"
+                  fill="#fff"
                 />
               </Group>
             );

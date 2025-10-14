@@ -42,6 +42,17 @@
   color: white;
 }
 
+.toolButtonDisabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: auto;
+}
+
+.toolButtonDisabled:hover {
+  background: transparent;
+  color: rgba(15, 23, 42, 0.72);
+}
+
 .toolButton span {
   font-size: 1.15rem;
 }

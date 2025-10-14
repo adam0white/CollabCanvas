@@ -1,3 +1,4 @@
+import { useAuth } from "@clerk/clerk-react";
 import clsx from "clsx";
 
 import { useToolbar } from "../hooks/useToolbar";
@@ -9,6 +10,7 @@ type ToolbarProps = {
 
 export function Toolbar({ className }: ToolbarProps): JSX.Element {
   const { activeTool, setActiveTool } = useToolbar();
+  const { isSignedIn } = useAuth();
 
   return (
     <nav className={clsx(styles.toolbar, className)} aria-label="Canvas tools">
@@ -27,8 +29,11 @@ export function Toolbar({ className }: ToolbarProps): JSX.Element {
         type="button"
         className={clsx(styles.toolButton, {
           [styles.toolButtonActive]: activeTool === "rectangle",
+          [styles.toolButtonDisabled]: !isSignedIn,
         })}
-        onClick={() => setActiveTool("rectangle")}
+        onClick={() => isSignedIn && setActiveTool("rectangle")}
+        disabled={!isSignedIn}
+        title={!isSignedIn ? "Sign in to create shapes" : "Rectangle tool"}
       >
         <span aria-hidden>▭</span>
         Rectangle

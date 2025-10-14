@@ -27,13 +27,41 @@ export function App(): JSX.Element {
   // Show loading until both connected AND shapes are loaded
   const isLoading = connectionStatus !== "connected" || shapesLoading;
 
+  // Map connection status to display text
+  const connectionStatusText = {
+    connecting: "Connecting...",
+    connected: "Connected",
+    disconnected: "Disconnected",
+  }[connectionStatus];
+
+  const connectionStatusColor = {
+    connecting: "rgba(245, 158, 11, 0.9)", // amber
+    connected: "rgba(34, 197, 94, 0.9)", // green
+    disconnected: "rgba(239, 68, 68, 0.9)", // red
+  }[connectionStatus];
+
   return (
     <ToolbarProvider>
       <div className={styles.app}>
         <header className={styles.header}>
-          <h1 className={styles.title}>CollabCanvas</h1>
-          <p className={styles.subtitle}>Real-time collaborative canvas MVP</p>
-          <div className={styles.userControls}>
+          <div className={styles.headerLeft}>
+            <h1 className={styles.title}>CollabCanvas</h1>
+            <div
+              className={styles.connectionStatus}
+              style={{ backgroundColor: connectionStatusColor }}
+            >
+              <div className={styles.connectionDot} />
+              {connectionStatusText}
+            </div>
+          </div>
+
+          <PresenceBar
+            presence={presenceState.presence}
+            localPresence={presenceState.localPresence}
+            roomId={roomId}
+          />
+
+          <div className={styles.headerRight}>
             <SignedOut>
               <SignInButton mode="modal" fallbackRedirectUrl="/c/main" />
             </SignedOut>
@@ -41,14 +69,7 @@ export function App(): JSX.Element {
               <UserButton userProfileUrl="/c/main" />
             </SignedIn>
           </div>
-          <PresenceBar
-            presence={presenceState.presence}
-            localPresence={presenceState.localPresence}
-            roomId={roomId}
-          />
         </header>
-
-        <Toolbar className={styles.toolbar} />
 
         <main className={styles.main}>
           {isLoading && (
@@ -57,6 +78,10 @@ export function App(): JSX.Element {
               <p>Connecting to canvas...</p>
             </div>
           )}
+
+          {/* Floating toolbar */}
+          <Toolbar className={styles.floatingToolbar} />
+
           <Canvas
             presence={presenceState.presence}
             setPresence={presenceState.setPresence}
