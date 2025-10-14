@@ -5,6 +5,7 @@ import { createRoot } from "react-dom/client";
 import "./index.css";
 
 import { App } from "./ui/App";
+import { YjsProvider } from "./yjs/client";
 
 async function bootstrap(): Promise<void> {
   const rootElement = document.getElementById("root");
@@ -24,7 +25,9 @@ async function bootstrap(): Promise<void> {
   createRoot(rootElement).render(
     <StrictMode>
       <ClerkProvider publishableKey={publishableKey}>
-        <App />
+        <YjsProvider>
+          <App />
+        </YjsProvider>
       </ClerkProvider>
     </StrictMode>,
   );

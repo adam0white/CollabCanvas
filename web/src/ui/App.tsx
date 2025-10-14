@@ -4,15 +4,21 @@ import {
   SignInButton,
   UserButton,
 } from "@clerk/clerk-react";
-
+import { usePresence } from "../hooks/usePresence";
 import styles from "./App.module.css";
 import { Canvas } from "./Canvas";
+import { PresenceBar } from "./PresenceBar";
+import { SharedCounter } from "./SharedCounter";
 import { Toolbar } from "./Toolbar";
 
 export function App(): JSX.Element {
   if (typeof window === "undefined") {
     throw new Error("App should only be rendered in a browser environment.");
   }
+
+  const roomId =
+    new URL(window.location.href).searchParams.get("roomId") ?? "main";
+  const presenceState = usePresence();
 
   return (
     <div className={styles.app}>
@@ -27,12 +33,21 @@ export function App(): JSX.Element {
             <UserButton userProfileUrl="/c/main" />
           </SignedIn>
         </div>
+        <PresenceBar
+          presence={presenceState.presence}
+          localPresence={presenceState.localPresence}
+          roomId={roomId}
+        />
       </header>
 
       <Toolbar className={styles.toolbar} />
 
       <main className={styles.main}>
-        <Canvas />
+        <SharedCounter />
+        <Canvas
+          presence={presenceState.presence}
+          setPresence={presenceState.setPresence}
+        />
       </main>
     </div>
   );

@@ -59,10 +59,14 @@ PR 5 — Auth: Clerk Frontend + Worker JWT Verification
   - Valid → editable; missing/invalid → view-only
 - Acceptance: unauthenticated view-only, authenticated can edit
 
-PR 6 — Client Yjs Wiring (Awareness + Sync)
-- Web: init `Y.Doc`; connect to `/c/main/ws` (via y-durableobjects client approach or thin adapter)
-- Hook Yjs Awareness for presence/cursors (20 Hz throttle client-side)
-- Acceptance: two browsers reflect presence; basic shared state round-trip
+PR 6 — Client Yjs Wiring (Awareness + Sync) ✅ COMPLETED
+- Web: init `Y.Doc`; connect to `/c/main/ws` via `y-websocket` WebsocketProvider
+- Hook Yjs Awareness for presence/cursors (50ms throttle client-side)
+- Lifecycle documentation: token refresh triggers reconnect; provider cleanup on unmount
+- Hardened WebSocket route parsing: rejects unexpected paths before DO routing
+- Role enforcement: viewer clients cannot apply document updates at DO level
+- Shared counter component demonstrates basic state round-trip (Y.Map syncs across clients)
+- Acceptance: ✅ Presence syncs (3 people, cursors); counter increments propagate; quality gate passed
 
 PR 7 — Shapes: Rectangle Create/Move via Yjs + Konva
 - Define shape schema in Yjs (rectangles)

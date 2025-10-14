@@ -47,6 +47,7 @@
     "@clerk/backend": "^1.5.1",
     "y-durableobjects": "^1.0.5",
     "y-protocols": "^1.0.6",
+    "y-websocket": "^3.0.0",
     "yjs": "^13.6.27"
   }
 }
