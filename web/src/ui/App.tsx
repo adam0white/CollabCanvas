@@ -5,10 +5,10 @@ import {
   UserButton,
 } from "@clerk/clerk-react";
 import { usePresence } from "../hooks/usePresence";
+import { ToolbarProvider } from "../hooks/useToolbar";
 import styles from "./App.module.css";
 import { Canvas } from "./Canvas";
 import { PresenceBar } from "./PresenceBar";
-import { SharedCounter } from "./SharedCounter";
 import { Toolbar } from "./Toolbar";
 
 export function App(): JSX.Element {
@@ -21,34 +21,35 @@ export function App(): JSX.Element {
   const presenceState = usePresence();
 
   return (
-    <div className={styles.app}>
-      <header className={styles.header}>
-        <h1 className={styles.title}>CollabCanvas</h1>
-        <p className={styles.subtitle}>Real-time collaborative canvas MVP</p>
-        <div className={styles.userControls}>
-          <SignedOut>
-            <SignInButton mode="modal" fallbackRedirectUrl="/c/main" />
-          </SignedOut>
-          <SignedIn>
-            <UserButton userProfileUrl="/c/main" />
-          </SignedIn>
-        </div>
-        <PresenceBar
-          presence={presenceState.presence}
-          localPresence={presenceState.localPresence}
-          roomId={roomId}
-        />
-      </header>
+    <ToolbarProvider>
+      <div className={styles.app}>
+        <header className={styles.header}>
+          <h1 className={styles.title}>CollabCanvas</h1>
+          <p className={styles.subtitle}>Real-time collaborative canvas MVP</p>
+          <div className={styles.userControls}>
+            <SignedOut>
+              <SignInButton mode="modal" fallbackRedirectUrl="/c/main" />
+            </SignedOut>
+            <SignedIn>
+              <UserButton userProfileUrl="/c/main" />
+            </SignedIn>
+          </div>
+          <PresenceBar
+            presence={presenceState.presence}
+            localPresence={presenceState.localPresence}
+            roomId={roomId}
+          />
+        </header>
 
-      <Toolbar className={styles.toolbar} />
+        <Toolbar className={styles.toolbar} />
 
-      <main className={styles.main}>
-        <SharedCounter />
-        <Canvas
-          presence={presenceState.presence}
-          setPresence={presenceState.setPresence}
-        />
-      </main>
-    </div>
+        <main className={styles.main}>
+          <Canvas
+            presence={presenceState.presence}
+            setPresence={presenceState.setPresence}
+          />
+        </main>
+      </div>
+    </ToolbarProvider>
   );
 }

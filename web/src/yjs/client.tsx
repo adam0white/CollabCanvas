@@ -74,8 +74,28 @@ export function YjsProvider({
         params: token ? { token } : {},
       });
 
-      provider.on("status", ({ status }) => {
-        console.debug("yjs status", status);
+      provider.on("status", ({ status }: { status: string }) => {
+        console.log(`[Yjs] Status: ${status}`);
+      });
+
+      provider.on("connection-error", (event: Event) => {
+        console.error("[Yjs] Connection error:", event);
+      });
+
+      provider.on("connection-close", (event: CloseEvent | null) => {
+        if (event) {
+          console.warn("[Yjs] Connection closed:", {
+            code: event.code,
+            reason: event.reason,
+            wasClean: event.wasClean,
+          });
+        } else {
+          console.warn("[Yjs] Connection closed (no event)");
+        }
+      });
+
+      console.log(`[Yjs] Connecting to: ${serverUrl}/${resolvedRoomId}`, {
+        hasToken: !!token,
       });
 
       provider.connect();

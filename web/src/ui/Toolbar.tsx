@@ -1,20 +1,14 @@
 import clsx from "clsx";
-import { useState } from "react";
 
+import { useToolbar } from "../hooks/useToolbar";
 import styles from "./Toolbar.module.css";
-
-type Tool = "select" | "rectangle";
 
 type ToolbarProps = {
   className?: string;
 };
 
 export function Toolbar({ className }: ToolbarProps): JSX.Element {
-  const [activeTool, setActiveTool] = useState<Tool>("select");
-
-  const handleToolChange = (tool: Tool) => {
-    setActiveTool(tool);
-  };
+  const { activeTool, setActiveTool } = useToolbar();
 
   return (
     <nav className={clsx(styles.toolbar, className)} aria-label="Canvas tools">
@@ -23,7 +17,7 @@ export function Toolbar({ className }: ToolbarProps): JSX.Element {
         className={clsx(styles.toolButton, {
           [styles.toolButtonActive]: activeTool === "select",
         })}
-        onClick={() => handleToolChange("select")}
+        onClick={() => setActiveTool("select")}
       >
         <span aria-hidden>🖱️</span>
         Select
@@ -34,7 +28,7 @@ export function Toolbar({ className }: ToolbarProps): JSX.Element {
         className={clsx(styles.toolButton, {
           [styles.toolButtonActive]: activeTool === "rectangle",
         })}
-        onClick={() => handleToolChange("rectangle")}
+        onClick={() => setActiveTool("rectangle")}
       >
         <span aria-hidden>▭</span>
         Rectangle

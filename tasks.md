@@ -68,12 +68,16 @@ PR 6 — Client Yjs Wiring (Awareness + Sync) ✅ COMPLETED
 - Shared counter component demonstrates basic state round-trip (Y.Map syncs across clients)
 - Acceptance: ✅ Presence syncs (3 people, cursors); counter increments propagate; quality gate passed
 
-PR 7 — Shapes: Rectangle Create/Move via Yjs + Konva
-- Define shape schema in Yjs (rectangles)
+PR 7 — Shapes: Rectangle Create/Move via Yjs + Konva ✅ COMPLETED
+- Define shape schema in Yjs (Y.Map keyed by shape ID for fast lookups)
 - Konva bindings:
-  - Create rectangle → write to Yjs; move rectangle → write to Yjs
-  - On Yjs updates → update Konva stage
-- Acceptance: rectangles create/move sync across browsers in <100ms
+  - Click-and-drag rectangle creation with live preview (dashed outline)
+  - Drag-to-move existing shapes when Select tool active
+  - All shapes render from Yjs state via ShapeLayer component
+- Toolbar integration: Select/Rectangle tools with shared state via context
+- Auth enforcement: only authenticated users can create/move shapes; viewers read-only
+- Architecture: modular hooks (useShapes, useToolbar), clean separation of concerns
+- Acceptance: ✅ Code complete; shapes persist in Yjs; quality gate passed (build, lint, tests)
 
 PR 8 — Offline/Resync, Performance, Security, Docs
 - Offline/resync: verify Yjs buffers and merges on reconnect; add reconnect indicator

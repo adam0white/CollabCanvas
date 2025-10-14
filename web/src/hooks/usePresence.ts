@@ -23,7 +23,7 @@ export function usePresence(): PresenceHook {
   const awareness = useAwareness();
   const { user } = useUser();
 
-  const userId = user?.id ?? "guest";
+  const userId = user?.id ?? `guest-${awareness.clientID}`;
   const displayName = user?.fullName ?? user?.username ?? "Guest";
   const color = useMemo(() => randomColor(userId), [userId]);
 

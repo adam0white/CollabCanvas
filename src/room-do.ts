@@ -24,9 +24,14 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
 
   constructor(state: DurableObjectState, env: Env) {
     super(state, env);
+    console.log("[RoomDO] Constructor called");
 
     this.commitScheduler = createDebouncedCommit({
-      commit: () => this.storage.commit(),
+      commit: async () => {
+        console.log("[RoomDO] Committing to storage...");
+        await this.storage.commit();
+        console.log("[RoomDO] Commit complete");
+      },
       idleMs: ROOM_PERSIST_IDLE_MS,
       maxMs: ROOM_PERSIST_MAX_MS,
       waitUntil: (promise) => {
@@ -38,10 +43,12 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
     this.awareness.setLocalState({});
 
     this.awareness.on("update", () => {
+      // Awareness updates (cursors, presence) - scheduling commit without logging
       this.commitScheduler.schedule();
     });
 
-    this.doc.on("update", () => {
+    this.doc.on("update", (update: Uint8Array) => {
+      console.log("[RoomDO] Doc updated, size:", update.byteLength);
       this.commitScheduler.schedule();
     });
   }
@@ -65,14 +72,26 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
     const context = this.pendingConnections.shift();
     const role = context?.role ?? "viewer";
     this.connectionRoles.set(ws, role);
+    console.log(
+      "[RoomDO] WebSocket registered, role:",
+      role,
+      "total sockets:",
+      this.sockets.size,
+    );
   }
 
   protected override async unregisterWebSocket(ws: WebSocket): Promise<void> {
     this.sockets.delete(ws);
     this.connectionRoles.delete(ws);
+    console.log(
+      "[RoomDO] WebSocket unregistered, remaining sockets:",
+      this.sockets.size,
+    );
     await super.unregisterWebSocket(ws);
     if (this.sockets.size < 1) {
+      console.log("[RoomDO] Last socket disconnected, flushing...");
       await this.commitScheduler.flush();
+      console.log("[RoomDO] Flush complete");
     }
   }
 
