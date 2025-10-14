@@ -1,4 +1,4 @@
-export { RoomDO } from "./room-do.js";
+export { RoomDO } from "./room-do";
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -10,7 +10,7 @@ export default {
       });
     }
 
-    if (url.pathname === "/c/main") {
+    if (url.pathname === "/c/main" || url.pathname === "/c/main/") {
       const assetUrl = new URL(request.url);
       assetUrl.pathname = "/index.html";
       return env.ASSETS.fetch(new Request(assetUrl.toString(), request));
@@ -21,8 +21,11 @@ export default {
       request.headers.get("upgrade") === "websocket"
     ) {
       const roomId = url.searchParams.get("roomId") ?? "default";
-      const durableObject = env.RoomDO.get(env.RoomDO.idFromName(roomId));
-      return durableObject.fetch(request);
+      const id = env.RoomDO.idFromName(roomId);
+      const stub = env.RoomDO.get(id);
+      const targetUrl = new URL(`/rooms/${roomId}`, request.url);
+      const targetRequest = new Request(targetUrl.toString(), request);
+      return stub.fetch(targetRequest);
     }
 
     if (url.pathname === "/c/main/ws") {

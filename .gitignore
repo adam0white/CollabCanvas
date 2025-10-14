@@ -3,6 +3,7 @@ dist/
 .wrangler/
 .env
 .env.*
+npm-debug.log*
 coverage/
 *.log
 *.tsbuildinfo

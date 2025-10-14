@@ -1,19 +1,69 @@
-export class RoomDO implements DurableObject {
-  constructor(readonly state: DurableObjectState) {}
+import { YDurableObjects } from "y-durableobjects";
 
-  async fetch(request: Request): Promise<Response> {
-    if (request.headers.get("upgrade") === "websocket") {
-      const pair = new WebSocketPair();
-      const [client, server] = Object.values(pair);
+import {
+  createDebouncedCommit,
+  type DebouncedCommitController,
+} from "./utils/debounced-storage";
 
-      server.accept();
+export const ROOM_PERSIST_IDLE_MS = 500;
+export const ROOM_PERSIST_MAX_MS = 2000;
 
-      return new Response(null, {
-        status: 101,
-        webSocket: client,
-      });
+type DurableBindings = {
+  Bindings: Env;
+};
+
+export class RoomDO extends YDurableObjects<DurableBindings> {
+  private readonly commitScheduler: DebouncedCommitController;
+  private readonly sockets = new Set<WebSocket>();
+
+  constructor(state: DurableObjectState, env: Env) {
+    super(state, env);
+
+    this.commitScheduler = createDebouncedCommit({
+      commit: () => this.storage.commit(),
+      idleMs: ROOM_PERSIST_IDLE_MS,
+      maxMs: ROOM_PERSIST_MAX_MS,
+      waitUntil: (promise) => {
+        void this.state.waitUntil(promise);
+      },
+    });
+
+    this.doc.awareness.on("update", () => {
+      this.commitScheduler.schedule();
+    });
+  }
+
+  protected override async onStart(): Promise<void> {
+    await super.onStart();
+
+    this.doc.on("update", () => {
+      this.commitScheduler.schedule();
+    });
+  }
+
+  override async updateYDoc(update: Uint8Array): Promise<void> {
+    await super.updateYDoc(update);
+    this.commitScheduler.schedule();
+  }
+
+  protected override registerWebSocket(ws: WebSocket): void {
+    super.registerWebSocket(ws);
+    this.sockets.add(ws);
+  }
+
+  protected override async unregisterWebSocket(ws: WebSocket): Promise<void> {
+    this.sockets.delete(ws);
+    await super.unregisterWebSocket(ws);
+    if (this.sockets.size < 1) {
+      await this.commitScheduler.flush();
+    }
+  }
+
+  protected override async cleanup(): Promise<void> {
+    if (this.sockets.size < 1) {
+      await this.commitScheduler.flush();
     }
 
-    return new Response("Durable Object endpoint", { status: 200 });
+    await super.cleanup();
   }
 }
