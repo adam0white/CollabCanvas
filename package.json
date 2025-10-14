@@ -5,9 +5,12 @@
   "description": "Collaborative canvas MVP",
   "type": "module",
   "scripts": {
-    "build": "npm-run-all wrangler:types build:ts",
+    "build": "npm-run-all frontend:build wrangler:types build:ts",
     "build:ts": "tsc -p tsconfig.json",
     "dev": "npm-run-all wrangler:types dev:worker",
+    "frontend:build": "npm --prefix web run build",
+    "frontend:dev": "npm --prefix web run dev -- --host",
+    "frontend:test": "npm --prefix web run test",
     "test": "npm-run-all wrangler:types test:run",
     "lint": "biome check .",
     "format": "biome format .",

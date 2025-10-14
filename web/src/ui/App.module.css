@@ -1,0 +1,33 @@
+.app {
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  min-height: 100vh;
+  color: #0f172a;
+  background: radial-gradient(circle at top, #f8fafc, #e0f2fe);
+}
+
+.header {
+  padding: 2rem clamp(1rem, 4vw, 4rem) 1rem;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(1.75rem, 4vw, 2.75rem);
+  font-weight: 700;
+}
+
+.subtitle {
+  margin: 0;
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  color: rgba(15, 23, 42, 0.7);
+}
+
+.toolbar {
+  margin: 0 1.5rem;
+}
+
+.main {
+  padding: 1rem clamp(1rem, 4vw, 4rem) 3rem;
+}
