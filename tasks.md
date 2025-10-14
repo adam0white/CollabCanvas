@@ -86,6 +86,13 @@ PR 8 — Offline/Resync, Performance, Security, Docs
 - README: setup, architecture, deploy, troubleshooting; public URL; demo script outline
 - Acceptance: manual tests pass; deployment successful
 
+PR 9 — Cleanup, Refactor, Extendability
+- Cleanup: remove unused code, simplify imports
+- Refactor: extract reusable utils (debounce, snapshot/restore)
+- Check: React StrictMode in development should not occur in production
+- Add tests
+- Check CICD logs
+
 Notes
 - Awareness covers presence/cursors; no custom JSON channel required.
 - We chose Konva to avoid the tldraw ↔ Yjs binding risk in 24h.

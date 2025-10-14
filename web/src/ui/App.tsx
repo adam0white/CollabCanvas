@@ -6,6 +6,8 @@ import {
 } from "@clerk/clerk-react";
 import { usePresence } from "../hooks/usePresence";
 import { ToolbarProvider } from "../hooks/useToolbar";
+import { useShapes } from "../shapes/useShapes";
+import { useConnectionStatus } from "../yjs/client";
 import styles from "./App.module.css";
 import { Canvas } from "./Canvas";
 import { PresenceBar } from "./PresenceBar";
@@ -19,6 +21,11 @@ export function App(): JSX.Element {
   const roomId =
     new URL(window.location.href).searchParams.get("roomId") ?? "main";
   const presenceState = usePresence();
+  const connectionStatus = useConnectionStatus();
+  const { isLoading: shapesLoading } = useShapes();
+
+  // Show loading until both connected AND shapes are loaded
+  const isLoading = connectionStatus !== "connected" || shapesLoading;
 
   return (
     <ToolbarProvider>
@@ -44,6 +51,12 @@ export function App(): JSX.Element {
         <Toolbar className={styles.toolbar} />
 
         <main className={styles.main}>
+          {isLoading && (
+            <div className={styles.loadingOverlay}>
+              <div className={styles.loadingSpinner} />
+              <p>Connecting to canvas...</p>
+            </div>
+          )}
           <Canvas
             presence={presenceState.presence}
             setPresence={presenceState.setPresence}

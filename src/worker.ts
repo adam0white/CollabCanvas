@@ -101,36 +101,22 @@ async function authorizeRequest(
 
   const token = extractToken(request);
   if (!token) {
-    console.log("[Auth] No token provided, defaulting to viewer");
     return "viewer";
   }
 
   try {
-    // verifyToken returns the JWT payload directly (not wrapped in { claims: ... })
     const jwtPayload = await verifyToken(token, {
       secretKey: clerkSecretKey,
     });
 
-    console.log(
-      "[Auth] JWT payload:",
-      JSON.stringify({
-        hasPayload: !!jwtPayload,
-        payloadKeys: jwtPayload ? Object.keys(jwtPayload) : [],
-        sub: jwtPayload?.sub,
-      }),
-    );
-
-    // For MVP: Any authenticated user is an editor
-    // Unauthenticated users are viewers (read-only)
+    // For MVP: Any authenticated user is an editor, unauthenticated users are viewers
     if (jwtPayload?.sub) {
-      console.log("[Auth] Authenticated user:", jwtPayload.sub, "-> editor");
       return "editor";
     }
 
-    console.log("[Auth] No valid sub claim, defaulting to viewer");
     return "viewer";
   } catch (error) {
-    console.warn("[Auth] Failed to verify Clerk token:", error);
+    console.warn("[Auth] Token verification failed:", error);
     return "viewer";
   }
 }

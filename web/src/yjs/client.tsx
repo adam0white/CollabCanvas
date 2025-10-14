@@ -34,9 +34,12 @@ type ProviderContextValue = {
   roomId: string;
 };
 
+export type ConnectionStatus = "connecting" | "connected" | "disconnected";
+
 const DocContext = createContext<Doc | null>(null);
 const AwarenessContext = createContext<Awareness | null>(null);
 const RoomContext = createContext<string | null>(null);
+const ConnectionStatusContext = createContext<ConnectionStatus>("connecting");
 
 export function YjsProvider({
   children,
@@ -50,6 +53,7 @@ export function YjsProvider({
   const doc = useMemo(() => new Doc(), []);
   const awareness = useMemo(() => new Awareness(doc), [doc]);
   const providerRef = useRef<WebsocketProvider | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("connecting");
   const [contextValue] = useState<ProviderContextValue>(() => ({
     doc,
     awareness,
@@ -58,7 +62,6 @@ export function YjsProvider({
 
   useEffect(() => {
     let cancelled = false;
-    let provider: WebsocketProvider | null = null;
 
     const initialise = async () => {
       const token = await getToken().catch(() => null);
@@ -68,34 +71,28 @@ export function YjsProvider({
       const protocol = baseUrl.protocol === "https:" ? "wss" : "ws";
       const serverUrl = `${protocol}://${baseUrl.host}/c/main/ws`;
 
-      provider = new WebsocketProvider(serverUrl, resolvedRoomId, doc, {
+      const provider = new WebsocketProvider(serverUrl, resolvedRoomId, doc, {
         awareness,
         connect: false,
         params: token ? { token } : {},
       });
 
       provider.on("status", ({ status }: { status: string }) => {
-        console.log(`[Yjs] Status: ${status}`);
-      });
-
-      provider.on("connection-error", (event: Event) => {
-        console.error("[Yjs] Connection error:", event);
-      });
-
-      provider.on("connection-close", (event: CloseEvent | null) => {
-        if (event) {
-          console.warn("[Yjs] Connection closed:", {
-            code: event.code,
-            reason: event.reason,
-            wasClean: event.wasClean,
-          });
-        } else {
-          console.warn("[Yjs] Connection closed (no event)");
+        if (status === "connected") {
+          setConnectionStatus("connected");
+        } else if (status === "connecting") {
+          setConnectionStatus("connecting");
+        } else if (status === "disconnected") {
+          setConnectionStatus("disconnected");
         }
       });
 
-      console.log(`[Yjs] Connecting to: ${serverUrl}/${resolvedRoomId}`, {
-        hasToken: !!token,
+      provider.on("connection-error", () => {
+        setConnectionStatus("disconnected");
+      });
+
+      provider.on("connection-close", () => {
+        setConnectionStatus("disconnected");
       });
 
       provider.connect();
@@ -106,9 +103,14 @@ export function YjsProvider({
 
     return () => {
       cancelled = true;
-      providerRef.current?.destroy();
+      const provider = providerRef.current;
       providerRef.current = null;
-      provider?.destroy();
+      
+      // Destroy provider only if it exists
+      if (provider) {
+        provider.disconnect();
+        provider.destroy();
+      }
     };
   }, [awareness, doc, getToken, resolvedRoomId]);
 
@@ -143,7 +145,9 @@ export function YjsProvider({
     <DocContext.Provider value={contextValue.doc}>
       <AwarenessContext.Provider value={contextValue.awareness}>
         <RoomContext.Provider value={contextValue.roomId}>
-          {children}
+          <ConnectionStatusContext.Provider value={connectionStatus}>
+            {children}
+          </ConnectionStatusContext.Provider>
         </RoomContext.Provider>
       </AwarenessContext.Provider>
     </DocContext.Provider>
@@ -172,4 +176,8 @@ export function useRoomId(): string {
   const ctx = useContext(RoomContext);
   if (!ctx) throw new Error("useRoomId must be used within YjsProvider");
   return ctx;
+}
+
+export function useConnectionStatus(): ConnectionStatus {
+  return useContext(ConnectionStatusContext);
 }

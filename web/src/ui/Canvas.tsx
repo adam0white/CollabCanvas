@@ -1,7 +1,7 @@
 import type Konva from "konva";
 import type { KonvaEventObject } from "konva/lib/Node";
 import { useEffect, useRef, useState } from "react";
-import { Layer, Rect, Stage } from "react-konva";
+import { Group, Layer, Rect, Stage, Text } from "react-konva";
 import type { PresenceState } from "../hooks/usePresence";
 import { useToolbar } from "../hooks/useToolbar";
 import { ShapeLayer } from "../shapes/ShapeLayer";
@@ -31,30 +31,26 @@ export function Canvas({ presence, setPresence }: CanvasProps): JSX.Element {
     height: number;
   } | null>(null);
 
-  // Handle presence (cursor tracking)
+  // Ensure Stage is focused when tool changes and cleanup any pending drawing state
   useEffect(() => {
     const stage = stageRef.current;
-    if (!stage) return;
+    if (stage) {
+      // Get the underlying DOM element and focus it
+      const container = stage.container();
+      if (container) {
+        container.focus();
+      }
+    }
+    
+    // Clean up drawing state when switching tools
+    setIsDrawing(false);
+    setNewRect(null);
+  }, [activeTool]);
 
-    const handleMouseMove = () => {
-      const pointerPosition = stage.getPointerPosition();
-      if (!pointerPosition) return;
-      setPresence({ cursor: pointerPosition });
-    };
-
-    const handleMouseLeave = () => {
-      setPresence({ cursor: null });
-    };
-
-    stage.on("mousemove", handleMouseMove);
-    stage.on("mouseleave", handleMouseLeave);
-
-    return () => {
-      stage.off("mousemove", handleMouseMove);
-      stage.off("mouseleave", handleMouseLeave);
-      setPresence({ cursor: null });
-    };
-  }, [setPresence]);
+  // Handle cursor leaving canvas
+  const handleMouseLeave = () => {
+    setPresence({ cursor: null });
+  };
 
   // Handle rectangle creation (click-and-drag)
   const handleMouseDown = (e: KonvaEventObject<MouseEvent>) => {
@@ -79,20 +75,24 @@ export function Canvas({ presence, setPresence }: CanvasProps): JSX.Element {
   };
 
   const handleMouseMove = () => {
-    if (!isDrawing || activeTool !== "rectangle" || !newRect) return;
-
     const stage = stageRef.current;
     if (!stage) return;
 
     const pos = stage.getPointerPosition();
     if (!pos) return;
 
-    setNewRect({
-      x: newRect.x,
-      y: newRect.y,
-      width: pos.x - newRect.x,
-      height: pos.y - newRect.y,
-    });
+    // Always update cursor presence
+    setPresence({ cursor: pos });
+
+    // Update rectangle being drawn
+    if (isDrawing && activeTool === "rectangle" && newRect) {
+      setNewRect({
+        x: newRect.x,
+        y: newRect.y,
+        width: pos.x - newRect.x,
+        height: pos.y - newRect.y,
+      });
+    }
   };
 
   const handleMouseUp = (e: KonvaEventObject<MouseEvent>) => {
@@ -147,6 +147,7 @@ export function Canvas({ presence, setPresence }: CanvasProps): JSX.Element {
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
       >
         <Layer>
           {/* Render persisted shapes from Yjs */}
@@ -155,6 +156,7 @@ export function Canvas({ presence, setPresence }: CanvasProps): JSX.Element {
             canEdit={canEdit}
             selectedTool={activeTool}
             onShapeUpdate={updateShape}
+            onDragMove={(x, y) => setPresence({ cursor: { x, y } })}
           />
 
           {/* Render shape being drawn */}
@@ -171,19 +173,51 @@ export function Canvas({ presence, setPresence }: CanvasProps): JSX.Element {
             />
           )}
 
-          {/* Render remote cursors */}
+          {/* Render remote cursors with labels */}
           {remoteCursors.map((participant) => {
             if (!participant.cursor) return null;
+            const labelText = participant.displayName;
+            const labelWidth = labelText.length * 8 + 12; // Approximate width
+            
             return (
-              <Rect
+              <Group
                 key={`${participant.userId}-cursor`}
                 x={participant.cursor.x}
                 y={participant.cursor.y}
-                width={12}
-                height={12}
-                fill={participant.color}
-                cornerRadius={4}
-              />
+              >
+                {/* Cursor dot */}
+                <Rect
+                  x={0}
+                  y={0}
+                  width={12}
+                  height={12}
+                  fill={participant.color}
+                  cornerRadius={4}
+                />
+                {/* Label background */}
+                <Rect
+                  x={16}
+                  y={-2}
+                  width={labelWidth}
+                  height={20}
+                  fill={participant.color}
+                  cornerRadius={4}
+                  shadowColor="rgba(0, 0, 0, 0.3)"
+                  shadowBlur={4}
+                  shadowOffsetY={2}
+                />
+                {/* Name label text */}
+                <Text
+                  x={22}
+                  y={2}
+                  text={labelText}
+                  fontSize={12}
+                  fontFamily="system-ui, -apple-system, sans-serif"
+                  fill="#fff"
+                  shadowColor="rgba(0, 0, 0, 0.5)"
+                  shadowBlur={2}
+                />
+              </Group>
             );
           })}
         </Layer>

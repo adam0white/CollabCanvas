@@ -18,6 +18,7 @@ type ShapeLayerProps = {
   canEdit: boolean;
   selectedTool: "select" | "rectangle";
   onShapeUpdate: (id: string, updates: Partial<Shape>) => void;
+  onDragMove?: (x: number, y: number) => void;
 };
 
 export function ShapeLayer({
@@ -25,7 +26,17 @@ export function ShapeLayer({
   canEdit,
   selectedTool,
   onShapeUpdate,
+  onDragMove,
 }: ShapeLayerProps): JSX.Element {
+  const handleDragMove = (e: KonvaEventObject<DragEvent>) => {
+    if (!onDragMove) return;
+    const stage = e.target.getStage();
+    if (!stage) return;
+    const pos = stage.getPointerPosition();
+    if (!pos) return;
+    onDragMove(pos.x, pos.y);
+  };
+
   const handleDragEnd = (e: KonvaEventObject<DragEvent>, shape: Shape) => {
     if (!canEdit || selectedTool !== "select") return;
 
@@ -54,6 +65,7 @@ export function ShapeLayer({
               shadowBlur={12}
               shadowOpacity={0.15}
               draggable={canEdit && selectedTool === "select"}
+              onDragMove={handleDragMove}
               onDragEnd={(e) => handleDragEnd(e, shape)}
             />
           );

@@ -24,14 +24,9 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
 
   constructor(state: DurableObjectState, env: Env) {
     super(state, env);
-    console.log("[RoomDO] Constructor called");
 
     this.commitScheduler = createDebouncedCommit({
-      commit: async () => {
-        console.log("[RoomDO] Committing to storage...");
-        await this.storage.commit();
-        console.log("[RoomDO] Commit complete");
-      },
+      commit: () => this.storage.commit(),
       idleMs: ROOM_PERSIST_IDLE_MS,
       maxMs: ROOM_PERSIST_MAX_MS,
       waitUntil: (promise) => {
@@ -43,12 +38,10 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
     this.awareness.setLocalState({});
 
     this.awareness.on("update", () => {
-      // Awareness updates (cursors, presence) - scheduling commit without logging
       this.commitScheduler.schedule();
     });
 
-    this.doc.on("update", (update: Uint8Array) => {
-      console.log("[RoomDO] Doc updated, size:", update.byteLength);
+    this.doc.on("update", () => {
       this.commitScheduler.schedule();
     });
   }

@@ -17,6 +17,7 @@ import { createRectangle } from "./types";
 type UseShapesReturn = {
   shapes: Shape[];
   canEdit: boolean;
+  isLoading: boolean;
   createShape: (shape: Shape) => void;
   updateShape: (id: string, updates: Partial<Shape>) => void;
   deleteShape: (id: string) => void;
@@ -26,6 +27,7 @@ export function useShapes(): UseShapesReturn {
   const doc = useYDoc();
   const { isSignedIn } = useAuth();
   const [shapes, setShapes] = useState<Shape[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Sync Yjs shapes to local state
   useEffect(() => {
@@ -56,6 +58,7 @@ export function useShapes(): UseShapesReturn {
 
       console.log(`[Shapes] Rendering ${newShapes.length} shapes`);
       setShapes(newShapes);
+      setIsLoading(false); // Mark as loaded after first update
     };
 
     shapesMap.observe(updateShapes);
@@ -123,6 +126,7 @@ export function useShapes(): UseShapesReturn {
   return {
     shapes,
     canEdit: !!isSignedIn,
+    isLoading,
     createShape,
     updateShape,
     deleteShape,
