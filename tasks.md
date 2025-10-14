@@ -90,6 +90,7 @@ PR 9 — Cleanup, Refactor, Extendability
 - Cleanup: remove unused code, simplify imports
 - Refactor: extract reusable utils (debounce, snapshot/restore)
 - Check: React StrictMode in development should not occur in production
+- Check: Some chunks are larger than 500 kB after minification
 - Add tests
 - Check CICD logs
 
