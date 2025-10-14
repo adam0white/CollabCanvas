@@ -2,6 +2,38 @@ export { RoomDO } from "./room-do";
 
 import { verifyToken } from "@clerk/backend";
 
+/**
+ * Add security headers to responses
+ */
+function addSecurityHeaders(response: Response): Response {
+  const headers = new Headers(response.headers);
+
+  // Content Security Policy - allow inline scripts for Clerk and Vite
+  headers.set(
+    "Content-Security-Policy",
+    "default-src 'self'; " +
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://clerk.*.accounts.dev https://*.clerk.accounts.dev; " +
+      "style-src 'self' 'unsafe-inline'; " +
+      "img-src 'self' data: https:; " +
+      "connect-src 'self' wss: https:; " +
+      "font-src 'self' data:; " +
+      "frame-ancestors 'none'; " +
+      "base-uri 'self'; " +
+      "form-action 'self'",
+  );
+
+  // Additional security headers
+  headers.set("X-Content-Type-Options", "nosniff");
+  headers.set("X-Frame-Options", "DENY");
+  headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 export default {
   async fetch(
     request: Request,
@@ -11,17 +43,21 @@ export default {
     const url = new URL(request.url);
 
     if (url.pathname === "/health") {
-      return new Response("ok", {
-        headers: { "content-type": "text/plain" },
-      });
+      return addSecurityHeaders(
+        new Response("ok", {
+          headers: { "content-type": "text/plain" },
+        }),
+      );
     }
 
     if (url.pathname === "/clerk/config") {
-      return new Response(
-        JSON.stringify({ publishableKey: env.CLERK_PUBLISHABLE_KEY ?? "" }),
-        {
-          headers: { "content-type": "application/json" },
-        },
+      return addSecurityHeaders(
+        new Response(
+          JSON.stringify({ publishableKey: env.CLERK_PUBLISHABLE_KEY ?? "" }),
+          {
+            headers: { "content-type": "application/json" },
+          },
+        ),
       );
     }
 
@@ -51,7 +87,7 @@ export default {
         assetResponse,
       );
       response.headers.set("content-length", String(injected.length));
-      return response;
+      return addSecurityHeaders(response);
     }
 
     const canvasWsRoute = parseCanvasWebSocketRoute(url);

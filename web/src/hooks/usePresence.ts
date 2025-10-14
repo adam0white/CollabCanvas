@@ -39,6 +39,18 @@ const COLORS = [
 ];
 const UPDATE_INTERVAL_MS = 50;
 
+/**
+ * Sanitize display name to prevent XSS attacks
+ * Removes potentially dangerous characters and limits length
+ */
+function sanitizeDisplayName(name: string): string {
+  return name
+    .replace(/[<>'"&]/g, "") // Remove HTML-like characters
+    .replace(/\s+/g, " ") // Normalize whitespace
+    .trim()
+    .slice(0, 50); // Limit length
+}
+
 export function usePresence(): PresenceHook {
   const awareness = useAwareness();
   const { user } = useUser();
@@ -52,7 +64,8 @@ export function usePresence(): PresenceHook {
   // Calculate display name for authenticated users or guest number based on clientID
   const displayName = useMemo(() => {
     if (user?.fullName || user?.username) {
-      return user.fullName ?? user.username ?? "Guest";
+      const rawName = user.fullName ?? user.username ?? "Guest";
+      return sanitizeDisplayName(rawName);
     }
 
     // For guests, use a stable number derived from clientID

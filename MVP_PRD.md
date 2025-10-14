@@ -1,7 +1,7 @@
 ### CollabCanvas MVP PRD (24h)
 
 #### Document status
-- Owner: Abdul + AI pair
+- Owner: Adam + AI pair
 - Version: Final v1.1
 - Scope: First 24h MVP only (collaboration foundation). AI agent is out of scope for MVP and planned for next milestones.
 
