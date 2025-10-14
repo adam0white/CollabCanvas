@@ -11,6 +11,9 @@ import styles from "./Canvas.module.css";
 
 const CANVAS_WIDTH = 960;
 const CANVAS_HEIGHT = 600;
+const MIN_ZOOM = 0.1;
+const MAX_ZOOM = 5;
+const ZOOM_SPEED = 1.1;
 
 type CanvasProps = {
   presence: Map<number, PresenceState>;
@@ -31,6 +34,11 @@ export function Canvas({ presence, setPresence }: CanvasProps): JSX.Element {
     height: number;
   } | null>(null);
 
+  // State for pan and zoom
+  const [scale, setScale] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+
   // Ensure Stage is focused when tool changes and cleanup any pending drawing state
   useEffect(() => {
     const stage = stageRef.current;
@@ -47,89 +55,168 @@ export function Canvas({ presence, setPresence }: CanvasProps): JSX.Element {
     setNewRect(null);
   }, [activeTool]);
 
+  // Handle zoom with mouse wheel
+  const handleWheel = (e: KonvaEventObject<WheelEvent>) => {
+    e.evt.preventDefault();
+    
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    const oldScale = scale;
+    const pointer = stage.getPointerPosition();
+    if (!pointer) return;
+
+    // Calculate new scale
+    const delta = e.evt.deltaY;
+    const newScale = delta > 0 ? oldScale / ZOOM_SPEED : oldScale * ZOOM_SPEED;
+    const clampedScale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newScale));
+
+    // Calculate new position to zoom towards pointer
+    const mousePointTo = {
+      x: (pointer.x - position.x) / oldScale,
+      y: (pointer.y - position.y) / oldScale,
+    };
+
+    const newPos = {
+      x: pointer.x - mousePointTo.x * clampedScale,
+      y: pointer.y - mousePointTo.y * clampedScale,
+    };
+
+    setScale(clampedScale);
+    setPosition(newPos);
+  };
+
+  // Reset zoom and pan
+  const resetView = () => {
+    setScale(1);
+    setPosition({ x: 0, y: 0 });
+  };
+
   // Handle cursor leaving canvas
   const handleMouseLeave = () => {
     setPresence({ cursor: null });
   };
 
-  // Handle rectangle creation (click-and-drag)
+  // Handle mouse down for both drawing and panning
   const handleMouseDown = (e: KonvaEventObject<MouseEvent>) => {
-    if (activeTool !== "rectangle" || !canEdit) return;
-
-    // Only start drawing if clicking on the stage (not on a shape)
-    if (e.target !== e.target.getStage()) return;
-
     const stage = e.target.getStage();
     if (!stage) return;
 
-    const pos = stage.getPointerPosition();
-    if (!pos) return;
+    const clickedOnEmpty = e.target === stage;
 
-    setIsDrawing(true);
-    setNewRect({
-      x: pos.x,
-      y: pos.y,
-      width: 0,
-      height: 0,
-    });
+    // Handle rectangle creation
+    if (activeTool === "rectangle" && canEdit && clickedOnEmpty) {
+      const pos = stage.getPointerPosition();
+      if (!pos) return;
+
+      // Adjust for current zoom and pan
+      const adjustedPos = {
+        x: (pos.x - position.x) / scale,
+        y: (pos.y - position.y) / scale,
+      };
+
+      setIsDrawing(true);
+      setNewRect({
+        x: adjustedPos.x,
+        y: adjustedPos.y,
+        width: 0,
+        height: 0,
+      });
+      return;
+    }
+
+    // Handle panning (when clicking on empty space in select mode)
+    if (clickedOnEmpty && activeTool === "select") {
+      setIsPanning(true);
+      stage.container().style.cursor = "grabbing";
+    }
   };
 
-  const handleMouseMove = () => {
+  const handleMouseMove = (e: KonvaEventObject<MouseEvent>) => {
     const stage = stageRef.current;
     if (!stage) return;
 
     const pos = stage.getPointerPosition();
     if (!pos) return;
 
-    // Always update cursor presence
-    setPresence({ cursor: pos });
+    // Adjust cursor position for zoom and pan before broadcasting
+    const adjustedPos = {
+      x: (pos.x - position.x) / scale,
+      y: (pos.y - position.y) / scale,
+    };
+    setPresence({ cursor: adjustedPos });
+
+    // Handle panning
+    if (isPanning) {
+      const dx = e.evt.movementX;
+      const dy = e.evt.movementY;
+      setPosition({
+        x: position.x + dx,
+        y: position.y + dy,
+      });
+      return;
+    }
 
     // Update rectangle being drawn
     if (isDrawing && activeTool === "rectangle" && newRect) {
       setNewRect({
         x: newRect.x,
         y: newRect.y,
-        width: pos.x - newRect.x,
-        height: pos.y - newRect.y,
+        width: adjustedPos.x - newRect.x,
+        height: adjustedPos.y - newRect.y,
       });
     }
   };
 
   const handleMouseUp = (e: KonvaEventObject<MouseEvent>) => {
-    if (!isDrawing || activeTool !== "rectangle" || !newRect) return;
-
     const stage = e.target.getStage();
-    if (!stage) return;
 
-    const pos = stage.getPointerPosition();
-    if (!pos) return;
-
-    // Calculate final dimensions
-    const width = pos.x - newRect.x;
-    const height = pos.y - newRect.y;
-
-    // Only create if rectangle has minimum size
-    if (Math.abs(width) > 10 && Math.abs(height) > 10) {
-      // Normalize negative dimensions
-      const x = width < 0 ? pos.x : newRect.x;
-      const y = height < 0 ? pos.y : newRect.y;
-      const normalizedWidth = Math.abs(width);
-      const normalizedHeight = Math.abs(height);
-
-      // Create the rectangle shape
-      const rect = createRectangle(
-        x,
-        y,
-        normalizedWidth,
-        normalizedHeight,
-        "user", // Will be replaced by actual userId in useShapes
-      );
-      createShape(rect);
+    // Handle end of panning
+    if (isPanning) {
+      setIsPanning(false);
+      if (stage) {
+        stage.container().style.cursor = "default";
+      }
+      return;
     }
 
-    // Reset drawing state
-    setIsDrawing(false);
-    setNewRect(null);
+    // Handle end of rectangle drawing
+    if (isDrawing && activeTool === "rectangle" && newRect && stage) {
+      const pos = stage.getPointerPosition();
+      if (!pos) return;
+
+      const adjustedPos = {
+        x: (pos.x - position.x) / scale,
+        y: (pos.y - position.y) / scale,
+      };
+
+      // Calculate final dimensions
+      const width = adjustedPos.x - newRect.x;
+      const height = adjustedPos.y - newRect.y;
+
+      // Only create if rectangle has minimum size
+      if (Math.abs(width) > 10 && Math.abs(height) > 10) {
+        // Normalize negative dimensions
+        const x = width < 0 ? adjustedPos.x : newRect.x;
+        const y = height < 0 ? adjustedPos.y : newRect.y;
+        const normalizedWidth = Math.abs(width);
+        const normalizedHeight = Math.abs(height);
+
+        // Create the rectangle shape
+        const rect = createRectangle(
+          x,
+          y,
+          normalizedWidth,
+          normalizedHeight,
+          "user",
+        );
+        createShape(rect);
+      }
+
+      // Reset drawing state
+      setIsDrawing(false);
+      setNewRect(null);
+    }
   };
 
   const remoteCursors = Array.from(presence.values()).filter(
@@ -138,16 +225,49 @@ export function Canvas({ presence, setPresence }: CanvasProps): JSX.Element {
 
   return (
     <div className={styles.canvasWrapper}>
+      {/* Zoom controls */}
+      <div className={styles.zoomControls}>
+        <button
+          type="button"
+          onClick={() => setScale(Math.min(MAX_ZOOM, scale * ZOOM_SPEED))}
+          className={styles.zoomButton}
+          title="Zoom in"
+        >
+          +
+        </button>
+        <button
+          type="button"
+          onClick={resetView}
+          className={styles.zoomButton}
+          title="Reset zoom"
+        >
+          {Math.round(scale * 100)}%
+        </button>
+        <button
+          type="button"
+          onClick={() => setScale(Math.max(MIN_ZOOM, scale / ZOOM_SPEED))}
+          className={styles.zoomButton}
+          title="Zoom out"
+        >
+          −
+        </button>
+      </div>
+
       <Stage
         ref={stageRef}
         className={styles.stage}
         width={CANVAS_WIDTH}
         height={CANVAS_HEIGHT}
+        scaleX={scale}
+        scaleY={scale}
+        x={position.x}
+        y={position.y}
         tabIndex={0}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
+        onWheel={handleWheel}
       >
         <Layer>
           {/* Render persisted shapes from Yjs */}
@@ -156,7 +276,14 @@ export function Canvas({ presence, setPresence }: CanvasProps): JSX.Element {
             canEdit={canEdit}
             selectedTool={activeTool}
             onShapeUpdate={updateShape}
-            onDragMove={(x, y) => setPresence({ cursor: { x, y } })}
+            onDragMove={(screenX, screenY) => {
+              // Adjust screen coordinates to canvas space for presence
+              const adjustedPos = {
+                x: (screenX - position.x) / scale,
+                y: (screenY - position.y) / scale,
+              };
+              setPresence({ cursor: adjustedPos });
+            }}
           />
 
           {/* Render shape being drawn */}
