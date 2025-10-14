@@ -2,6 +2,11 @@ name = "collabcanvas"
 main = "src/worker.ts"
 compatibility_date = "2025-10-13"
 compatibility_flags = ["nodejs_compat"]
+workers_dev = false
+
+[[routes]]
+pattern = "canvas.adamwhite.work"
+custom_domain = true
 
 [assets]
 binding = "ASSETS"
@@ -18,6 +23,3 @@ new_classes = ["RoomDO"]
 
 [vars]
 CLERK_PUBLISHABLE_KEY = "pk_test_c21pbGluZy1jaGlja2VuLTUyLmNsZXJrLmFjY291bnRzLmRldiQ"
-# Placeholder for type generation - actual secret set via `wrangler secret put`
-CLERK_SECRET_KEY = ""
-

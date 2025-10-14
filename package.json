@@ -5,7 +5,7 @@
   "description": "Collaborative canvas MVP",
   "type": "module",
   "scripts": {
-    "build": "npm-run-all frontend:install frontend:build wrangler:types build:ts",
+    "build": "npm-run-all frontend:install frontend:build build:ts",
     "build:ts": "tsc -p tsconfig.json",
     "dev": "npm-run-all wrangler:types dev:worker",
     "frontend:install": "npm --prefix web ci",

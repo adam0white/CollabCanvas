@@ -1,7 +1,10 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.2.6/schema.json",
+  "files": {
+    "includes": ["**", "!worker-configuration.d.ts"]
+  },
   "linter": {
-    "enabled": true
+    "includes": ["**", "!worker-configuration.d.ts"]
   },
   "formatter": {
     "enabled": true,

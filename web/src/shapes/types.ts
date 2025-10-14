@@ -15,6 +15,7 @@ export type BaseShape = {
   type: ShapeType;
   x: number;
   y: number;
+  rotation?: number; // Rotation in degrees
   createdBy: string;
   createdAt: number;
 };

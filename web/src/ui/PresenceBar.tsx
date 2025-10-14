@@ -44,6 +44,12 @@ export function PresenceBar({ presence }: PresenceBarProps): JSX.Element {
 }
 
 function initials(name: string): string {
+  // Special handling for guest users - just show the number
+  if (name.startsWith("Guest ")) {
+    const number = name.replace("Guest ", "");
+    return number;
+  }
+
   const parts = name.split(" ").filter(Boolean);
   if (parts.length === 0) return "?";
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();

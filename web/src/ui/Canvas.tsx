@@ -165,6 +165,11 @@ export function Canvas({ presence, setPresence }: CanvasProps): JSX.Element {
 
     const clickedOnEmpty = e.target === stage;
 
+    // Deselect shape when clicking on empty canvas
+    if (clickedOnEmpty && selectedShapeId) {
+      setSelectedShapeId(null);
+    }
+
     // Handle rectangle creation (for authenticated users, anywhere on canvas)
     if (activeTool === "rectangle" && canEdit) {
       const pos = stage.getPointerPosition();

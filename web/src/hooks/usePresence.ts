@@ -49,28 +49,16 @@ export function usePresence(): PresenceHook {
     new Map(),
   );
 
-  // Calculate guest number if not authenticated
-  // Depends on presenceMap so it updates when guests join/leave
+  // Calculate display name for authenticated users or guest number based on clientID
   const displayName = useMemo(() => {
     if (user?.fullName || user?.username) {
       return user.fullName ?? user.username ?? "Guest";
     }
 
-    // For guests, assign number based on clientID order
-    const allClientIds = Array.from(awareness.getStates().keys());
-    const guestClientIds = allClientIds
-      .filter((id) => {
-        const state = awareness.getStates().get(id);
-        const presence = state?.presence as PresenceState | undefined;
-        return presence?.userId?.startsWith("guest-");
-      })
-      .sort((a, b) => a - b);
-
-    const guestIndex = guestClientIds.indexOf(awareness.clientID);
-    const guestNumber = guestIndex >= 0 ? guestIndex + 1 : 1;
-
-    return `Guest (${guestNumber})`;
-  }, [user, awareness]); // Updates when user changes or component remounts
+    // For guests, use a stable number derived from clientID
+    // This ensures each guest has a consistent identity without recalculating
+    return `Guest ${(awareness.clientID % 100) + 1}`;
+  }, [user, awareness.clientID]);
 
   const color = useMemo(() => randomColor(userId), [userId]);
   const imageUrl = user?.imageUrl;

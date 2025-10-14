@@ -65,26 +65,22 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
     const context = this.pendingConnections.shift();
     const role = context?.role ?? "viewer";
     this.connectionRoles.set(ws, role);
-    console.log(
-      "[RoomDO] WebSocket registered, role:",
-      role,
-      "total sockets:",
-      this.sockets.size,
-    );
+    // Log only role assignments, not every socket
+    if (role === "editor") {
+      console.log(
+        "[RoomDO] Editor connected, total sockets:",
+        this.sockets.size,
+      );
+    }
   }
 
   protected override async unregisterWebSocket(ws: WebSocket): Promise<void> {
     this.sockets.delete(ws);
     this.connectionRoles.delete(ws);
-    console.log(
-      "[RoomDO] WebSocket unregistered, remaining sockets:",
-      this.sockets.size,
-    );
     await super.unregisterWebSocket(ws);
     if (this.sockets.size < 1) {
-      console.log("[RoomDO] Last socket disconnected, flushing...");
+      // Flush updates when last socket disconnects
       await this.commitScheduler.flush();
-      console.log("[RoomDO] Flush complete");
     }
   }
 

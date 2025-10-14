@@ -40,6 +40,7 @@ export function ShapeLayer({
   const [hoveredShapeId, setHoveredShapeId] = useState<string | null>(null);
   const transformerRef = useRef<Konva.Transformer | null>(null);
   const shapeRefs = useRef<{ [key: string]: Konva.Shape | null }>({});
+  const lastTransformUpdateRef = useRef(0);
 
   // Attach transformer to selected shape
   useEffect(() => {
@@ -97,6 +98,28 @@ export function ShapeLayer({
     delete lastDragUpdateRef.current[shape.id];
   };
 
+  const handleTransform = () => {
+    // Update cursor position during transform (throttled)
+    if (!onDragMove) return;
+
+    const now = performance.now();
+    if (now - lastTransformUpdateRef.current < DRAG_UPDATE_INTERVAL_MS) {
+      return;
+    }
+    lastTransformUpdateRef.current = now;
+
+    const transformer = transformerRef.current;
+    if (!transformer) return;
+
+    const stage = transformer.getStage();
+    if (!stage) return;
+
+    const pos = stage.getPointerPosition();
+    if (pos) {
+      onDragMove(pos.x, pos.y);
+    }
+  };
+
   const handleTransformEnd = (shape: Shape) => {
     if (!canEdit || selectedTool !== "select") return;
 
@@ -115,6 +138,7 @@ export function ShapeLayer({
       y: node.y(),
       width: Math.max(5, node.width() * scaleX),
       height: Math.max(5, node.height() * scaleY),
+      rotation: node.rotation(),
     });
   };
 
@@ -142,6 +166,7 @@ export function ShapeLayer({
               y={shape.y}
               width={shape.width}
               height={shape.height}
+              rotation={shape.rotation ?? 0}
               fill={shape.fill}
               stroke={
                 isSelected
@@ -203,6 +228,7 @@ export function ShapeLayer({
             "bottom-left",
             "bottom-right",
           ]}
+          onTransform={handleTransform}
         />
       )}
     </>
