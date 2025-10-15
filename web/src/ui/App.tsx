@@ -24,8 +24,9 @@ export function App(): JSX.Element {
   const connectionStatus = useConnectionStatus();
   const { isLoading: shapesLoading } = useShapes();
 
-  // Show loading until both connected AND shapes are loaded
-  const isLoading = connectionStatus !== "connected" || shapesLoading;
+  // Show loading only on initial load (when shapes are loading)
+  // Don't block the UI during reconnection - show connection status badge instead
+  const isLoading = shapesLoading;
 
   // Map connection status to display text
   const connectionStatusText = {

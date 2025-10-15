@@ -1,3 +1,23 @@
+/**
+ * RoomDO - Durable Object for Real-time Collaboration
+ *
+ * Built on top of y-durableobjects for CRDT synchronization.
+ *
+ * Features:
+ * - Yjs document sync across multiple clients
+ * - Awareness protocol for presence (cursors, user info)
+ * - Debounced persistence (500ms idle, 2s max)
+ * - Role-based access control (editor/viewer)
+ * - Automatic cleanup on disconnect
+ *
+ * Message Flow:
+ * 1. WebSocket upgrade → registerWebSocket → assign role
+ * 2. Client sends Yjs messages (Sync/Awareness)
+ * 3. Viewers blocked from document updates
+ * 4. Messages broadcast to other clients
+ * 5. Changes persisted to Durable Object storage
+ */
+
 import { createDecoder, readVarUint, readVarUint8Array } from "lib0/decoding";
 import { YDurableObjects } from "y-durableobjects";
 import type { Awareness } from "y-protocols/awareness";
@@ -65,13 +85,6 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
     const context = this.pendingConnections.shift();
     const role = context?.role ?? "viewer";
     this.connectionRoles.set(ws, role);
-    // Log only role assignments, not every socket
-    if (role === "editor") {
-      console.log(
-        "[RoomDO] Editor connected, total sockets:",
-        this.sockets.size,
-      );
-    }
   }
 
   protected override async unregisterWebSocket(ws: WebSocket): Promise<void> {

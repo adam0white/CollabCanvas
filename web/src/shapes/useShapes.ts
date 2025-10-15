@@ -35,14 +35,11 @@ export function useShapes(): UseShapesReturn {
 
     const updateShapes = () => {
       const newShapes: Shape[] = [];
-      console.log(`[Shapes] Y.Map has ${shapesMap.size} entries`);
 
       for (const [id, value] of shapesMap.entries()) {
         // Y.Map stores values - could be Y.Map or plain object after serialization
         const shapeData =
           value instanceof Map ? Object.fromEntries(value.entries()) : value;
-
-        console.log(`[Shapes] Processing shape ${id}:`, shapeData);
 
         if (
           typeof shapeData === "object" &&
@@ -56,7 +53,6 @@ export function useShapes(): UseShapesReturn {
         }
       }
 
-      console.log(`[Shapes] Rendering ${newShapes.length} shapes`);
       setShapes(newShapes);
       setIsLoading(false); // Mark as loaded after first update
     };
@@ -93,9 +89,7 @@ export function useShapes(): UseShapesReturn {
       createdAt: shape.createdAt,
     };
 
-    console.log("[Shapes] Creating shape:", shapeData);
     shapesMap.set(shape.id, shapeData);
-    console.log(`[Shapes] Y.Map now has ${shapesMap.size} entries`);
   };
 
   const updateShape = (id: string, updates: Partial<Shape>) => {

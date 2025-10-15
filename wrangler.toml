@@ -22,4 +22,6 @@ tag = "v1"
 new_classes = ["RoomDO"]
 
 [vars]
+# TODO: Replace with production Clerk key (pk_live_...) before deploying to production
+# Development key is fine for testing, but production should use a live key
 CLERK_PUBLISHABLE_KEY = "pk_test_c21pbGluZy1jaGlja2VuLTUyLmNsZXJrLmFjY291bnRzLmRldiQ"

@@ -78,26 +78,63 @@ export function YjsProvider({
         params: token ? { token } : {},
       });
 
+      // Track all connection state changes
       provider.on("status", ({ status }: { status: string }) => {
         if (status === "connected") {
           setConnectionStatus("connected");
         } else if (status === "connecting") {
           setConnectionStatus("connecting");
-        } else if (status === "disconnected") {
+        } else {
           setConnectionStatus("disconnected");
         }
       });
 
-      provider.on("connection-error", () => {
-        setConnectionStatus("disconnected");
+      // Sync event is more reliable for detecting when fully connected
+      // Especially important after reconnection
+      provider.on("sync", (isSynced: boolean) => {
+        if (isSynced) {
+          setConnectionStatus("connected");
+        }
       });
 
-      provider.on("connection-close", () => {
+      provider.on(
+        "connection-error",
+        (_event: Event, _provider: WebsocketProvider) => {
+          setConnectionStatus("disconnected");
+        },
+      );
+
+      provider.on(
+        "connection-close",
+        (_event: CloseEvent | null, _provider: WebsocketProvider) => {
+          setConnectionStatus("disconnected");
+        },
+      );
+
+      // Monitor browser online/offline events
+      const handleOnline = () => {
+        // Force disconnect then reconnect to ensure clean connection
+        // The WebSocket might still appear "connected" but be dead after offline
+        if (provider) {
+          provider.disconnect();
+          provider.shouldConnect = true;
+          provider.connect();
+        }
+      };
+
+      const handleOffline = () => {
         setConnectionStatus("disconnected");
-      });
+      };
+
+      window.addEventListener("online", handleOnline);
+      window.addEventListener("offline", handleOffline);
 
       provider.connect();
       providerRef.current = provider;
+
+      // Store event handlers for cleanup
+      (provider as any)._onlineHandler = handleOnline;
+      (provider as any)._offlineHandler = handleOffline;
     };
 
     void initialise();
@@ -107,8 +144,14 @@ export function YjsProvider({
       const provider = providerRef.current;
       providerRef.current = null;
 
-      // Destroy provider only if it exists
+      // Clean up browser event listeners
       if (provider) {
+        const onlineHandler = (provider as any)._onlineHandler;
+        const offlineHandler = (provider as any)._offlineHandler;
+        if (onlineHandler) window.removeEventListener("online", onlineHandler);
+        if (offlineHandler)
+          window.removeEventListener("offline", offlineHandler);
+
         provider.disconnect();
         provider.destroy();
       }

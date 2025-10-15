@@ -1,9 +1,22 @@
+/**
+ * CollabCanvas Worker - Main Entry Point
+ *
+ * Responsibilities:
+ * - Route static assets (SPA) and API endpoints
+ * - Handle WebSocket upgrades for real-time collaboration
+ * - JWT authentication and role-based access control
+ * - Security headers (CSP, X-Frame-Options, etc.)
+ */
+
 export { RoomDO } from "./room-do";
 
 import { verifyToken } from "@clerk/backend";
 
 /**
- * Add security headers to responses
+ * Adds security headers to HTTP responses
+ * - Content Security Policy (CSP) to prevent XSS
+ * - X-Frame-Options to prevent clickjacking
+ * - Referrer-Policy for privacy
  */
 function addSecurityHeaders(response: Response): Response {
   const headers = new Headers(response.headers);
@@ -122,11 +135,18 @@ export default {
   },
 };
 
+/**
+ * Authorizes a request and returns the user's role
+ *
+ * @param request - Incoming HTTP request
+ * @param env - Worker environment with Clerk secret
+ * @returns "editor" for authenticated users, "viewer" for guests
+ */
 async function authorizeRequest(
   request: Request,
   env: Env,
   _ctx: ExecutionContext,
-): Promise<string> {
+): Promise<"editor" | "viewer"> {
   const clerkSecretKey = env.CLERK_SECRET_KEY;
   if (!clerkSecretKey) {
     console.warn(
@@ -157,6 +177,13 @@ async function authorizeRequest(
   }
 }
 
+/**
+ * Extracts JWT token from request
+ * Checks Authorization header first, then falls back to query parameter
+ *
+ * @param request - Incoming HTTP request
+ * @returns JWT token string or null if not found
+ */
 function extractToken(request: Request): string | null {
   const url = new URL(request.url);
   const authHeader = request.headers.get("Authorization");
