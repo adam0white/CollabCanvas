@@ -47,7 +47,7 @@ export function YjsProvider({
 }: {
   children: React.ReactNode;
   roomId?: string;
-}): JSX.Element {
+}): React.JSX.Element {
   const resolvedRoomId = roomId ?? resolveRoomId();
   const { getToken } = useAuth();
   const doc = useMemo(() => new Doc(), []);

@@ -7,7 +7,7 @@ type PresenceBarProps = {
   localPresence: PresenceState | null;
 };
 
-export function PresenceBar({ presence }: PresenceBarProps): JSX.Element {
+export function PresenceBar({ presence }: PresenceBarProps): React.JSX.Element {
   if (presence.size === 0) {
     return <div className={styles.presenceText}>No one else is here yet.</div>;
   }

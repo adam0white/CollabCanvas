@@ -35,7 +35,7 @@ export function ShapeLayer({
   onShapeSelect,
   onShapeUpdate,
   onDragMove,
-}: ShapeLayerProps): JSX.Element {
+}: ShapeLayerProps): React.JSX.Element {
   const lastDragUpdateRef = useRef<{ [key: string]: number }>({});
   const [hoveredShapeId, setHoveredShapeId] = useState<string | null>(null);
   const transformerRef = useRef<Konva.Transformer | null>(null);

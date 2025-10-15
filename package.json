@@ -37,7 +37,7 @@
   "homepage": "https://github.com/adam0white/CollabCanvas#readme",
   "devDependencies": {
     "@biomejs/biome": "^2.2.6",
-    "@cloudflare/vitest-pool-workers": "^0.8.71",
+    "@cloudflare/vitest-pool-workers": "^0.9.13",
     "@types/node": "^24.7.2",
     "npm-run-all": "^4.1.5",
     "typescript": "^5.9.3",
@@ -45,7 +45,7 @@
     "wrangler": "^4.42.2"
   },
   "dependencies": {
-    "@clerk/backend": "^1.5.1",
+    "@clerk/backend": "^2.18.0",
     "y-durableobjects": "^1.0.5",
     "y-protocols": "^1.0.6",
     "y-websocket": "^3.0.0",

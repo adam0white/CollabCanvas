@@ -8,7 +8,7 @@ type ToolbarProps = {
   className?: string;
 };
 
-export function Toolbar({ className }: ToolbarProps): JSX.Element {
+export function Toolbar({ className }: ToolbarProps): React.JSX.Element {
   const { activeTool, setActiveTool } = useToolbar();
   const { isSignedIn } = useAuth();
 

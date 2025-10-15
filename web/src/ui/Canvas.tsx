@@ -18,7 +18,7 @@ type CanvasProps = {
   setPresence: (state: Partial<PresenceState>) => void;
 };
 
-export function Canvas({ presence, setPresence }: CanvasProps): JSX.Element {
+export function Canvas({ presence, setPresence }: CanvasProps): React.JSX.Element {
   const stageRef = useRef<Konva.Stage | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { activeTool } = useToolbar();

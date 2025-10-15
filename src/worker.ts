@@ -74,35 +74,7 @@ export default {
       );
     }
 
-    if (url.pathname === "/c/main" || url.pathname === "/c/main/") {
-      const assetUrl = new URL(request.url);
-      assetUrl.pathname = "/index.html";
-      const assetRequest = new Request(assetUrl.toString(), {
-        method: "GET",
-        headers: request.headers,
-      });
-      const assetResponse = await env.ASSETS.fetch(assetRequest);
-
-      const contentType = assetResponse.headers.get("content-type") ?? "";
-      if (!contentType.includes("text/html")) {
-        return assetResponse;
-      }
-
-      const publishableKey = env.CLERK_PUBLISHABLE_KEY ?? "";
-      const html = await assetResponse.text();
-      const injected = html.replace(
-        "</head>",
-        `<script>window.__CLERK_PUBLISHABLE_KEY__=${JSON.stringify(publishableKey)};</script></head>`,
-      );
-
-      const response = new Response(
-        request.method === "HEAD" ? null : injected,
-        assetResponse,
-      );
-      response.headers.set("content-length", String(injected.length));
-      return addSecurityHeaders(response);
-    }
-
+    // Handle WebSocket routes
     const canvasWsRoute = parseCanvasWebSocketRoute(url);
     if (canvasWsRoute) {
       if (request.headers.get("upgrade") !== "websocket") {
@@ -131,7 +103,34 @@ export default {
       return stub.fetch(targetRequest);
     }
 
-    return new Response("Not Found", { status: 404 });
+    // Serve SPA for all other routes (let React Router handle client-side routing)
+    // This includes /c/main, /privacy, /terms, and any other app routes
+    const assetUrl = new URL(request.url);
+    assetUrl.pathname = "/index.html";
+    const assetRequest = new Request(assetUrl.toString(), {
+      method: "GET",
+      headers: request.headers,
+    });
+    const assetResponse = await env.ASSETS.fetch(assetRequest);
+
+    const contentType = assetResponse.headers.get("content-type") ?? "";
+    if (!contentType.includes("text/html")) {
+      return assetResponse;
+    }
+
+    const publishableKey = env.CLERK_PUBLISHABLE_KEY ?? "";
+    const html = await assetResponse.text();
+    const injected = html.replace(
+      "</head>",
+      `<script>window.__CLERK_PUBLISHABLE_KEY__=${JSON.stringify(publishableKey)};</script></head>`,
+    );
+
+    const response = new Response(
+      request.method === "HEAD" ? null : injected,
+      assetResponse,
+    );
+    response.headers.set("content-length", String(injected.length));
+    return addSecurityHeaders(response);
   },
 };
 

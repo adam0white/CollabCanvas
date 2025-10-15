@@ -4,7 +4,9 @@
 
 CollabCanvas is a production-ready MVP demonstrating real-time collaboration with CRDT synchronization, role-based access control, and a modern web UI. Built incrementally through focused pull requests to maintain deployability at every step.
 
-🔗 **Live Demo**: https://canvas.adamwhite.work/
+🔗 **Live Demo**: https://canvas.adamwhite.work/  
+📜 **Privacy Policy**: https://canvas.adamwhite.work/privacy  
+📋 **Terms of Service**: https://canvas.adamwhite.work/terms
 
 ---
 

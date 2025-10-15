@@ -24,7 +24,7 @@ export function ToolbarProvider({
   children,
 }: {
   children: ReactNode;
-}): JSX.Element {
+}): React.JSX.Element {
   const [activeTool, setActiveTool] = useState<Tool>("select");
 
   const value = useMemo(() => ({ activeTool, setActiveTool }), [activeTool]);

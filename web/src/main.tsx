@@ -1,10 +1,13 @@
 import { ClerkProvider } from "@clerk/clerk-react";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 import "./index.css";
 
 import { App } from "./ui/App";
+import { PrivacyPolicy } from "./ui/PrivacyPolicy";
+import { TermsOfService } from "./ui/TermsOfService";
 import { YjsProvider } from "./yjs/client";
 
 async function bootstrap(): Promise<void> {
@@ -24,11 +27,22 @@ async function bootstrap(): Promise<void> {
 
   createRoot(rootElement).render(
     <StrictMode>
-      <ClerkProvider publishableKey={publishableKey}>
-        <YjsProvider>
-          <App />
-        </YjsProvider>
-      </ClerkProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<TermsOfService />} />
+          <Route
+            path="*"
+            element={
+              <ClerkProvider publishableKey={publishableKey}>
+                <YjsProvider>
+                  <App />
+                </YjsProvider>
+              </ClerkProvider>
+            }
+          />
+        </Routes>
+      </BrowserRouter>
     </StrictMode>,
   );
 }

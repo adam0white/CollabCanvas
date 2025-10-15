@@ -10,10 +10,11 @@ import { useShapes } from "../shapes/useShapes";
 import { useConnectionStatus } from "../yjs/client";
 import styles from "./App.module.css";
 import { Canvas } from "./Canvas";
+import { Footer } from "./Footer";
 import { PresenceBar } from "./PresenceBar";
 import { Toolbar } from "./Toolbar";
 
-export function App(): JSX.Element {
+export function App(): React.JSX.Element {
   if (typeof window === "undefined") {
     throw new Error("App should only be rendered in a browser environment.");
   }
@@ -88,6 +89,8 @@ export function App(): JSX.Element {
             setPresence={presenceState.setPresence}
           />
         </main>
+
+        <Footer />
       </div>
     </ToolbarProvider>
   );
