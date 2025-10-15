@@ -53,6 +53,8 @@ export function YjsProvider({
   const doc = useMemo(() => new Doc(), []);
   const awareness = useMemo(() => new Awareness(doc), [doc]);
   const providerRef = useRef<WebsocketProvider | null>(null);
+  const onlineHandlerRef = useRef<(() => void) | null>(null);
+  const offlineHandlerRef = useRef<(() => void) | null>(null);
   const [connectionStatus, setConnectionStatus] =
     useState<ConnectionStatus>("connecting");
   const [contextValue] = useState<ProviderContextValue>(() => ({
@@ -129,12 +131,25 @@ export function YjsProvider({
       window.addEventListener("online", handleOnline);
       window.addEventListener("offline", handleOffline);
 
-      provider.connect();
-      providerRef.current = provider;
+      // Wait for page to be fully loaded before connecting
+      // Prevents initial connection drop during page load
+      const connectWhenReady = () => {
+        if (!cancelled) {
+          provider.connect();
+        }
+      };
 
-      // Store event handlers for cleanup
-      (provider as any)._onlineHandler = handleOnline;
-      (provider as any)._offlineHandler = handleOffline;
+      if (document.readyState === "complete") {
+        // Page already loaded, connect after small delay for stability
+        setTimeout(connectWhenReady, 100);
+      } else {
+        // Wait for page load, then connect
+        window.addEventListener("load", connectWhenReady, { once: true });
+      }
+
+      providerRef.current = provider;
+      onlineHandlerRef.current = handleOnline;
+      offlineHandlerRef.current = handleOffline;
     };
 
     void initialise();
@@ -146,15 +161,19 @@ export function YjsProvider({
 
       // Clean up browser event listeners
       if (provider) {
-        const onlineHandler = (provider as any)._onlineHandler;
-        const offlineHandler = (provider as any)._offlineHandler;
-        if (onlineHandler) window.removeEventListener("online", onlineHandler);
-        if (offlineHandler)
-          window.removeEventListener("offline", offlineHandler);
+        if (onlineHandlerRef.current) {
+          window.removeEventListener("online", onlineHandlerRef.current);
+        }
+        if (offlineHandlerRef.current) {
+          window.removeEventListener("offline", offlineHandlerRef.current);
+        }
 
         provider.disconnect();
         provider.destroy();
       }
+
+      onlineHandlerRef.current = null;
+      offlineHandlerRef.current = null;
     };
   }, [awareness, doc, getToken, resolvedRoomId]);
 
