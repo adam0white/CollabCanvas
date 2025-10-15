@@ -27,6 +27,7 @@ function addSecurityHeaders(response: Response): Response {
     "default-src 'self'; " +
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.clerk.accounts.dev https://clerk.adamwhite.work https://static.cloudflareinsights.com; " +
       "script-src-elem 'self' 'unsafe-inline' https://*.clerk.accounts.dev https://clerk.adamwhite.work https://static.cloudflareinsights.com; " +
+      "worker-src 'self' blob:; " +
       "style-src 'self' 'unsafe-inline'; " +
       "img-src 'self' data: https:; " +
       "media-src 'self' data:; " +
