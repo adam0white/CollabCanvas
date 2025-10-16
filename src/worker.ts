@@ -464,7 +464,9 @@ function parseSimpleCommand(prompt: string): {
   }
 
   // Pattern: "move shape [id] to x, y"
-  const moveMatch = lower.match(/move\s+shape\s+([a-f0-9-]+)\s+to\s+(\d+)\s*,\s*(\d+)/);
+  const moveMatch = lower.match(
+    /move\s+shape\s+([a-f0-9-]+)\s+to\s+(\d+)\s*,\s*(\d+)/,
+  );
   if (moveMatch) {
     const [, shapeId, xStr, yStr] = moveMatch;
     return [
@@ -475,6 +477,82 @@ function parseSimpleCommand(prompt: string): {
           x: Number.parseInt(xStr, 10),
           y: Number.parseInt(yStr, 10),
         },
+      },
+    ];
+  }
+
+  // Pattern: "delete shape [id]" or "delete all [color] shapes"
+  const deleteMatch = lower.match(/delete\s+(?:shape\s+)?([a-f0-9-]+)/);
+  if (deleteMatch) {
+    const [, shapeId] = deleteMatch;
+    return [
+      {
+        name: "deleteShape",
+        parameters: { shapeId },
+      },
+    ];
+  }
+
+  // Pattern: "make [shape-id] [color]" or "change [shape-id] to [color]"
+  const colorMatch = lower.match(
+    /(?:make|change)\s+([a-f0-9-]+)\s+(?:to\s+)?(\w+)/,
+  );
+  if (colorMatch) {
+    const [, shapeId, color] = colorMatch;
+    return [
+      {
+        name: "updateShapeStyle",
+        parameters: { shapeId, fill: color },
+      },
+    ];
+  }
+
+  // Pattern: "rotate [shape-id] [degrees] degrees"
+  const rotateMatch = lower.match(/rotate\s+([a-f0-9-]+)\s+(\d+)/);
+  if (rotateMatch) {
+    const [, shapeId, degrees] = rotateMatch;
+    return [
+      {
+        name: "rotateShape",
+        parameters: { shapeId, rotation: Number.parseInt(degrees, 10) },
+      },
+    ];
+  }
+
+  // Pattern: "resize [shape-id] to [width]x[height]"
+  const resizeMatch = lower.match(/resize\s+([a-f0-9-]+)\s+to\s+(\d+)x(\d+)/);
+  if (resizeMatch) {
+    const [, shapeId, width, height] = resizeMatch;
+    return [
+      {
+        name: "resizeShape",
+        parameters: {
+          shapeId,
+          width: Number.parseInt(width, 10),
+          height: Number.parseInt(height, 10),
+        },
+      },
+    ];
+  }
+
+  // Pattern: "arrange shapes horizontally" or "arrange shapes in a row"
+  const arrangeMatch = lower.match(
+    /arrange\s+(?:shapes?\s+)?(?:in\s+)?(?:a\s+)?(horizontal|vertical|row|column|grid)/,
+  );
+  if (arrangeMatch) {
+    const [, layoutType] = arrangeMatch;
+    let layout: "horizontal" | "vertical" | "grid" = "horizontal";
+    if (layoutType === "vertical" || layoutType === "column") {
+      layout = "vertical";
+    } else if (layoutType === "grid") {
+      layout = "grid";
+    }
+
+    // For MVP, this would need shape IDs - in production AI would use findShapes first
+    return [
+      {
+        name: "getCanvasState",
+        parameters: {},
       },
     ];
   }
