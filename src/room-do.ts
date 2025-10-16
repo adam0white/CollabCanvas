@@ -41,6 +41,8 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
   private readonly awareness: Awareness;
   private readonly connectionRoles = new Map<WebSocket, ClientRole>();
   private readonly pendingConnections: ConnectionContext[] = [];
+  private lastCommandId: string | null = null;
+  private lastResult: unknown | null = null;
 
   constructor(state: DurableObjectState, env: Env) {
     super(state, env);
@@ -67,6 +69,131 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
   }
 
   override async fetch(request: Request): Promise<Response> {
+    // RPC path: execute AI command
+    const rpc = request.headers.get("x-canvas-rpc");
+    if (rpc === "executeAICommand" && request.method === "POST") {
+      try {
+        const payload = (await request.json()) as {
+          commandId: string;
+          prompt: string;
+          context: unknown;
+          toolCalls: import("./ai-tools").ToolCall[];
+          userId: string;
+          userName: string;
+        };
+
+        if (!payload?.commandId) {
+          return new Response(JSON.stringify({ error: "Missing commandId" }), {
+            status: 400,
+            headers: { "content-type": "application/json" },
+          });
+        }
+
+        // Idempotency: if same commandId, return cached result
+        if (this.lastCommandId === payload.commandId && this.lastResult) {
+          return new Response(JSON.stringify(this.lastResult), {
+            headers: { "content-type": "application/json" },
+          });
+        }
+
+        const { dispatchTool } = await import("./ai-tools");
+
+        const start = Date.now();
+        const execResults: import("./ai-tools").ToolResult[] = [];
+        const affected: string[] = [];
+
+        // Atomic execution within a single Yjs transaction
+        this.doc.transact(() => {
+          const ctx = {
+            doc: this.doc,
+            userId: payload.userId,
+            userName: payload.userName,
+            now: Date.now(),
+          } satisfies import("./ai-tools").ExecuteContext;
+
+          for (const call of payload.toolCalls) {
+            const res = dispatchTool(ctx, call);
+            // dispatchTool may be async in future; support sync now
+            if (res instanceof Promise) {
+              throw new Error("Async tools not supported in Phase 1");
+            }
+            execResults.push(res);
+            if (res.ok && res.data && typeof res.data === "object") {
+              const id = (res.data as { id?: string }).id;
+              if (id) affected.push(id);
+            }
+          }
+
+          // Minimal AI history append (Phase 1)
+          try {
+            const history = this.doc.getArray<Record<string, unknown>>("aiHistory");
+            const entry = {
+              id: payload.commandId,
+              userId: payload.userId,
+              userName: payload.userName,
+              prompt: payload.prompt,
+              response: execResults.every((r) => r.ok) ? "OK" : "Some tools failed",
+              timestamp: Date.now(),
+              shapesAffected: [...affected],
+              success: execResults.every((r) => r.ok),
+            };
+            history.push([entry]);
+          } catch (e) {
+            console.warn("[DO] Failed to append aiHistory:", e);
+          }
+        });
+
+        // Bounds enforcement (simple):
+        if (affected.length > 50) {
+          const error = "Too many shapes affected in one command (max 50)";
+          const response = {
+            success: false,
+            message: error,
+            shapesCreated: 0,
+            shapesAffected: affected.length,
+            error,
+            commandId: payload.commandId,
+            durationMs: Date.now() - start,
+          };
+          this.lastCommandId = payload.commandId;
+          this.lastResult = response;
+          return new Response(JSON.stringify(response), {
+            status: 400,
+            headers: { "content-type": "application/json" },
+          });
+        }
+
+        const okCount = execResults.filter((r) => r.ok).length;
+        const response = {
+          success: okCount === execResults.length,
+          message: okCount === execResults.length ? "OK" : "Some tools failed",
+          shapesCreated: execResults.filter((r) => r.name === "createShape" && r.ok).length,
+          shapesAffected: affected.length,
+          error:
+            okCount === execResults.length
+              ? undefined
+              : execResults.find((r) => !r.ok)?.error ?? "Unknown error",
+          commandId: payload.commandId,
+          results: execResults,
+          durationMs: Date.now() - start,
+        } as const;
+
+        this.lastCommandId = payload.commandId;
+        this.lastResult = response;
+
+        return new Response(JSON.stringify(response), {
+          headers: { "content-type": "application/json" },
+        });
+      } catch (error) {
+        console.error("[DO] executeAICommand error:", error);
+        return new Response(JSON.stringify({ error: "Failed to execute AI command" }), {
+          status: 500,
+          headers: { "content-type": "application/json" },
+        });
+      }
+    }
+
+    // Default path: websocket and Yjs sync
     const roleHeader = request.headers.get("x-collabcanvas-role");
     const role: ClientRole = roleHeader === "editor" ? "editor" : "viewer";
     this.pendingConnections.push({ role });
@@ -104,6 +231,7 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
 
     await super.cleanup();
   }
+
 
   override async webSocketMessage(
     ws: WebSocket,

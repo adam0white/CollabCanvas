@@ -11,6 +11,7 @@
 export { RoomDO } from "./room-do";
 
 import { verifyToken } from "@clerk/backend";
+import { TOOL_SCHEMA, type ToolCall } from "./ai-tools";
 
 /**
  * Adds security headers to HTTP responses
@@ -57,6 +58,114 @@ export default {
     ctx: ExecutionContext,
   ): Promise<Response> {
     const url = new URL(request.url);
+
+    // AI command endpoint: POST /c/:roomId/ai-command
+    const aiRoute = parseAICommandRoute(url);
+    if (aiRoute && request.method === "POST") {
+      try {
+        const { roomId } = aiRoute;
+        const { role, userId, userName } = await getUserContext(request, env);
+        if (role !== "editor") {
+          return addSecurityHeaders(
+            new Response(
+              JSON.stringify({ error: "Unauthorized: sign in to use AI" }),
+              { status: 401, headers: { "content-type": "application/json" } },
+            ),
+          );
+        }
+
+        const body = (await request.json().catch(() => ({}))) as {
+          prompt?: string;
+          context?: unknown;
+          commandId?: string;
+        };
+        const rawPrompt = typeof body.prompt === "string" ? body.prompt : "";
+        const prompt = sanitizeText(rawPrompt).slice(0, 1000);
+        if (!prompt) {
+          return addSecurityHeaders(
+            new Response(
+              JSON.stringify({ error: "Invalid prompt" }),
+              { status: 400, headers: { "content-type": "application/json" } },
+            ),
+          );
+        }
+
+        const commandId = body.commandId ?? crypto.randomUUID();
+        const contextPayload = body.context ?? {};
+
+        // Call Workers AI (if available) to get tool calls
+        let toolCalls: ToolCall[] = [];
+        try {
+          const ai = (env as unknown as { AI?: { run: (model: string, input: unknown) => Promise<unknown> } }).AI;
+          if (!ai) {
+            throw new Error("Workers AI not configured");
+          }
+          const model = (env as unknown as { AI_MODEL?: string }).AI_MODEL ??
+            "@cf/meta/llama-3.1-8b-instruct";
+
+          const messages = [
+            {
+              role: "system",
+              content:
+                "You are an AI canvas agent. Use the provided tools to create and manipulate shapes. Prefer exact tool calls.",
+            },
+            { role: "user", content: prompt },
+          ];
+
+          const aiResponse: unknown = await ai.run(model, {
+            messages,
+            tools: TOOL_SCHEMA,
+            tool_choice: "auto",
+          });
+
+          toolCalls = extractToolCalls(aiResponse);
+          if (!Array.isArray(toolCalls)) {
+            throw new Error("AI did not return tool calls");
+          }
+        } catch (error) {
+          console.error("[AI] Invocation failed:", error);
+          return addSecurityHeaders(
+            new Response(
+              JSON.stringify({
+                error: "AI unavailable. Please try again later.",
+                details:
+                  (error as Error)?.message ?? "Unknown AI error",
+              }),
+              { status: 502, headers: { "content-type": "application/json" } },
+            ),
+          );
+        }
+
+        // Send RPC to DO for atomic execution
+        const id = env.RoomDO.idFromName(roomId);
+        const stub = env.RoomDO.get(id);
+        const rpcRequest = new Request(new URL(`/rooms/${roomId}`, request.url).toString(), {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-canvas-rpc": "executeAICommand",
+          },
+          body: JSON.stringify({
+            commandId,
+            prompt,
+            context: contextPayload,
+            toolCalls,
+            userId,
+            userName,
+          }),
+        });
+        const rpcResponse = await stub.fetch(rpcRequest);
+        return addSecurityHeaders(rpcResponse);
+      } catch (error) {
+        console.error("[AI] Route error:", error);
+        return addSecurityHeaders(
+          new Response(
+            JSON.stringify({ error: "Failed to process AI command" }),
+            { status: 500, headers: { "content-type": "application/json" } },
+          ),
+        );
+      }
+    }
 
     if (url.pathname === "/health") {
       return addSecurityHeaders(
@@ -149,8 +258,9 @@ async function authorizeRequest(
   env: Env,
   _ctx: ExecutionContext,
 ): Promise<"editor" | "viewer"> {
-  const clerkSecretKey = env.CLERK_SECRET_KEY;
-  if (!clerkSecretKey) {
+  const clerkSecretKey = (env as unknown as { CLERK_SECRET_KEY?: string }).CLERK_SECRET_KEY;
+  const secret = (env as unknown as { CLERK_SECRET_KEY?: string }).CLERK_SECRET_KEY;
+  if (!clerkSecretKey && !secret) {
     console.warn(
       "CLERK_SECRET_KEY not configured; treating request as unauthenticated",
     );
@@ -164,7 +274,7 @@ async function authorizeRequest(
 
   try {
     const jwtPayload = await verifyToken(token, {
-      secretKey: clerkSecretKey,
+      secretKey: (clerkSecretKey ?? secret) as string,
     });
 
     // For MVP: Any authenticated user is an editor, unauthenticated users are viewers
@@ -177,6 +287,29 @@ async function authorizeRequest(
     console.warn("[Auth] Token verification failed:", error);
     return "viewer";
   }
+}
+
+async function getUserContext(
+  request: Request,
+  env: Env,
+): Promise<{ role: "editor" | "viewer"; userId: string | null; userName: string | null }> {
+  const role = await authorizeRequest(request, env, {} as ExecutionContext);
+  let userId: string | null = null;
+  let userName: string | null = null;
+  try {
+    const token = extractToken(request);
+    const secret = (env as unknown as { CLERK_SECRET_KEY?: string }).CLERK_SECRET_KEY;
+    if (token && secret) {
+      const jwtPayload = await verifyToken(token, { secretKey: secret });
+      userId = (jwtPayload as { sub?: string } | null | undefined)?.sub ?? null;
+      // Clerk JWT may include name fields; we keep optional
+      const nameLike = (jwtPayload as unknown as { username?: string; name?: string }) ?? {};
+      userName = nameLike.username ?? nameLike.name ?? null;
+    }
+  } catch {
+    // ignore; role will be viewer if token invalid
+  }
+  return { role, userId, userName };
 }
 
 /**
@@ -242,4 +375,52 @@ function parseCanvasWebSocketRoute(url: URL): { roomId: string | null } | null {
     : url.searchParams.get("roomId");
 
   return { roomId: roomId ?? null };
+}
+
+function parseAICommandRoute(url: URL): { roomId: string } | null {
+  // Expected: /c/{roomId}/ai-command
+  const segments = url.pathname.split("/").filter(Boolean);
+  if (segments.length === 3 && segments[0] === "c" && segments[2] === "ai-command") {
+    return { roomId: decodeURIComponent(segments[1]) };
+  }
+  return null;
+}
+
+export function sanitizeText(input: string): string {
+  // Basic sanitization: strip HTML tags and control chars
+  return input
+    .replace(/<[^>]*>/g, " ")
+    .replace(/[\x00-\x1F\x7F]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function extractToolCalls(aiResponse: unknown): ToolCall[] {
+  // Try OpenAI-style
+  const choices = (aiResponse as { choices?: Array<{ message?: { tool_calls?: Array<{ function?: { name?: string; arguments?: string } }> } }> }).choices;
+  if (Array.isArray(choices) && choices[0]?.message?.tool_calls) {
+    return choices[0].message.tool_calls.map((t) => ({
+      name: (t.function?.name ?? "getCanvasState") as ToolCall["name"],
+      arguments: safeParseJson(t.function?.arguments) ?? {},
+    }));
+  }
+  // Try Cloudflare Workers AI tool_calls at top level
+  const topTools = (aiResponse as { tool_calls?: Array<{ name?: string; arguments?: Record<string, unknown> }> }).tool_calls;
+  if (Array.isArray(topTools)) {
+    return topTools.map((t) => ({
+      name: (t.name ?? "getCanvasState") as ToolCall["name"],
+      arguments: t.arguments ?? {},
+    }));
+  }
+  return [];
+}
+
+function safeParseJson(text: unknown): Record<string, unknown> | null {
+  if (typeof text !== "string") return null;
+  try {
+    const obj = JSON.parse(text);
+    return obj && typeof obj === "object" ? (obj as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
 }

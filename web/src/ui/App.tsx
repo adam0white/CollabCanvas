@@ -13,6 +13,7 @@ import { Canvas } from "./Canvas";
 import { Footer } from "./Footer";
 import { PresenceBar } from "./PresenceBar";
 import { Toolbar } from "./Toolbar";
+import { AIPanel } from "./AIPanel";
 
 export function App(): React.JSX.Element {
   if (typeof window === "undefined") {
@@ -88,6 +89,7 @@ export function App(): React.JSX.Element {
             presence={presenceState.presence}
             setPresence={presenceState.setPresence}
           />
+          <AIPanel />
         </main>
 
         <Footer />

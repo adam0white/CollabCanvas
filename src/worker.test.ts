@@ -49,6 +49,16 @@ describe("parseCanvasWebSocketRoute", () => {
   });
 });
 
+describe("AI route pattern", () => {
+  it("should match /c/:roomId/ai-command", () => {
+    const url = new URL("/c/main/ai-command", "http://localhost");
+    const segments = url.pathname.split("/").filter(Boolean);
+    const isAiRoute =
+      segments.length === 3 && segments[0] === "c" && segments[2] === "ai-command";
+    expect(isAiRoute).toBe(true);
+  });
+});
+
 describe("extractToken", () => {
   it("should extract token from query parameter", () => {
     const url = new URL("http://localhost?token=abc123");

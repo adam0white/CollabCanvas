@@ -23,3 +23,4 @@ new_classes = ["RoomDO"]
 
 [vars]
 CLERK_PUBLISHABLE_KEY = "pk_live_Y2xlcmsuYWRhbXdoaXRlLndvcmsk"
+AI_MODEL = "@cf/meta/llama-3.1-8b-instruct"
