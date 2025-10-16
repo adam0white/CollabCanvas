@@ -9,6 +9,7 @@ import { ToolbarProvider } from "../hooks/useToolbar";
 import { useShapes } from "../shapes/useShapes";
 import { useConnectionStatus } from "../yjs/client";
 import styles from "./App.module.css";
+import { AIPanel } from "./AIPanel";
 import { Canvas } from "./Canvas";
 import { Footer } from "./Footer";
 import { PresenceBar } from "./PresenceBar";
@@ -84,10 +85,17 @@ export function App(): React.JSX.Element {
           {/* Floating toolbar */}
           <Toolbar className={styles.floatingToolbar} />
 
-          <Canvas
-            presence={presenceState.presence}
-            setPresence={presenceState.setPresence}
-          />
+          <div className={styles.canvasContainer}>
+            <Canvas
+              presence={presenceState.presence}
+              setPresence={presenceState.setPresence}
+            />
+          </div>
+
+          {/* AI Panel */}
+          <aside className={styles.aiPanel}>
+            <AIPanel />
+          </aside>
         </main>
 
         <Footer />

@@ -77,6 +77,12 @@ export default {
       );
     }
 
+    // Handle AI command route: POST /c/:roomId/ai-command
+    const aiCommandRoute = parseAICommandRoute(url);
+    if (aiCommandRoute && request.method === "POST") {
+      return handleAICommand(request, env, ctx, aiCommandRoute.roomId);
+    }
+
     // Handle WebSocket routes
     const canvasWsRoute = parseCanvasWebSocketRoute(url);
     if (canvasWsRoute) {
@@ -242,4 +248,236 @@ function parseCanvasWebSocketRoute(url: URL): { roomId: string | null } | null {
     : url.searchParams.get("roomId");
 
   return { roomId: roomId ?? null };
+}
+
+/**
+ * Parses AI command routes.
+ * Expected pattern: POST /c/:roomId/ai-command
+ */
+function parseAICommandRoute(url: URL): { roomId: string } | null {
+  const segments = url.pathname.split("/").filter(Boolean);
+
+  // Must match: ["c", "{roomId}", "ai-command"]
+  if (segments.length !== 3) {
+    return null;
+  }
+
+  if (segments[0] !== "c" || segments[2] !== "ai-command") {
+    return null;
+  }
+
+  const roomId = decodeURIComponent(segments[1]);
+  return { roomId };
+}
+
+/**
+ * Handles AI command execution
+ * 1. Verify JWT (editors only)
+ * 2. Validate and sanitize input
+ * 3. Call Workers AI for tool generation
+ * 4. Execute tools via RPC to Durable Object
+ */
+async function handleAICommand(
+  request: Request,
+  env: Env,
+  ctx: ExecutionContext,
+  roomId: string,
+): Promise<Response> {
+  // Verify authentication - only editors can send AI commands
+  const role = await authorizeRequest(request, env, ctx);
+  if (role !== "editor") {
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: "Unauthorized. Sign in to use AI commands.",
+      }),
+      {
+        status: 401,
+        headers: { "content-type": "application/json" },
+      },
+    );
+  }
+
+  // Parse request body
+  let body: {
+    prompt?: string;
+    context?: {
+      selectedShapeIds?: string[];
+      viewportCenter?: { x: number; y: number };
+    };
+  };
+  try {
+    body = await request.json();
+  } catch {
+    return new Response(
+      JSON.stringify({ success: false, error: "Invalid JSON body" }),
+      {
+        status: 400,
+        headers: { "content-type": "application/json" },
+      },
+    );
+  }
+
+  // Validate prompt
+  const prompt = body.prompt?.trim();
+  if (!prompt) {
+    return new Response(
+      JSON.stringify({ success: false, error: "Prompt is required" }),
+      {
+        status: 400,
+        headers: { "content-type": "application/json" },
+      },
+    );
+  }
+
+  // Sanitize and validate prompt length
+  const MAX_PROMPT_LENGTH = 1000;
+  if (prompt.length > MAX_PROMPT_LENGTH) {
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: `Prompt too long. Maximum ${MAX_PROMPT_LENGTH} characters.`,
+      }),
+      {
+        status: 400,
+        headers: { "content-type": "application/json" },
+      },
+    );
+  }
+
+  // Generate unique command ID
+  const commandId = crypto.randomUUID();
+
+  // Get user info from JWT
+  const token = extractToken(request);
+  const clerkSecretKey = env.CLERK_SECRET_KEY;
+  let userId = "anonymous";
+  let userName = "Anonymous";
+
+  if (token && clerkSecretKey) {
+    try {
+      const jwtPayload = await verifyToken(token, {
+        secretKey: clerkSecretKey,
+      });
+      if (jwtPayload?.sub) {
+        userId = jwtPayload.sub;
+        // Try to get username from JWT claims
+        userName =
+          (jwtPayload as { username?: string }).username ??
+          `User ${userId.slice(0, 8)}`;
+      }
+    } catch {
+      // Continue with anonymous if token verification fails
+    }
+  }
+
+  try {
+    // For MVP: Simple tool execution without LLM
+    // In production, this would call Workers AI or OpenAI to generate tool calls
+    // For now, parse simple commands directly
+    const toolCalls = parseSimpleCommand(prompt);
+
+    if (toolCalls.length === 0) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error:
+            "Could not understand command. Try something like 'create a red rectangle at 100, 200'",
+        }),
+        {
+          status: 400,
+          headers: { "content-type": "application/json" },
+        },
+      );
+    }
+
+    // Get Durable Object stub and execute command via RPC
+    const id = env.RoomDO.idFromName(roomId);
+    const stub = env.RoomDO.get(id);
+
+    const result = await stub.executeAICommand({
+      commandId,
+      toolCalls,
+      userId,
+      userName,
+      prompt,
+    });
+
+    return new Response(JSON.stringify(result), {
+      status: result.success ? 200 : 500,
+      headers: { "content-type": "application/json" },
+    });
+  } catch (error) {
+    console.error("[AI Command] Error:", error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: "Failed to execute AI command",
+        message: error instanceof Error ? error.message : "Unknown error",
+      }),
+      {
+        status: 500,
+        headers: { "content-type": "application/json" },
+      },
+    );
+  }
+}
+
+/**
+ * Simple command parser for MVP
+ * In production, this would be replaced with Workers AI / OpenAI function calling
+ */
+function parseSimpleCommand(prompt: string): {
+  name: string;
+  parameters: Record<string, unknown>;
+}[] {
+  const lower = prompt.toLowerCase();
+
+  // Pattern: "create a [color] [shape] at x, y"
+  const createMatch = lower.match(
+    /create (?:a |an )?(\w+)?\s*(rectangle|circle|text|square)\s*(?:at\s*)?(?:(\d+)\s*,\s*(\d+))?/,
+  );
+  if (createMatch) {
+    const [, color, shapeType, xStr, yStr] = createMatch;
+    const x = xStr ? Number.parseInt(xStr, 10) : 200;
+    const y = yStr ? Number.parseInt(yStr, 10) : 200;
+    const type = shapeType === "square" ? "rectangle" : shapeType;
+
+    const params: Record<string, unknown> = {
+      type,
+      x,
+      y,
+      fill: color || "#38bdf8",
+    };
+
+    if (type === "rectangle") {
+      params.width = 150;
+      params.height = 100;
+    } else if (type === "circle") {
+      params.radius = 50;
+    } else if (type === "text") {
+      params.text = "Hello World";
+      params.fontSize = 24;
+    }
+
+    return [{ name: "createShape", parameters: params }];
+  }
+
+  // Pattern: "move shape [id] to x, y"
+  const moveMatch = lower.match(/move\s+shape\s+([a-f0-9-]+)\s+to\s+(\d+)\s*,\s*(\d+)/);
+  if (moveMatch) {
+    const [, shapeId, xStr, yStr] = moveMatch;
+    return [
+      {
+        name: "moveShape",
+        parameters: {
+          shapeId,
+          x: Number.parseInt(xStr, 10),
+          y: Number.parseInt(yStr, 10),
+        },
+      },
+    ];
+  }
+
+  return [];
 }
