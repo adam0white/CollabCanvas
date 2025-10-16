@@ -152,6 +152,16 @@
   background: #fef2f2;
 }
 
+.historyEntry.currentUser {
+  background: #f0f9ff;
+  border-left-color: #3b82f6;
+}
+
+.historyEntry.currentUser.failed {
+  background: #fef2f2;
+  border-left-color: #ef4444;
+}
+
 .historyHeader {
   display: flex;
   justify-content: space-between;

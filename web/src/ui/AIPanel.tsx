@@ -9,14 +9,19 @@
  * - Guest users see history but cannot send commands
  */
 
+import { useUser } from "@clerk/clerk-react";
 import { useCallback, useRef, useState } from "react";
 import { useAI } from "../hooks/useAI";
 import styles from "./AIPanel.module.css";
 
 export function AIPanel(): React.JSX.Element {
   const { history, isLoading, error, sendCommand, canUseAI } = useAI();
+  const { user } = useUser();
   const [prompt, setPrompt] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Get current user ID for highlighting their commands
+  const currentUserId = user?.id ?? null;
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -98,30 +103,35 @@ export function AIPanel(): React.JSX.Element {
               No AI commands yet. Try asking the AI to create shapes!
             </div>
           ) : (
-            history.map((entry) => (
-              <div
-                key={entry.id}
-                className={`${styles.historyEntry} ${
-                  entry.success ? styles.success : styles.failed
-                }`}
-              >
-                <div className={styles.historyHeader}>
-                  <span className={styles.userName}>{entry.userName}</span>
-                  <span className={styles.timestamp}>
-                    {formatTimestamp(entry.timestamp)}
-                  </span>
-                </div>
-                <div className={styles.prompt}>{entry.prompt}</div>
-                <div className={styles.response}>
-                  {entry.success ? "✓" : "✗"} {entry.response}
-                </div>
-                {entry.shapesAffected.length > 0 && (
-                  <div className={styles.shapesAffected}>
-                    {entry.shapesAffected.length} shape(s) affected
+            history.map((entry) => {
+              const isCurrentUser = entry.userId === currentUserId;
+              return (
+                <div
+                  key={entry.id}
+                  className={`${styles.historyEntry} ${
+                    entry.success ? styles.success : styles.failed
+                  } ${isCurrentUser ? styles.currentUser : ""}`}
+                >
+                  <div className={styles.historyHeader}>
+                    <span className={styles.userName}>
+                      {isCurrentUser ? "You" : entry.userName}
+                    </span>
+                    <span className={styles.timestamp}>
+                      {formatTimestamp(entry.timestamp)}
+                    </span>
                   </div>
-                )}
-              </div>
-            ))
+                  <div className={styles.prompt}>{entry.prompt}</div>
+                  <div className={styles.response}>
+                    {entry.success ? "✓" : "✗"} {entry.response}
+                  </div>
+                  {entry.shapesAffected.length > 0 && (
+                    <div className={styles.shapesAffected}>
+                      {entry.shapesAffected.length} shape(s) affected
+                    </div>
+                  )}
+                </div>
+              );
+            })
           )}
         </div>
       </div>
