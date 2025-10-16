@@ -233,6 +233,98 @@ export const AI_TOOLS = [
     },
   },
   {
+    name: "createMultipleShapes",
+    description:
+      "Creates multiple shapes at once in a single atomic operation",
+    parameters: {
+      type: "object",
+      properties: {
+        shapes: {
+          type: "array",
+          description: "Array of shape specifications to create",
+          items: {
+            type: "object",
+            properties: {
+              type: {
+                type: "string",
+                enum: ["rectangle", "circle", "text"],
+              },
+              x: { type: "number" },
+              y: { type: "number" },
+              width: { type: "number" },
+              height: { type: "number" },
+              radius: { type: "number" },
+              text: { type: "string" },
+              fontSize: { type: "number" },
+              fill: { type: "string" },
+              stroke: { type: "string" },
+              strokeWidth: { type: "number" },
+            },
+            required: ["type", "x", "y"],
+          },
+        },
+      },
+      required: ["shapes"],
+    },
+  },
+  {
+    name: "computeCenter",
+    description:
+      "Computes the center point of the canvas or viewport for positioning shapes",
+    parameters: {
+      type: "object",
+      properties: {
+        viewportCenter: {
+          type: "object",
+          description: "Optional viewport center from context",
+          properties: {
+            x: { type: "number" },
+            y: { type: "number" },
+          },
+        },
+      },
+    },
+  },
+  {
+    name: "computeRelativePosition",
+    description:
+      "Computes a position relative to a base shape in a specified direction",
+    parameters: {
+      type: "object",
+      properties: {
+        baseShapeId: {
+          type: "string",
+          description: "ID of the base shape to position relative to",
+        },
+        direction: {
+          type: "string",
+          enum: ["above", "below", "left", "right"],
+          description: "Direction relative to base shape",
+        },
+        offset: {
+          type: "number",
+          description: "Distance from base shape in pixels (default: 20)",
+        },
+      },
+      required: ["baseShapeId", "direction"],
+    },
+  },
+  {
+    name: "getSelectedShapesBounds",
+    description: "Gets the bounding box of selected shapes",
+    parameters: {
+      type: "object",
+      properties: {
+        shapeIds: {
+          type: "array",
+          items: { type: "string" },
+          description: "Array of shape IDs to compute bounds for",
+        },
+      },
+      required: ["shapeIds"],
+    },
+  },
+  {
     name: "getCanvasState",
     description:
       "Returns all shapes currently on the canvas with their properties",
@@ -305,6 +397,29 @@ export type FindShapesParams = {
 };
 
 export type GetCanvasStateParams = Record<string, never>;
+
+export type CreateMultipleShapesParams = {
+  shapes: CreateShapeParams[];
+};
+
+export type ComputeCenterParams = {
+  viewportCenter?: { x: number; y: number };
+};
+
+export type ComputeRelativePositionParams = {
+  baseShapeId: string;
+  direction: "above" | "below" | "left" | "right";
+  offset?: number;
+};
+
+export type GetSelectedShapesBoundsParams = {
+  shapeIds: string[];
+};
+
+export type FindClearSpaceParams = {
+  width: number;
+  height: number;
+};
 
 // ============================================================================
 // Tool Result Types
@@ -897,6 +1012,229 @@ export function findShapes(
   }
 }
 
+export function createMultipleShapes(
+  doc: Doc,
+  params: CreateMultipleShapesParams,
+  userId: string,
+): ToolResult {
+  try {
+    if (!params.shapes || params.shapes.length === 0) {
+      return {
+        success: false,
+        message: "No shapes to create",
+        error: "Empty shapes array",
+      };
+    }
+
+    const createdIds: string[] = [];
+    const errors: string[] = [];
+
+    // Create all shapes (already within transaction from caller)
+    for (const shapeSpec of params.shapes) {
+      const result = createShape(doc, shapeSpec, userId);
+      if (result.success && result.shapeId) {
+        createdIds.push(result.shapeId);
+      } else {
+        errors.push(result.message);
+      }
+    }
+
+    if (createdIds.length === 0) {
+      return {
+        success: false,
+        message: "Failed to create any shapes",
+        error: errors.join("; "),
+      };
+    }
+
+    return {
+      success: true,
+      message: `Created ${createdIds.length} shapes`,
+      shapeIds: createdIds,
+      data: { createdIds, errors: errors.length > 0 ? errors : undefined },
+    };
+  } catch (error) {
+    console.error("[AI Tools] createMultipleShapes error:", error);
+    return {
+      success: false,
+      message: "Failed to create multiple shapes",
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+export function computeCenter(
+  _doc: Doc,
+  params: ComputeCenterParams,
+  _userId: string,
+): ToolResult {
+  try {
+    // Use viewport center if provided, otherwise use canvas center
+    const center = params.viewportCenter ?? { x: 1000, y: 1000 }; // Default canvas center (2000x2000 / 2)
+
+    return {
+      success: true,
+      message: `Center computed at (${center.x}, ${center.y})`,
+      data: { center },
+    };
+  } catch (error) {
+    console.error("[AI Tools] computeCenter error:", error);
+    return {
+      success: false,
+      message: "Failed to compute center",
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+export function computeRelativePosition(
+  doc: Doc,
+  params: ComputeRelativePositionParams,
+  _userId: string,
+): ToolResult {
+  try {
+    const shapesMap = doc.getMap("shapes");
+    const baseShape = shapesMap.get(params.baseShapeId);
+
+    if (!baseShape) {
+      return {
+        success: false,
+        message: `Base shape ${params.baseShapeId} not found`,
+        error: "Shape not found",
+      };
+    }
+
+    const baseData =
+      baseShape instanceof Map
+        ? Object.fromEntries(baseShape.entries())
+        : baseShape;
+
+    const baseX = (baseData.x as number) ?? 0;
+    const baseY = (baseData.y as number) ?? 0;
+    const offset = params.offset ?? 20;
+
+    // Calculate base shape dimensions
+    let width = 100;
+    let height = 100;
+    if (baseData.width !== undefined) width = baseData.width as number;
+    if (baseData.height !== undefined) height = baseData.height as number;
+    if (baseData.radius !== undefined) {
+      width = height = (baseData.radius as number) * 2;
+    }
+
+    let x = baseX;
+    let y = baseY;
+
+    switch (params.direction) {
+      case "above":
+        y = baseY - offset - height;
+        break;
+      case "below":
+        y = baseY + height + offset;
+        break;
+      case "left":
+        x = baseX - offset - width;
+        break;
+      case "right":
+        x = baseX + width + offset;
+        break;
+    }
+
+    return {
+      success: true,
+      message: `Computed position ${params.direction} of base shape`,
+      data: { position: { x, y } },
+    };
+  } catch (error) {
+    console.error("[AI Tools] computeRelativePosition error:", error);
+    return {
+      success: false,
+      message: "Failed to compute relative position",
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+export function getSelectedShapesBounds(
+  doc: Doc,
+  params: GetSelectedShapesBoundsParams,
+  _userId: string,
+): ToolResult {
+  try {
+    const shapesMap = doc.getMap("shapes");
+
+    if (params.shapeIds.length === 0) {
+      return {
+        success: false,
+        message: "No shapes provided",
+        error: "Empty shape IDs array",
+      };
+    }
+
+    let minX = Number.POSITIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+
+    for (const shapeId of params.shapeIds) {
+      const shape = shapesMap.get(shapeId);
+      if (!shape) continue;
+
+      const data =
+        shape instanceof Map ? Object.fromEntries(shape.entries()) : shape;
+
+      const x = (data.x as number) ?? 0;
+      const y = (data.y as number) ?? 0;
+      let width = 0;
+      let height = 0;
+
+      if (data.width !== undefined) width = data.width as number;
+      if (data.height !== undefined) height = data.height as number;
+      if (data.radius !== undefined) {
+        width = height = (data.radius as number) * 2;
+      }
+
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x + width);
+      maxY = Math.max(maxY, y + height);
+    }
+
+    if (
+      minX === Number.POSITIVE_INFINITY ||
+      minY === Number.POSITIVE_INFINITY
+    ) {
+      return {
+        success: false,
+        message: "No valid shapes found",
+        error: "No shapes to compute bounds for",
+      };
+    }
+
+    const bounds = {
+      x: minX,
+      y: minY,
+      width: maxX - minX,
+      height: maxY - minY,
+      centerX: (minX + maxX) / 2,
+      centerY: (minY + maxY) / 2,
+    };
+
+    return {
+      success: true,
+      message: "Computed bounding box for selected shapes",
+      data: { bounds },
+    };
+  } catch (error) {
+    console.error("[AI Tools] getSelectedShapesBounds error:", error);
+    return {
+      success: false,
+      message: "Failed to compute bounds",
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
 export function getCanvasState(
   doc: Doc,
   _params: GetCanvasStateParams,
@@ -973,6 +1311,30 @@ export function dispatchTool(
         );
       case "findShapes":
         return findShapes(doc, toolCall.parameters as FindShapesParams, userId);
+      case "createMultipleShapes":
+        return createMultipleShapes(
+          doc,
+          toolCall.parameters as CreateMultipleShapesParams,
+          userId,
+        );
+      case "computeCenter":
+        return computeCenter(
+          doc,
+          toolCall.parameters as ComputeCenterParams,
+          userId,
+        );
+      case "computeRelativePosition":
+        return computeRelativePosition(
+          doc,
+          toolCall.parameters as ComputeRelativePositionParams,
+          userId,
+        );
+      case "getSelectedShapesBounds":
+        return getSelectedShapesBounds(
+          doc,
+          toolCall.parameters as GetSelectedShapesBoundsParams,
+          userId,
+        );
       case "getCanvasState":
         return getCanvasState(
           doc,

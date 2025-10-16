@@ -557,5 +557,155 @@ function parseSimpleCommand(prompt: string): {
     ];
   }
 
+  // Pattern: "create a login form" or "build a login form"
+  const loginFormMatch = lower.match(/(?:create|build|make)\s+(?:a\s+)?login\s+form/);
+  if (loginFormMatch) {
+    return [
+      {
+        name: "createMultipleShapes",
+        parameters: {
+          shapes: [
+            {
+              type: "text",
+              x: 200,
+              y: 200,
+              text: "Username",
+              fontSize: 16,
+              fill: "#000000",
+            },
+            {
+              type: "rectangle",
+              x: 200,
+              y: 230,
+              width: 200,
+              height: 40,
+              fill: "#FFFFFF",
+              stroke: "#D1D5DB",
+              strokeWidth: 1,
+            },
+            {
+              type: "text",
+              x: 200,
+              y: 280,
+              text: "Password",
+              fontSize: 16,
+              fill: "#000000",
+            },
+            {
+              type: "rectangle",
+              x: 200,
+              y: 310,
+              width: 200,
+              height: 40,
+              fill: "#FFFFFF",
+              stroke: "#D1D5DB",
+              strokeWidth: 1,
+            },
+            {
+              type: "rectangle",
+              x: 200,
+              y: 370,
+              width: 200,
+              height: 40,
+              fill: "#3B82F6",
+            },
+            {
+              type: "text",
+              x: 270,
+              y: 383,
+              text: "Sign In",
+              fontSize: 16,
+              fill: "#FFFFFF",
+            },
+          ],
+        },
+      },
+    ];
+  }
+
+  // Pattern: "create a navigation bar" or "build a nav bar"
+  const navBarMatch = lower.match(
+    /(?:create|build|make)\s+(?:a\s+)?(?:navigation\s+bar|nav(?:bar)?|navbar)/,
+  );
+  if (navBarMatch) {
+    // Extract number of items if specified
+    const itemsMatch = lower.match(/(\d+)\s+(?:items?|links?|buttons?)/);
+    const itemCount = itemsMatch ? Number.parseInt(itemsMatch[1], 10) : 4;
+
+    const shapes: Record<string, unknown>[] = [];
+    const startX = 200;
+    const startY = 200;
+    const spacing = 100;
+
+    for (let i = 0; i < itemCount; i++) {
+      shapes.push({
+        type: "text",
+        x: startX + i * spacing,
+        y: startY,
+        text: `Link ${i + 1}`,
+        fontSize: 16,
+        fill: "#000000",
+      });
+    }
+
+    return [
+      {
+        name: "createMultipleShapes",
+        parameters: { shapes },
+      },
+    ];
+  }
+
+  // Pattern: "create a 3x3 grid of circles" or "make a grid of 9 squares"
+  const gridMatch = lower.match(
+    /(?:create|make|build)\s+(?:a\s+)?(\d+)x(\d+)\s+grid\s+of\s+(\w+)/,
+  );
+  if (gridMatch) {
+    const [, rows, cols, shapeType] = gridMatch;
+    const rowCount = Number.parseInt(rows, 10);
+    const colCount = Number.parseInt(cols, 10);
+    const type = shapeType === "squares" ? "rectangle" : shapeType;
+
+    if (type !== "rectangle" && type !== "circle" && type !== "text") {
+      return [];
+    }
+
+    const shapes: Record<string, unknown>[] = [];
+    const startX = 200;
+    const startY = 200;
+    const size = 50;
+    const spacing = 20;
+
+    for (let row = 0; row < rowCount; row++) {
+      for (let col = 0; col < colCount; col++) {
+        const shape: Record<string, unknown> = {
+          type,
+          x: startX + col * (size + spacing),
+          y: startY + row * (size + spacing),
+          fill: "#38BDF8",
+        };
+
+        if (type === "rectangle") {
+          shape.width = size;
+          shape.height = size;
+        } else if (type === "circle") {
+          shape.radius = size / 2;
+        } else if (type === "text") {
+          shape.text = `${row},${col}`;
+          shape.fontSize = 14;
+        }
+
+        shapes.push(shape);
+      }
+    }
+
+    return [
+      {
+        name: "createMultipleShapes",
+        parameters: { shapes },
+      },
+    ];
+  }
+
   return [];
 }
