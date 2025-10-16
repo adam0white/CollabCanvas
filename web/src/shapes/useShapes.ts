@@ -11,7 +11,7 @@
 import { useAuth, useUser } from "@clerk/clerk-react";
 import { useEffect, useState } from "react";
 import { useYDoc } from "../yjs/client";
-import type { Circle, Rectangle, Shape, TextShape } from "./types";
+import type { Rectangle, Shape } from "./types";
 import { createRectangle } from "./types";
 
 type UseShapesReturn = {
