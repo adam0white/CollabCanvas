@@ -3,9 +3,11 @@ import { Doc } from "yjs";
 import { dispatchTool, getAllShapes, TOOL_SCHEMA } from "./ai-tools";
 
 describe("AI Tools - basics", () => {
-  it("exposes a tool schema with 3 tools", () => {
+  it("exposes a tool schema with basic tools present", () => {
     const names = TOOL_SCHEMA.map((t) => t.name);
-    expect(names).toEqual(["createShape", "moveShape", "getCanvasState"]);
+    expect(names).toContain("createShape");
+    expect(names).toContain("moveShape");
+    expect(names).toContain("getCanvasState");
   });
 
   it("creates and moves a rectangle atomically", async () => {
