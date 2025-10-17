@@ -1,13 +1,13 @@
 /**
  * Playwright Test Fixtures for CollabCanvas
- * 
+ *
  * Provides reusable fixtures for:
  * - Authenticated users (using real Clerk credentials)
  * - Multi-browser contexts for collaboration testing
  * - Test isolation with unique room IDs
  */
 
-import { test as base, type Page } from '@playwright/test';
+import { test as base, type Page } from "@playwright/test";
 
 type TestFixtures = {
   authenticatedPage: Page;
@@ -48,25 +48,28 @@ export const test = base.extend<TestFixtures>({
 
     if (!testEmail || !testPassword) {
       throw new Error(
-        'TEST_USER_EMAIL and TEST_USER_PASSWORD must be set in environment variables'
+        "TEST_USER_EMAIL and TEST_USER_PASSWORD must be set in environment variables",
       );
     }
 
     // Navigate to app
-    await page.goto('/c/main');
+    await page.goto("/c/main");
 
     // Wait for Clerk to load
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState("networkidle");
 
     // Check if already signed in (for faster tests)
-    const isSignedIn = await page.getByRole('button', { name: /sign out/i }).isVisible().catch(() => false);
+    const isSignedIn = await page
+      .getByRole("button", { name: /sign out/i })
+      .isVisible()
+      .catch(() => false);
 
     if (!isSignedIn) {
       // Click sign in button
-      await page.getByRole('button', { name: /sign in/i }).click();
+      await page.getByRole("button", { name: /sign in/i }).click();
 
       // Wait for Clerk modal
-      await page.waitForSelector('[data-clerk-modal]', { timeout: 10000 });
+      await page.waitForSelector("[data-clerk-modal]", { timeout: 10000 });
 
       // Fill in credentials
       await page.fill('input[name="identifier"]', testEmail);
@@ -78,11 +81,16 @@ export const test = base.extend<TestFixtures>({
       await page.click('button[type="submit"]');
 
       // Wait for sign in to complete
-      await page.waitForSelector('[data-clerk-modal]', { state: 'hidden', timeout: 10000 });
+      await page.waitForSelector("[data-clerk-modal]", {
+        state: "hidden",
+        timeout: 10000,
+      });
     }
 
     // Verify authentication by checking toolbar is enabled
-    await page.waitForSelector('button:has-text("Rectangle"):not([disabled])', { timeout: 10000 });
+    await page.waitForSelector('button:has-text("Rectangle"):not([disabled])', {
+      timeout: 10000,
+    });
 
     await use(page);
 
@@ -96,9 +104,9 @@ export const test = base.extend<TestFixtures>({
   guestPage: async ({ browser }, use) => {
     const context = await browser.newContext();
     const page = await context.newPage();
-    
-    await page.goto('/c/main');
-    await page.waitForLoadState('networkidle');
+
+    await page.goto("/c/main");
+    await page.waitForLoadState("networkidle");
 
     await use(page);
 
@@ -113,7 +121,7 @@ export const test = base.extend<TestFixtures>({
     const testPassword = process.env.TEST_USER_PASSWORD;
 
     if (!testEmail || !testPassword) {
-      throw new Error('TEST_USER_EMAIL and TEST_USER_PASSWORD must be set');
+      throw new Error("TEST_USER_EMAIL and TEST_USER_PASSWORD must be set");
     }
 
     // Create two separate browser contexts (simulating two users)
@@ -125,20 +133,26 @@ export const test = base.extend<TestFixtures>({
 
     // Sign in both users
     for (const page of [user1, user2]) {
-      await page.goto('/c/main');
-      await page.waitForLoadState('networkidle');
+      await page.goto("/c/main");
+      await page.waitForLoadState("networkidle");
 
-      const isSignedIn = await page.getByRole('button', { name: /sign out/i }).isVisible().catch(() => false);
+      const isSignedIn = await page
+        .getByRole("button", { name: /sign out/i })
+        .isVisible()
+        .catch(() => false);
 
       if (!isSignedIn) {
-        await page.getByRole('button', { name: /sign in/i }).click();
-        await page.waitForSelector('[data-clerk-modal]', { timeout: 10000 });
+        await page.getByRole("button", { name: /sign in/i }).click();
+        await page.waitForSelector("[data-clerk-modal]", { timeout: 10000 });
         await page.fill('input[name="identifier"]', testEmail);
         await page.click('button[type="submit"]');
         await page.waitForSelector('input[name="password"]', { timeout: 5000 });
         await page.fill('input[name="password"]', testPassword);
         await page.click('button[type="submit"]');
-        await page.waitForSelector('[data-clerk-modal]', { state: 'hidden', timeout: 10000 });
+        await page.waitForSelector("[data-clerk-modal]", {
+          state: "hidden",
+          timeout: 10000,
+        });
       }
     }
 
@@ -150,4 +164,4 @@ export const test = base.extend<TestFixtures>({
   },
 });
 
-export { expect } from '@playwright/test';
+export { expect } from "@playwright/test";
