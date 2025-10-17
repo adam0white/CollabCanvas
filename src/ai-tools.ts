@@ -181,7 +181,7 @@ export function normalizeColor(color: string | undefined): string {
 
 export function createShape(
   doc: Doc,
-  params: { shapes: CreateShapeParams[] } | CreateShapeParams,
+  params: { shapes: CreateShapeParams[] | string } | CreateShapeParams,
   _userId: string,
 ): ToolResult {
   try {
@@ -191,7 +191,41 @@ export function createShape(
     const now = Date.now();
 
     // Normalize to array format
-    const shapesArray = "shapes" in params ? params.shapes : [params];
+    let shapesArray: CreateShapeParams[];
+    
+    if ("shapes" in params) {
+      // Handle case where AI returns stringified JSON array instead of actual array
+      if (typeof params.shapes === "string") {
+        console.warn(
+          "[AI Tools] Received stringified shapes, attempting to parse...",
+        );
+        try {
+          shapesArray = JSON.parse(params.shapes) as CreateShapeParams[];
+          console.log("[AI Tools] ✓ Parsed", shapesArray.length, "shapes from string");
+        } catch (parseError) {
+          console.error("[AI Tools] Failed to parse stringified shapes:", parseError);
+          return {
+            success: false,
+            message: "Invalid shapes parameter: expected array but got unparseable string",
+            error: parseError instanceof Error ? parseError.message : "Parse error",
+          };
+        }
+      } else {
+        shapesArray = params.shapes;
+      }
+    } else {
+      shapesArray = [params as CreateShapeParams];
+    }
+    
+    // Validate that we have an array
+    if (!Array.isArray(shapesArray)) {
+      console.error("[AI Tools] shapes is not an array:", typeof shapesArray);
+      return {
+        success: false,
+        message: `Invalid shapes parameter: expected array but got ${typeof shapesArray}`,
+        error: "Type validation failed",
+      };
+    }
 
     for (const shapeSpec of shapesArray) {
       const shapeId = crypto.randomUUID();

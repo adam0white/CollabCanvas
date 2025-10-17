@@ -745,10 +745,37 @@ Rules:
         toolCalls.length,
         "tool calls from AI",
       );
-      return toolCalls.map((call) => ({
-        name: call.name,
-        parameters: call.arguments,
-      }));
+      
+      // Parse and validate tool call parameters
+      return toolCalls.map((call) => {
+        const params = call.arguments;
+        
+        // Fix: AI sometimes returns shapes as a stringified JSON array instead of actual array
+        if (params.shapes && typeof params.shapes === "string") {
+          try {
+            console.warn(
+              "[AI] ⚠ Fixing stringified shapes parameter - AI returned string instead of array",
+            );
+            params.shapes = JSON.parse(params.shapes);
+            console.log(
+              "[AI] ✓ Successfully parsed",
+              Array.isArray(params.shapes) ? params.shapes.length : 0,
+              "shapes from stringified parameter",
+            );
+          } catch (parseError) {
+            console.error(
+              "[AI] ✗ Failed to parse stringified shapes:",
+              parseError,
+            );
+            // Keep as-is, let the tool handler deal with it
+          }
+        }
+        
+        return {
+          name: call.name,
+          parameters: params,
+        };
+      });
     }
 
     // If AI gave text response but no tool calls, return it as error context
