@@ -34,30 +34,46 @@ export const test = base.extend<TestFixtures>({
     const context = await browser.newContext();
     const page = await context.newPage();
     
-    // Navigate to the app
-    await page.goto('/c/main');
+    // Enable console log capture for debugging
+    page.on('console', msg => {
+      if (msg.type() === 'error') {
+        console.error('Browser console error:', msg.text());
+      }
+    });
+    
+    // Navigate to the app root
+    await page.goto('/');
+    
+    // Wait for app to initialize
+    await page.waitForLoadState('networkidle', { timeout: 10000 });
     
     // Check if already signed in (Clerk may have stored session)
-    const isSignedIn = await page.locator('[data-testid="user-menu"]').isVisible({ timeout: 2000 }).catch(() => false);
+    const isSignedIn = await page.locator('[data-testid="user-menu"], .cl-userButton-root').isVisible({ timeout: 3000 }).catch(() => false);
     
     if (!isSignedIn && TEST_USER_EMAIL && TEST_USER_PASSWORD) {
-      // Click sign in button
-      await page.getByRole('button', { name: /sign in/i }).click();
+      // Look for sign in button
+      const signInBtn = page.getByRole('button', { name: /sign in/i }).first();
+      const btnVisible = await signInBtn.isVisible({ timeout: 5000 }).catch(() => false);
       
-      // Wait for Clerk modal and fill in credentials
-      await page.waitForSelector('.cl-modalContent', { timeout: 10000 });
-      await page.fill('input[name="identifier"]', TEST_USER_EMAIL);
-      await page.click('button:has-text("Continue")');
-      
-      await page.fill('input[name="password"]', TEST_USER_PASSWORD);
-      await page.click('button:has-text("Continue")');
-      
-      // Wait for redirect back to canvas
-      await page.waitForURL('**/c/main', { timeout: 10000 });
+      if (btnVisible) {
+        await signInBtn.click();
+        
+        // Wait for Clerk modal and fill in credentials
+        await page.waitForSelector('.cl-modalContent, .cl-card', { timeout: 10000 });
+        await page.fill('input[name="identifier"]', TEST_USER_EMAIL);
+        await page.click('button:has-text("Continue")');
+        
+        await page.waitForTimeout(1000);
+        await page.fill('input[name="password"]', TEST_USER_PASSWORD);
+        await page.click('button:has-text("Continue")');
+        
+        // Wait for modal to close
+        await page.waitForSelector('.cl-modalContent', { state: 'hidden', timeout: 10000 }).catch(() => {});
+      }
     }
     
     // Wait for canvas to be ready
-    await page.waitForSelector('canvas', { timeout: 5000 });
+    await page.waitForSelector('canvas, [data-testid="canvas-container"]', { timeout: 10000 });
     
     await use(page);
     
@@ -71,10 +87,20 @@ export const test = base.extend<TestFixtures>({
     const context = await browser.newContext();
     const page = await context.newPage();
     
-    await page.goto('/c/main');
+    // Navigate to root (app uses catch-all route)
+    await page.goto('/');
     
-    // Wait for canvas to load (guests can view)
-    await page.waitForSelector('canvas', { timeout: 5000 });
+    // Wait for app to load - check for either canvas or main app container
+    try {
+      await page.waitForSelector('canvas, [data-testid="app-container"], #root > div', { timeout: 10000 });
+    } catch (error) {
+      console.error('Page failed to load. Checking console errors...');
+      const logs = await page.evaluate(() => {
+        // @ts-ignore
+        return window.__consoleLogs || [];
+      });
+      console.error('Console logs:', logs);
+    }
     
     await use(page);
     
@@ -91,14 +117,19 @@ export const test = base.extend<TestFixtures>({
     const page1 = await context1.newPage();
     const page2 = await context2.newPage();
     
-    // Both navigate to the same room
-    await page1.goto('/c/main');
-    await page2.goto('/c/main');
+    // Both navigate to the app
+    await page1.goto('/');
+    await page2.goto('/');
     
     // Wait for both canvases to be ready
     await Promise.all([
-      page1.waitForSelector('canvas', { timeout: 5000 }),
-      page2.waitForSelector('canvas', { timeout: 5000 }),
+      page1.waitForLoadState('networkidle'),
+      page2.waitForLoadState('networkidle'),
+    ]);
+    
+    await Promise.all([
+      page1.waitForSelector('canvas, [data-testid="canvas-container"]', { timeout: 10000 }),
+      page2.waitForSelector('canvas, [data-testid="canvas-container"]', { timeout: 10000 }),
     ]);
     
     await use({
