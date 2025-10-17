@@ -113,9 +113,32 @@ export function Canvas({
     }
   }, [activeTool]);
 
+  // Cleanup: Destroy Stage on unmount to prevent duplicate canvas elements (especially with React StrictMode)
+  useEffect(() => {
+    return () => {
+      const stage = stageRef.current;
+      if (stage) {
+        // Konva Stage cleanup - destroys all layers and removes canvas element
+        stage.destroy();
+      }
+    };
+  }, []);
+
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Check if user is typing in an input field or text area
+      const target = e.target as HTMLElement;
+      const isTyping =
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target.isContentEditable;
+
+      // Skip keyboard shortcuts when user is typing in text inputs
+      if (isTyping) {
+        return;
+      }
+
       // Delete selected shape with Delete or Backspace
       if (
         (e.key === "Delete" || e.key === "Backspace") &&
