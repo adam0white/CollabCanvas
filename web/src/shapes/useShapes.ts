@@ -75,19 +75,33 @@ export function useShapes(): UseShapesReturn {
 
     // Store shape as plain object - Yjs will handle serialization
     // We use JSON-compatible data only
-    const shapeData = {
+    const shapeData: Record<string, unknown> = {
       id: shape.id,
       type: shape.type,
       x: shape.x,
       y: shape.y,
-      width: shape.width,
-      height: shape.height,
       fill: shape.fill,
       stroke: shape.stroke,
       strokeWidth: shape.strokeWidth,
       createdBy: shape.createdBy,
       createdAt: shape.createdAt,
+      rotation: shape.rotation,
+      aiGenerated: shape.aiGenerated,
     };
+
+    // Add type-specific properties
+    if (shape.type === "rectangle") {
+      shapeData.width = shape.width;
+      shapeData.height = shape.height;
+    } else if (shape.type === "circle") {
+      shapeData.radius = shape.radius;
+    } else if (shape.type === "text") {
+      shapeData.text = shape.text;
+      shapeData.fontSize = shape.fontSize;
+      shapeData.fontFamily = shape.fontFamily;
+      shapeData.align = shape.align;
+      shapeData.width = shape.width;
+    }
 
     shapesMap.set(shape.id, shapeData);
   };

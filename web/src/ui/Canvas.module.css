@@ -22,6 +22,14 @@
   cursor: crosshair;
 }
 
+.stage[data-tool="circle"] {
+  cursor: crosshair;
+}
+
+.stage[data-tool="text"] {
+  cursor: text;
+}
+
 .zoomControls {
   position: absolute;
   bottom: 1.5rem;
@@ -83,4 +91,30 @@
 .zoomButton:focus-visible {
   outline: 2px solid #0ea5e9;
   outline-offset: 2px;
+}
+
+/* Text input overlay */
+.textInputOverlay {
+  position: absolute;
+  padding: 0.25rem;
+  background: white;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.2);
+  z-index: 1000;
+}
+
+.textInput {
+  min-width: 200px;
+  padding: 0.5rem;
+  border: 2px solid #0ea5e9;
+  border-radius: 4px;
+  font-size: 16px;
+  font-family: Arial, sans-serif;
+  outline: none;
+  background: white;
+}
+
+.textInput:focus {
+  border-color: #0284c7;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
 }

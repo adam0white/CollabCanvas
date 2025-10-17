@@ -22,7 +22,7 @@ import { createDecoder, readVarUint, readVarUint8Array } from "lib0/decoding";
 import { YDurableObjects } from "y-durableobjects";
 import type { Awareness } from "y-protocols/awareness";
 import { applyAwarenessUpdate } from "y-protocols/awareness";
-
+import { dispatchTool, type ToolCall, type ToolResult } from "./ai-tools";
 import {
   createDebouncedCommit,
   type DebouncedCommitController,
@@ -35,12 +35,29 @@ type DurableBindings = {
   Bindings: Env;
 };
 
+// Idempotency tracking for AI commands
+type CommandResult = {
+  commandId: string;
+  result: AICommandResult;
+  timestamp: number;
+};
+
+export type AICommandResult = {
+  success: boolean;
+  message: string;
+  shapesCreated?: string[];
+  shapesAffected?: string[];
+  error?: string;
+  commandId: string;
+};
+
 export class RoomDO extends YDurableObjects<DurableBindings> {
   private readonly commitScheduler: DebouncedCommitController;
   private readonly sockets = new Set<WebSocket>();
   private readonly awareness: Awareness;
   private readonly connectionRoles = new Map<WebSocket, ClientRole>();
   private readonly pendingConnections: ConnectionContext[] = [];
+  private readonly commandCache = new Map<string, CommandResult>();
 
   constructor(state: DurableObjectState, env: Env) {
     super(state, env);
@@ -133,6 +150,152 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
     }
 
     await super.webSocketMessage(ws, message);
+  }
+
+  /**
+   * RPC Method: Execute AI Command
+   *
+   * Executes AI tool calls within a single atomic Yjs transaction.
+   * Implements idempotency checking to prevent duplicate execution.
+   *
+   * @param params - Command parameters including toolCalls, userId, userName
+   * @returns Result object with success status and affected shape IDs
+   */
+  async executeAICommand(params: {
+    commandId: string;
+    toolCalls: ToolCall[];
+    userId: string;
+    userName: string;
+    prompt: string;
+  }): Promise<AICommandResult> {
+    const { commandId, toolCalls, userId, userName, prompt } = params;
+
+    // Idempotency check: return cached result if command already executed
+    const cached = this.commandCache.get(commandId);
+    if (cached) {
+      console.log(`[AI] Returning cached result for command ${commandId}`);
+      return cached.result;
+    }
+
+    // Validate bounds: limit shapes per command
+    const MAX_SHAPES = 50;
+    const createToolCount = toolCalls.filter(
+      (t) => t.name === "createShape",
+    ).length;
+    if (createToolCount > MAX_SHAPES) {
+      const result: AICommandResult = {
+        success: false,
+        message: `Too many shapes requested: ${createToolCount}. Maximum is ${MAX_SHAPES}.`,
+        error: "Exceeded shape limit",
+        commandId,
+      };
+      this.commandCache.set(commandId, {
+        commandId,
+        result,
+        timestamp: Date.now(),
+      });
+      return result;
+    }
+
+    try {
+      const shapesCreated: string[] = [];
+      const shapesAffected: string[] = [];
+      const toolResults: ToolResult[] = [];
+
+      // Execute all tools within a single Yjs transaction (atomic)
+      this.doc.transact(() => {
+        for (const toolCall of toolCalls) {
+          const result = dispatchTool(this.doc, toolCall, userId);
+          toolResults.push(result);
+
+          if (result.success) {
+            if (result.shapeId) {
+              if (toolCall.name === "createShape") {
+                shapesCreated.push(result.shapeId);
+              }
+              shapesAffected.push(result.shapeId);
+            }
+            if (result.shapeIds) {
+              shapesAffected.push(...result.shapeIds);
+            }
+          }
+        }
+
+        // Append to AI history within same transaction
+        const aiHistory = this.doc.getArray("aiHistory");
+
+        // Build a better response message
+        let responseMessage = "";
+        if (shapesCreated.length > 0) {
+          responseMessage = `Created ${shapesCreated.length} shape${shapesCreated.length > 1 ? "s" : ""}`;
+        } else if (toolResults.length > 0) {
+          responseMessage = toolResults.map((r) => r.message).join("; ");
+        } else {
+          responseMessage = "No operations performed";
+        }
+
+        const historyEntry = {
+          id: commandId,
+          userId,
+          userName,
+          prompt,
+          response: responseMessage,
+          timestamp: Date.now(),
+          shapesAffected,
+          success: toolResults.every((r) => r.success),
+          error: toolResults.find((r) => !r.success)?.error,
+        };
+
+        aiHistory.push([historyEntry]);
+
+        // Prune history to last 100 entries
+        if (aiHistory.length > 100) {
+          aiHistory.delete(0, aiHistory.length - 100);
+        }
+      });
+
+      const result: AICommandResult = {
+        success: true,
+        message: `Executed ${toolCalls.length} AI tools successfully`,
+        shapesCreated,
+        shapesAffected,
+        commandId,
+      };
+
+      // Cache result for idempotency
+      this.commandCache.set(commandId, {
+        commandId,
+        result,
+        timestamp: Date.now(),
+      });
+
+      // Clean old cache entries (keep last 50)
+      if (this.commandCache.size > 50) {
+        const entries = Array.from(this.commandCache.entries());
+        entries.sort((a, b) => b[1].timestamp - a[1].timestamp);
+        const toKeep = entries.slice(0, 50);
+        this.commandCache.clear();
+        for (const [key, value] of toKeep) {
+          this.commandCache.set(key, value);
+        }
+      }
+
+      return result;
+    } catch (error) {
+      console.error("[AI] executeAICommand error:", error);
+      const result: AICommandResult = {
+        success: false,
+        message: "Failed to execute AI command",
+        error: error instanceof Error ? error.message : "Unknown error",
+        commandId,
+      };
+      this.commandCache.set(commandId, {
+        commandId,
+        result,
+        timestamp: Date.now(),
+      });
+      return result;
+    }
   }
 }
 

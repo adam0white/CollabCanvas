@@ -1,0 +1,198 @@
+/* AIPanel Styles */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: white;
+  border-left: 1px solid #e5e7eb;
+  width: 350px;
+  max-width: 100%;
+}
+
+.inputSection {
+  padding: 16px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.title {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 14px;
+  resize: vertical;
+  min-height: 60px;
+  margin-bottom: 8px;
+  box-sizing: border-box;
+}
+
+.textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.textarea:disabled {
+  background: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.submitButton {
+  width: 100%;
+  padding: 10px 16px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.submitButton:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.submitButton:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+.loadingDots {
+  margin-right: 4px;
+}
+
+.loadingAnimation {
+  animation: dots 1.5s steps(3, end) infinite;
+}
+
+@keyframes dots {
+  0%,
+  20% {
+    content: ".";
+  }
+  40% {
+    content: "..";
+  }
+  60%,
+  100% {
+    content: "...";
+  }
+}
+
+.error {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  border-radius: 6px;
+  color: #991b1b;
+  font-size: 13px;
+}
+
+/* History Section */
+
+.historySection {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.historyTitle {
+  margin: 0;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b7280;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.historyList {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.emptyState {
+  padding: 32px 16px;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+.historyEntry {
+  margin-bottom: 8px;
+  padding: 12px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.historyEntry.success {
+  border-left: 3px solid #10b981;
+}
+
+.historyEntry.failed {
+  border-left: 3px solid #ef4444;
+  background: #fef2f2;
+}
+
+.historyEntry.currentUser {
+  background: #f0f9ff;
+  border-left-color: #3b82f6;
+}
+
+.historyEntry.currentUser.failed {
+  background: #fef2f2;
+  border-left-color: #ef4444;
+}
+
+.historyHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.userName {
+  font-weight: 600;
+  color: #111827;
+}
+
+.timestamp {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.prompt {
+  color: #374151;
+  margin-bottom: 6px;
+  font-style: italic;
+}
+
+.response {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.shapesAffected {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #9ca3af;
+  font-style: italic;
+}

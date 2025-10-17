@@ -92,6 +92,21 @@
   flex: 1;
   padding: 0;
   overflow: hidden;
+  display: flex;
+  flex-direction: row;
+}
+
+.canvasContainer {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.aiPanel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: white;
 }
 
 .floatingToolbar {
