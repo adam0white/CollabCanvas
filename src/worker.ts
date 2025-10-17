@@ -758,22 +758,52 @@ Positions: center=${centerX},${centerY}, left=${centerX - 300}, right=${centerX 
 
         // Fix: AI sometimes returns shapes as a stringified JSON array instead of actual array
         if (params.shapes && typeof params.shapes === "string") {
+          console.warn(
+            "[AI] ⚠ Fixing stringified shapes parameter - AI returned string instead of array",
+          );
+          console.log(
+            "[AI] Raw shapes string:",
+            params.shapes.substring(0, 200),
+          );
+
           try {
-            console.warn(
-              "[AI] ⚠ Fixing stringified shapes parameter - AI returned string instead of array",
-            );
+            // Try 1: Direct JSON.parse
             params.shapes = JSON.parse(params.shapes);
             console.log(
               "[AI] ✓ Successfully parsed",
               Array.isArray(params.shapes) ? params.shapes.length : 0,
               "shapes from stringified parameter",
             );
-          } catch (parseError) {
-            console.error(
-              "[AI] ✗ Failed to parse stringified shapes:",
-              parseError,
+          } catch (parseError1) {
+            console.warn(
+              "[AI] Direct JSON.parse failed, trying with quote normalization...",
             );
-            // Keep as-is, let the tool handler deal with it
+
+            try {
+              // Try 2: Replace single quotes with double quotes, then parse
+              // This handles AI using JS object notation instead of JSON
+              const normalized = (params.shapes as string)
+                .replace(/'/g, '"') // Replace single quotes with double quotes
+                .replace(/(\w+):/g, '"$1":'); // Add quotes around unquoted keys
+
+              console.log(
+                "[AI] Normalized string:",
+                normalized.substring(0, 200),
+              );
+              params.shapes = JSON.parse(normalized);
+              console.log(
+                "[AI] ✓ Successfully parsed after normalization:",
+                Array.isArray(params.shapes) ? params.shapes.length : 0,
+                "shapes",
+              );
+            } catch (parseError2) {
+              console.error(
+                "[AI] ✗ Failed to parse even after normalization:",
+                parseError2,
+              );
+              console.error("[AI] Original string:", params.shapes);
+              // Keep as-is, let the tool handler deal with it
+            }
           }
         }
 

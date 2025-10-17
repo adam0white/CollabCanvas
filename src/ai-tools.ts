@@ -230,25 +230,50 @@ export function createShape(
         console.warn(
           "[AI Tools] Received stringified shapes, attempting to parse...",
         );
+        console.log(
+          "[AI Tools] Raw string:",
+          (params.shapes as string).substring(0, 150),
+        );
+
         try {
+          // Try direct JSON.parse first
           shapesArray = JSON.parse(params.shapes) as CreateShapeParams[];
           console.log(
             "[AI Tools] ✓ Parsed",
             shapesArray.length,
             "shapes from string",
           );
-        } catch (parseError) {
-          console.error(
-            "[AI Tools] Failed to parse stringified shapes:",
-            parseError,
-          );
-          return {
-            success: false,
-            message:
-              "Invalid shapes parameter: expected array but got unparseable string",
-            error:
-              parseError instanceof Error ? parseError.message : "Parse error",
-          };
+        } catch (parseError1) {
+          console.warn("[AI Tools] Direct parse failed, normalizing quotes...");
+
+          try {
+            // Normalize single quotes to double quotes and add quotes to unquoted keys
+            const normalized = (params.shapes as string)
+              .replace(/'/g, '"')
+              .replace(/(\w+):/g, '"$1":');
+
+            shapesArray = JSON.parse(normalized) as CreateShapeParams[];
+            console.log(
+              "[AI Tools] ✓ Parsed after normalization:",
+              shapesArray.length,
+              "shapes",
+            );
+          } catch (parseError2) {
+            console.error(
+              "[AI Tools] Failed to parse stringified shapes:",
+              parseError2,
+            );
+            console.error("[AI Tools] String that failed:", params.shapes);
+            return {
+              success: false,
+              message:
+                "Invalid shapes parameter: expected array but got unparseable string",
+              error:
+                parseError2 instanceof Error
+                  ? parseError2.message
+                  : "Parse error",
+            };
+          }
         }
       } else {
         shapesArray = params.shapes;
