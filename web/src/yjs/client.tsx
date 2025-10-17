@@ -63,6 +63,14 @@ export function YjsProvider({
     roomId: resolvedRoomId,
   }));
 
+  // Expose doc and provider to window for E2E testing
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // @ts-ignore - expose for E2E tests
+      window.yjsDoc = doc;
+    }
+  }, [doc]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -79,6 +87,12 @@ export function YjsProvider({
         connect: false,
         params: token ? { token } : {},
       });
+
+      // Expose provider to window for E2E testing
+      if (typeof window !== 'undefined') {
+        // @ts-ignore - expose for E2E tests
+        window.yjsProvider = provider;
+      }
 
       // Track all connection state changes
       provider.on("status", ({ status }: { status: string }) => {
