@@ -1,11 +1,21 @@
+import { useUser } from "@clerk/clerk-react";
 import type Konva from "konva";
 import type { KonvaEventObject } from "konva/lib/Node";
 import { useEffect, useRef, useState } from "react";
 import { Circle, Group, Layer, Rect, Stage, Text } from "react-konva";
+import { useLocking } from "../hooks/useLocking";
 import type { PresenceState } from "../hooks/usePresence";
+import { useSelection } from "../hooks/useSelection";
 import { useToolbar } from "../hooks/useToolbar";
+import { useUndoRedo } from "../hooks/useUndoRedo";
 import { ShapeLayer } from "../shapes/ShapeLayer";
-import { createCircle, createRectangle, createText } from "../shapes/types";
+import {
+  createCircle,
+  createRectangle,
+  createText,
+  isRectangle,
+  type Shape,
+} from "../shapes/types";
 import { useShapes } from "../shapes/useShapes";
 import styles from "./Canvas.module.css";
 
@@ -24,9 +34,14 @@ export function Canvas({
 }: CanvasProps): React.JSX.Element {
   const stageRef = useRef<Konva.Stage | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const { activeTool } = useToolbar();
+  const { activeTool, setActiveTool } = useToolbar();
   const { shapes, canEdit, createShape, updateShape, deleteShape } =
     useShapes();
+  const { user } = useUser();
+  const userId = user?.id ?? "guest";
+  const locking = useLocking(userId);
+  const undoRedo = useUndoRedo();
+  const { selectedShapeIds, setSelectedShapeIds } = useSelection();
 
   // State for rectangle creation (click-and-drag)
   const [isDrawing, setIsDrawing] = useState(false);
@@ -63,8 +78,25 @@ export function Canvas({
   // State for responsive canvas size
   const [canvasSize, setCanvasSize] = useState({ width: 960, height: 600 });
 
-  // State for shape selection
-  const [selectedShapeId, setSelectedShapeId] = useState<string | null>(null);
+  // State for lasso selection
+  const [lassoStart, setLassoStart] = useState<{ x: number; y: number } | null>(
+    null,
+  );
+  const [lassoEnd, setLassoEnd] = useState<{ x: number; y: number } | null>(
+    null,
+  );
+  const [isLassoSelecting, setIsLassoSelecting] = useState(false);
+
+  // State for copy/paste
+  const [clipboard, setClipboard] = useState<Shape[]>([]);
+  const [pasteCount, setPasteCount] = useState(0);
+
+  // Update locks when selection changes
+  useEffect(() => {
+    if (canEdit) {
+      locking.updateLocks(selectedShapeIds);
+    }
+  }, [selectedShapeIds, canEdit]);
 
   // Update canvas size based on container dimensions
   useEffect(() => {
@@ -109,7 +141,7 @@ export function Canvas({
     if (activeTool) {
       setIsDrawing(false);
       setNewRect(null);
-      setSelectedShapeId(null); // Deselect when switching tools
+      setSelectedShapeIds([]); // Deselect when switching tools
     }
   }, [activeTool]);
 
@@ -139,26 +171,195 @@ export function Canvas({
         return;
       }
 
-      // Delete selected shape with Delete or Backspace
+      // Delete selected shapes with Delete or Backspace
       if (
         (e.key === "Delete" || e.key === "Backspace") &&
-        selectedShapeId &&
+        selectedShapeIds.length > 0 &&
         canEdit
       ) {
         e.preventDefault();
-        deleteShape(selectedShapeId);
-        setSelectedShapeId(null);
+        // Delete all selected shapes
+        for (const shapeId of selectedShapeIds) {
+          deleteShape(shapeId);
+        }
+        setSelectedShapeIds([]);
       }
 
       // Deselect with Escape
       if (e.key === "Escape") {
-        setSelectedShapeId(null);
+        setSelectedShapeIds([]);
+      }
+
+      // Select all with Cmd+A / Ctrl+A
+      if ((e.metaKey || e.ctrlKey) && e.key === "a" && canEdit) {
+        e.preventDefault();
+        setSelectedShapeIds(shapes.map((s) => s.id));
+      }
+
+      // Duplicate with Cmd+D / Ctrl+D
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.key === "d" &&
+        canEdit &&
+        selectedShapeIds.length > 0
+      ) {
+        e.preventDefault();
+
+        // Clone selected shapes with new IDs and offset position
+        const duplicatedShapeIds: string[] = [];
+        const DUPLICATE_OFFSET = 20;
+
+        for (const shapeId of selectedShapeIds) {
+          const originalShape = shapes.find((s) => s.id === shapeId);
+          if (!originalShape) continue;
+
+          // Create duplicate with new ID and offset position
+          const duplicateShape: Shape = {
+            ...originalShape,
+            id: crypto.randomUUID(),
+            x: originalShape.x + DUPLICATE_OFFSET,
+            y: originalShape.y + DUPLICATE_OFFSET,
+            createdAt: Date.now(),
+          };
+
+          createShape(duplicateShape);
+          duplicatedShapeIds.push(duplicateShape.id);
+        }
+
+        // Select the duplicated shapes
+        setSelectedShapeIds(duplicatedShapeIds);
+      }
+
+      // Undo with Cmd+Z / Ctrl+Z
+      if ((e.metaKey || e.ctrlKey) && e.key === "z" && !e.shiftKey && canEdit) {
+        e.preventDefault();
+        undoRedo.undo();
+      }
+
+      // Redo with Cmd+Shift+Z / Ctrl+Shift+Z
+      if ((e.metaKey || e.ctrlKey) && e.key === "z" && e.shiftKey && canEdit) {
+        e.preventDefault();
+        undoRedo.redo();
+      }
+
+      // Tool switching shortcuts
+      if (e.key === "v" && canEdit) {
+        e.preventDefault();
+        setActiveTool("select");
+      }
+
+      if (e.key === "r" && canEdit) {
+        e.preventDefault();
+        setActiveTool("rectangle");
+      }
+
+      if (e.key === "c" && canEdit) {
+        e.preventDefault();
+        setActiveTool("circle");
+      }
+
+      if (e.key === "t" && canEdit) {
+        e.preventDefault();
+        setActiveTool("text");
+      }
+
+      // Arrow key navigation for selected shapes
+      if (
+        selectedShapeIds.length > 0 &&
+        canEdit &&
+        ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)
+      ) {
+        e.preventDefault();
+
+        const moveDistance = e.shiftKey ? 1 : 10; // 1px with Shift, 10px without
+        let dx = 0;
+        let dy = 0;
+
+        if (e.key === "ArrowLeft") dx = -moveDistance;
+        if (e.key === "ArrowRight") dx = moveDistance;
+        if (e.key === "ArrowUp") dy = -moveDistance;
+        if (e.key === "ArrowDown") dy = moveDistance;
+
+        // Move all selected shapes
+        for (const shapeId of selectedShapeIds) {
+          const shape = shapes.find((s) => s.id === shapeId);
+          if (shape) {
+            updateShape(shapeId, {
+              x: shape.x + dx,
+              y: shape.y + dy,
+            });
+          }
+        }
+      }
+
+      // Copy with Cmd+C / Ctrl+C
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.key === "c" &&
+        canEdit &&
+        selectedShapeIds.length > 0
+      ) {
+        e.preventDefault();
+
+        // Copy selected shapes to clipboard
+        const selectedShapes = shapes.filter((s) =>
+          selectedShapeIds.includes(s.id),
+        );
+        setClipboard(selectedShapes);
+        setPasteCount(0); // Reset paste count for new copy
+      }
+
+      // Paste with Cmd+V / Ctrl+V
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.key === "v" &&
+        canEdit &&
+        clipboard.length > 0
+      ) {
+        e.preventDefault();
+
+        // Calculate offset (cumulative for multiple pastes)
+        const PASTE_OFFSET = 20;
+        const offsetMultiplier = pasteCount + 1;
+        const offsetX = PASTE_OFFSET * offsetMultiplier;
+        const offsetY = PASTE_OFFSET * offsetMultiplier;
+
+        // Paste shapes with new IDs and offset
+        const pastedShapeIds: string[] = [];
+
+        for (const originalShape of clipboard) {
+          const pastedShape: Shape = {
+            ...originalShape,
+            id: crypto.randomUUID(),
+            x: originalShape.x + offsetX,
+            y: originalShape.y + offsetY,
+            createdAt: Date.now(),
+          };
+
+          createShape(pastedShape);
+          pastedShapeIds.push(pastedShape.id);
+        }
+
+        // Select pasted shapes
+        setSelectedShapeIds(pastedShapeIds);
+        setPasteCount(pasteCount + 1);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedShapeId, canEdit, deleteShape]);
+  }, [
+    selectedShapeIds,
+    canEdit,
+    deleteShape,
+    shapes,
+    createShape,
+    undoRedo,
+    setActiveTool,
+    updateShape,
+    clipboard,
+    pasteCount,
+  ]);
 
   // Handle zoom with mouse wheel
   const handleWheel = (e: KonvaEventObject<WheelEvent>) => {
@@ -209,9 +410,25 @@ export function Canvas({
 
     const clickedOnEmpty = e.target === stage;
 
-    // Deselect shape when clicking on empty canvas
-    if (clickedOnEmpty && selectedShapeId) {
-      setSelectedShapeId(null);
+    // Deselect shapes when clicking on empty canvas (unless shift is held for lasso)
+    if (clickedOnEmpty && selectedShapeIds.length > 0 && !e.evt.shiftKey) {
+      setSelectedShapeIds([]);
+    }
+
+    // Handle lasso selection (drag on empty canvas in select mode)
+    if (activeTool === "select" && canEdit && clickedOnEmpty) {
+      const pos = stage.getPointerPosition();
+      if (!pos) return;
+
+      const adjustedPos = {
+        x: (pos.x - position.x) / scale,
+        y: (pos.y - position.y) / scale,
+      };
+
+      setIsLassoSelecting(true);
+      setLassoStart(adjustedPos);
+      setLassoEnd(adjustedPos);
+      return;
     }
 
     // Handle rectangle creation (for authenticated users, anywhere on canvas)
@@ -270,11 +487,14 @@ export function Canvas({
     }
 
     // Handle panning:
-    // - For authenticated users: pan when clicking on empty space in select mode
-    // - For guests: always allow panning (they can't edit shapes anyway)
+    // - For authenticated users: pan when clicking on empty space with middle mouse button
+    // - For guests: allow panning when clicking empty
     const shouldPan =
-      (canEdit && clickedOnEmpty && activeTool === "select") || // Authenticated: pan on empty in select mode
-      (!canEdit && activeTool === "select"); // Guests: always pan in select mode
+      (canEdit &&
+        clickedOnEmpty &&
+        activeTool === "select" &&
+        e.evt.button === 1) || // Middle mouse button
+      (!canEdit && clickedOnEmpty && activeTool === "select"); // Guests: pan on empty in select mode
 
     if (shouldPan) {
       setIsPanning(true);
@@ -295,6 +515,12 @@ export function Canvas({
       y: (pos.y - position.y) / scale,
     };
     setPresence({ cursor: adjustedPos });
+
+    // Handle lasso selection
+    if (isLassoSelecting && lassoStart) {
+      setLassoEnd(adjustedPos);
+      return;
+    }
 
     // Handle panning
     if (isPanning) {
@@ -332,6 +558,52 @@ export function Canvas({
 
   const handleMouseUp = (e: KonvaEventObject<MouseEvent>) => {
     const stage = e.target.getStage();
+
+    // Handle end of lasso selection
+    if (isLassoSelecting && lassoStart && lassoEnd) {
+      // Calculate selection rectangle bounds
+      const minX = Math.min(lassoStart.x, lassoEnd.x);
+      const maxX = Math.max(lassoStart.x, lassoEnd.x);
+      const minY = Math.min(lassoStart.y, lassoEnd.y);
+      const maxY = Math.max(lassoStart.y, lassoEnd.y);
+
+      // Find shapes whose centers are inside the lasso rectangle
+      const selectedIds = shapes
+        .filter((shape) => {
+          // Calculate shape center based on type
+          let centerX = shape.x;
+          let centerY = shape.y;
+
+          if (isRectangle(shape)) {
+            centerX += shape.width / 2;
+            centerY += shape.height / 2;
+          }
+          // Circle and text are already centered at x,y
+
+          return (
+            centerX >= minX &&
+            centerX <= maxX &&
+            centerY >= minY &&
+            centerY <= maxY
+          );
+        })
+        .map((s) => s.id);
+
+      // If Shift is held, add to existing selection, otherwise replace
+      if (e.evt.shiftKey) {
+        setSelectedShapeIds([
+          ...new Set([...selectedShapeIds, ...selectedIds]),
+        ]);
+      } else {
+        setSelectedShapeIds(selectedIds);
+      }
+
+      // Reset lasso state
+      setIsLassoSelecting(false);
+      setLassoStart(null);
+      setLassoEnd(null);
+      return;
+    }
 
     // Handle end of panning
     if (isPanning) {
@@ -600,8 +872,30 @@ export function Canvas({
             shapes={shapes}
             canEdit={canEdit}
             selectedTool={activeTool}
-            selectedShapeId={selectedShapeId}
-            onShapeSelect={setSelectedShapeId}
+            selectedShapeIds={selectedShapeIds}
+            userId={userId}
+            locking={locking}
+            onShapeSelect={(shapeId, addToSelection) => {
+              // Check if shape is locked by another user
+              if (locking.isShapeLocked(shapeId, userId)) {
+                // Don't allow selection of locked shapes
+                return;
+              }
+
+              if (addToSelection) {
+                // Shift+Click: toggle shape in/out of selection
+                if (selectedShapeIds.includes(shapeId)) {
+                  setSelectedShapeIds(
+                    selectedShapeIds.filter((id) => id !== shapeId),
+                  );
+                } else {
+                  setSelectedShapeIds([...selectedShapeIds, shapeId]);
+                }
+              } else {
+                // Normal click: exclusive selection
+                setSelectedShapeIds([shapeId]);
+              }
+            }}
             onShapeUpdate={updateShape}
             onTextEdit={handleTextEdit}
             onDragMove={(screenX, screenY) => {
@@ -638,6 +932,20 @@ export function Canvas({
               stroke="#38bdf8"
               strokeWidth={2}
               dash={[5, 5]}
+            />
+          )}
+
+          {/* Render lasso selection rectangle */}
+          {isLassoSelecting && lassoStart && lassoEnd && (
+            <Rect
+              x={Math.min(lassoStart.x, lassoEnd.x)}
+              y={Math.min(lassoStart.y, lassoEnd.y)}
+              width={Math.abs(lassoEnd.x - lassoStart.x)}
+              height={Math.abs(lassoEnd.y - lassoStart.y)}
+              fill="rgba(59, 130, 246, 0.1)"
+              stroke="#3b82f6"
+              strokeWidth={2 / scale}
+              dash={[10 / scale, 5 / scale]}
             />
           )}
 
