@@ -131,6 +131,17 @@
   border-color: #0ea5e9;
 }
 
+.hexInputError {
+  border-color: #ef4444 !important;
+}
+
+.errorMessage {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: #ef4444;
+  line-height: 1.2;
+}
+
 .applyButton {
   padding: 0.5rem 1rem;
   background: linear-gradient(135deg, #38bdf8, #0ea5e9);
