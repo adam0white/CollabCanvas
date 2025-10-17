@@ -18,11 +18,16 @@ import { isCircle, isRectangle, isText } from "./types";
 type ShapeLayerProps = {
   shapes: Shape[];
   canEdit: boolean;
-  selectedTool: "select" | "rectangle";
+  selectedTool: "select" | "rectangle" | "circle" | "text";
   selectedShapeId: string | null;
   onShapeSelect: (id: string | null) => void;
   onShapeUpdate: (id: string, updates: Partial<Shape>) => void;
   onDragMove?: (x: number, y: number) => void;
+  onTextEdit?: (
+    shapeId: string,
+    currentText: string,
+    position: { x: number; y: number },
+  ) => void;
 };
 
 const DRAG_UPDATE_INTERVAL_MS = 50; // Throttle shape updates during drag
@@ -35,6 +40,7 @@ export function ShapeLayer({
   onShapeSelect,
   onShapeUpdate,
   onDragMove,
+  onTextEdit,
 }: ShapeLayerProps): React.JSX.Element {
   const lastDragUpdateRef = useRef<{ [key: string]: number }>({});
   const [hoveredShapeId, setHoveredShapeId] = useState<string | null>(null);
@@ -169,6 +175,23 @@ export function ShapeLayer({
     if (selectedTool === "select" && canEdit) {
       onShapeSelect(shapeId);
     }
+  };
+
+  const handleTextDoubleClick = (shape: Shape) => {
+    if (!canEdit || !isText(shape) || !onTextEdit) return;
+
+    // Get the node to find its screen position
+    const node = shapeRefs.current[shape.id];
+    if (!node) return;
+
+    const stage = node.getStage();
+    if (!stage) return;
+
+    // Convert shape position to screen coordinates
+    const transform = node.getAbsoluteTransform();
+    const pos = transform.point({ x: 0, y: 0 });
+
+    onTextEdit(shape.id, shape.text, pos);
   };
 
   return (
@@ -336,6 +359,8 @@ export function ShapeLayer({
               onDragMove={(e) => handleDragMove(e, shape)}
               onDragEnd={(e) => handleDragEnd(e, shape)}
               onTransformEnd={() => handleTransformEnd(shape)}
+              onDblClick={() => handleTextDoubleClick(shape)}
+              onDblTap={() => handleTextDoubleClick(shape)}
             />
           );
         }
