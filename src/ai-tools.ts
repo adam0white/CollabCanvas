@@ -192,7 +192,7 @@ export function createShape(
 
     // Normalize to array format
     let shapesArray: CreateShapeParams[];
-    
+
     if ("shapes" in params) {
       // Handle case where AI returns stringified JSON array instead of actual array
       if (typeof params.shapes === "string") {
@@ -201,13 +201,22 @@ export function createShape(
         );
         try {
           shapesArray = JSON.parse(params.shapes) as CreateShapeParams[];
-          console.log("[AI Tools] ✓ Parsed", shapesArray.length, "shapes from string");
+          console.log(
+            "[AI Tools] ✓ Parsed",
+            shapesArray.length,
+            "shapes from string",
+          );
         } catch (parseError) {
-          console.error("[AI Tools] Failed to parse stringified shapes:", parseError);
+          console.error(
+            "[AI Tools] Failed to parse stringified shapes:",
+            parseError,
+          );
           return {
             success: false,
-            message: "Invalid shapes parameter: expected array but got unparseable string",
-            error: parseError instanceof Error ? parseError.message : "Parse error",
+            message:
+              "Invalid shapes parameter: expected array but got unparseable string",
+            error:
+              parseError instanceof Error ? parseError.message : "Parse error",
           };
         }
       } else {
@@ -216,7 +225,7 @@ export function createShape(
     } else {
       shapesArray = [params as CreateShapeParams];
     }
-    
+
     // Validate that we have an array
     if (!Array.isArray(shapesArray)) {
       console.error("[AI Tools] shapes is not an array:", typeof shapesArray);

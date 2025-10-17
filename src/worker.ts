@@ -644,7 +644,9 @@ Rules:
       systemPrompt.length + prompt.length + JSON.stringify(AI_TOOLS).length,
     );
 
-    console.log("[AI] Attempting function calling with Llama 3.1 8B Instruct (128k context)...");
+    console.log(
+      "[AI] Attempting function calling with Llama 3.1 8B Instruct (128k context)...",
+    );
 
     // Use Cloudflare's stable Llama 3.1 model with 128k context window and tool support
     // This model is faster and more stable than beta models
@@ -653,18 +655,17 @@ Rules:
     try {
       // Use standard run() with tools parameter for function calling
       // biome-ignore lint/suspicious/noExplicitAny: Workers AI tool calling not fully typed
-      response = await (ai as any).run(
-        "@cf/meta/llama-3.1-8b-instruct",
-        {
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: prompt },
-          ],
-          tools: AI_TOOLS,
-        },
-      );
+      response = await (ai as any).run("@cf/meta/llama-3.1-8b-instruct", {
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: prompt },
+        ],
+        tools: AI_TOOLS,
+      });
 
-      console.log("[AI] ✓ Llama 3.1 response received, checking for tool calls...");
+      console.log(
+        "[AI] ✓ Llama 3.1 response received, checking for tool calls...",
+      );
     } catch (funcCallError) {
       console.error(
         "[AI] Function calling with Llama 3.1 failed:",
@@ -675,20 +676,17 @@ Rules:
       // Fallback: Try without tools parameter using standard run API
       try {
         // biome-ignore lint/suspicious/noExplicitAny: Workers AI types are not fully typed
-        response = await (ai as any).run(
-          "@cf/meta/llama-3.1-8b-instruct",
-          {
-            messages: [
-              {
-                role: "system",
-                content:
-                  systemPrompt +
-                  '\n\nRespond ONLY with valid JSON: {"shapes":[{"type":"...","x":...,"y":...}]}',
-              },
-              { role: "user", content: prompt },
-            ],
-          },
-        );
+        response = await (ai as any).run("@cf/meta/llama-3.1-8b-instruct", {
+          messages: [
+            {
+              role: "system",
+              content:
+                systemPrompt +
+                '\n\nRespond ONLY with valid JSON: {"shapes":[{"type":"...","x":...,"y":...}]}',
+            },
+            { role: "user", content: prompt },
+          ],
+        });
 
         // Parse text response as JSON
         if (
@@ -745,11 +743,11 @@ Rules:
         toolCalls.length,
         "tool calls from AI",
       );
-      
+
       // Parse and validate tool call parameters
       return toolCalls.map((call) => {
         const params = call.arguments;
-        
+
         // Fix: AI sometimes returns shapes as a stringified JSON array instead of actual array
         if (params.shapes && typeof params.shapes === "string") {
           try {
@@ -770,7 +768,7 @@ Rules:
             // Keep as-is, let the tool handler deal with it
           }
         }
-        
+
         return {
           name: call.name,
           parameters: params,
