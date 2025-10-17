@@ -7,9 +7,9 @@
  * - Test isolation with unique room IDs
  */
 
-import { test as base, type Page, type BrowserContext } from "@playwright/test";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { test as base, type Page } from "@playwright/test";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -53,7 +53,10 @@ export const test = base.extend<TestFixtures>({
     await page.goto("/c/main", { waitUntil: "domcontentloaded" });
 
     // Wait for canvas to be ready
-    await page.locator("canvas").first().waitFor({ state: "visible", timeout: 5000 });
+    await page
+      .locator("canvas")
+      .first()
+      .waitFor({ state: "visible", timeout: 5000 });
 
     // Verify authentication by checking toolbar is enabled
     await page.waitForSelector('button:has-text("Rectangle"):not([disabled])', {
@@ -72,9 +75,12 @@ export const test = base.extend<TestFixtures>({
     const page = await context.newPage();
 
     await page.goto("/c/main", { waitUntil: "domcontentloaded" });
-    
+
     // Wait for canvas to be ready
-    await page.locator("canvas").first().waitFor({ state: "visible", timeout: 5000 });
+    await page
+      .locator("canvas")
+      .first()
+      .waitFor({ state: "visible", timeout: 5000 });
 
     await use(page);
 

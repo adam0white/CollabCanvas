@@ -10,14 +10,14 @@
 
 import { expect, test } from "./fixtures";
 import {
-  createRectangle,
+  canvasClick,
+  canvasDrag,
   createCircle,
+  createRectangle,
   createText,
   selectShape,
-  canvasDrag,
-  canvasClick,
-  waitForSync,
   switchToSelectMode,
+  waitForSync,
 } from "./helpers";
 
 test.describe("Shape Creation & Editing", () => {
@@ -112,14 +112,16 @@ test.describe("Shape Creation & Editing", () => {
     test("cancel text creation with Escape", async ({ authenticatedPage }) => {
       await authenticatedPage.getByRole("button", { name: /text/i }).click();
       await waitForSync(authenticatedPage, 200);
-      
+
       // Click canvas using mouse position
       const canvas = authenticatedPage.locator("canvas").first();
       const box = await canvas.boundingBox();
       if (box) await authenticatedPage.mouse.click(box.x + 400, box.y + 300);
 
       // Wait for text input
-      const textInput = authenticatedPage.locator('input[placeholder*="Enter text"]');
+      const textInput = authenticatedPage.locator(
+        'input[placeholder*="Enter text"]',
+      );
       await textInput.waitFor({ state: "visible", timeout: 5000 });
 
       // Type some text
@@ -135,14 +137,16 @@ test.describe("Shape Creation & Editing", () => {
     test("empty text is not created", async ({ authenticatedPage }) => {
       await authenticatedPage.getByRole("button", { name: /text/i }).click();
       await waitForSync(authenticatedPage, 200);
-      
+
       // Click canvas using mouse position
       const canvas = authenticatedPage.locator("canvas").first();
       const box = await canvas.boundingBox();
       if (box) await authenticatedPage.mouse.click(box.x + 400, box.y + 300);
 
       // Wait for text input
-      const textInput = authenticatedPage.locator('input[placeholder*="Enter text"]');
+      const textInput = authenticatedPage.locator(
+        'input[placeholder*="Enter text"]',
+      );
       await textInput.waitFor({ state: "visible", timeout: 5000 });
 
       // Don't type anything, just press Enter
@@ -160,11 +164,16 @@ test.describe("Shape Creation & Editing", () => {
       await switchToSelectMode(authenticatedPage);
 
       // Double-click the text to edit
-      await authenticatedPage.locator("canvas").first().dblclick({ position: { x: 400, y: 300 } });
+      await authenticatedPage
+        .locator("canvas")
+        .first()
+        .dblclick({ position: { x: 400, y: 300 } });
       await waitForSync(authenticatedPage, 300);
 
       // Text input should appear again
-      const textInput = authenticatedPage.locator('input[placeholder*="Enter text"]');
+      const textInput = authenticatedPage.locator(
+        'input[placeholder*="Enter text"]',
+      );
       if (await textInput.isVisible({ timeout: 2000 }).catch(() => false)) {
         await textInput.clear();
         await textInput.fill("Updated Text");
@@ -203,7 +212,9 @@ test.describe("Shape Creation & Editing", () => {
       roomId,
     }) => {
       // Navigate to specific room
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
       await waitForSync(authenticatedPage, 1000);
 
       // Create a rectangle

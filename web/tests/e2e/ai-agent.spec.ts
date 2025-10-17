@@ -10,7 +10,7 @@
  */
 
 import { expect, test } from "./fixtures";
-import { waitForSync, navigateToSharedRoom } from "./helpers";
+import { navigateToSharedRoom, waitForSync } from "./helpers";
 
 test.describe("AI Canvas Agent", () => {
   test.describe("Basic AI Tools", () => {
@@ -18,7 +18,9 @@ test.describe("AI Canvas Agent", () => {
       authenticatedPage,
       roomId,
     }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
       await waitForSync(authenticatedPage, 1000);
 
       // Find AI textarea
@@ -50,7 +52,9 @@ test.describe("AI Canvas Agent", () => {
       authenticatedPage,
       roomId,
     }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
       await waitForSync(authenticatedPage, 1000);
 
       const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
@@ -65,7 +69,9 @@ test.describe("AI Canvas Agent", () => {
     });
 
     test("create text with AI", async ({ authenticatedPage, roomId }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
       await waitForSync(authenticatedPage, 1000);
 
       const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
@@ -83,7 +89,9 @@ test.describe("AI Canvas Agent", () => {
       authenticatedPage,
       roomId,
     }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
       await waitForSync(authenticatedPage, 1000);
 
       const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
@@ -100,7 +108,9 @@ test.describe("AI Canvas Agent", () => {
 
   test.describe("Advanced AI Tools", () => {
     test("move shape with AI", async ({ authenticatedPage, roomId }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
       await waitForSync(authenticatedPage, 1000);
 
       // Use AI to create a shape and then move it
@@ -119,7 +129,9 @@ test.describe("AI Canvas Agent", () => {
       authenticatedPage,
       roomId,
     }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
       await waitForSync(authenticatedPage, 1000);
 
       // Create a shape
@@ -139,7 +151,9 @@ test.describe("AI Canvas Agent", () => {
     });
 
     test("delete shape with AI", async ({ authenticatedPage, roomId }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
       await waitForSync(authenticatedPage, 1000);
 
       // Create a shape
@@ -159,7 +173,9 @@ test.describe("AI Canvas Agent", () => {
     });
 
     test("resize shape with AI", async ({ authenticatedPage, roomId }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
       await waitForSync(authenticatedPage, 1000);
 
       // Create a shape
@@ -175,7 +191,9 @@ test.describe("AI Canvas Agent", () => {
     });
 
     test("rotate shape with AI", async ({ authenticatedPage, roomId }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
       await waitForSync(authenticatedPage, 1000);
 
       // Create a shape
@@ -191,7 +209,9 @@ test.describe("AI Canvas Agent", () => {
     });
 
     test("arrange shapes with AI", async ({ authenticatedPage, roomId }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
       await waitForSync(authenticatedPage, 1000);
 
       // Create multiple shapes
@@ -212,7 +232,9 @@ test.describe("AI Canvas Agent", () => {
       authenticatedPage,
       roomId,
     }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
       await waitForSync(authenticatedPage, 1000);
 
       const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
@@ -232,7 +254,9 @@ test.describe("AI Canvas Agent", () => {
       authenticatedPage,
       roomId,
     }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
       await waitForSync(authenticatedPage, 1000);
 
       const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
@@ -250,7 +274,9 @@ test.describe("AI Canvas Agent", () => {
       authenticatedPage,
       roomId,
     }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
       await waitForSync(authenticatedPage, 1000);
 
       const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
@@ -268,7 +294,9 @@ test.describe("AI Canvas Agent", () => {
       authenticatedPage,
       roomId,
     }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
       await waitForSync(authenticatedPage, 1000);
 
       const startTime = Date.now();
@@ -296,7 +324,9 @@ test.describe("AI Canvas Agent", () => {
       authenticatedPage,
       roomId,
     }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
       await waitForSync(authenticatedPage, 1000);
 
       // Send multiple commands
@@ -324,7 +354,9 @@ test.describe("AI Canvas Agent", () => {
       authenticatedPage,
       roomId,
     }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
       await waitForSync(authenticatedPage, 1000);
 
       const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
@@ -352,7 +384,9 @@ test.describe("AI Canvas Agent", () => {
       authenticatedPage,
       roomId,
     }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
       await waitForSync(authenticatedPage, 1000);
 
       // Send a command
@@ -378,7 +412,9 @@ test.describe("AI Canvas Agent", () => {
       roomId,
     }) => {
       // Authenticated user creates a command first
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
       await waitForSync(authenticatedPage, 1000);
 
       const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
@@ -436,7 +472,9 @@ test.describe("AI Canvas Agent", () => {
       authenticatedPage,
       roomId,
     }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
       await waitForSync(authenticatedPage, 1000);
 
       const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
@@ -453,7 +491,9 @@ test.describe("AI Canvas Agent", () => {
       authenticatedPage,
       roomId,
     }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
       await waitForSync(authenticatedPage, 1000);
 
       const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);

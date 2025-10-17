@@ -243,7 +243,7 @@ export function createShape(
             shapesArray.length,
             "shapes from string",
           );
-        } catch (parseError1) {
+        } catch (_parseError1) {
           console.warn("[AI Tools] Direct parse failed, normalizing quotes...");
 
           try {

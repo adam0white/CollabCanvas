@@ -3,8 +3,8 @@
  * Saves authenticated state to be reused across tests
  */
 
-import { test as setup } from "@playwright/test";
 import path from "node:path";
+import { test as setup } from "@playwright/test";
 
 const authFile = path.join(__dirname, "../playwright/.auth/user.json");
 
@@ -14,7 +14,7 @@ setup("authenticate", async ({ page, context }) => {
 
   if (!testEmail || !testPassword) {
     throw new Error(
-      "TEST_USER_EMAIL and TEST_USER_PASSWORD must be set in environment variables"
+      "TEST_USER_EMAIL and TEST_USER_PASSWORD must be set in environment variables",
     );
   }
 
@@ -69,4 +69,3 @@ setup("authenticate", async ({ page, context }) => {
   // Save signed-in state
   await page.context().storageState({ path: authFile });
 });
-

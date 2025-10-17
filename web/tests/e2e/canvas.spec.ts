@@ -10,11 +10,11 @@
 
 import { expect, test } from "./fixtures";
 import {
-  createRectangle,
-  selectShape,
   canvasDrag,
-  waitForSync,
+  createRectangle,
   getCanvas,
+  selectShape,
+  waitForSync,
 } from "./helpers";
 
 test.describe("Canvas Interactions", () => {
@@ -99,7 +99,7 @@ test.describe("Canvas Interactions", () => {
       // Zoom should be clamped (minimum is 10%)
       const zoomButton = page.getByRole("button", { name: /\d+%/i });
       const zoomText = await zoomButton.textContent();
-      const zoomPercent = parseInt(zoomText || "0");
+      const zoomPercent = parseInt(zoomText || "0", 10);
       expect(zoomPercent).toBeGreaterThanOrEqual(10);
     });
 

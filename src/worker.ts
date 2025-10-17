@@ -774,7 +774,7 @@ Positions: center=${centerX},${centerY}, left=${centerX - 300}, right=${centerX 
               Array.isArray(params.shapes) ? params.shapes.length : 0,
               "shapes from stringified parameter",
             );
-          } catch (parseError1) {
+          } catch (_parseError1) {
             console.warn(
               "[AI] Direct JSON.parse failed, trying with quote normalization...",
             );

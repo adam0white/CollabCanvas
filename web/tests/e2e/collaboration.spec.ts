@@ -10,13 +10,13 @@
 
 import { expect, test } from "./fixtures";
 import {
-  createRectangle,
-  createCircle,
-  navigateToSharedRoom,
-  waitForSync,
-  selectShape,
   canvasDrag,
+  createCircle,
+  createRectangle,
   getCanvas,
+  navigateToSharedRoom,
+  selectShape,
+  waitForSync,
 } from "./helpers";
 
 test.describe("Real-Time Collaboration", () => {
@@ -59,10 +59,10 @@ test.describe("Real-Time Collaboration", () => {
       // Both users move cursors
       const canvas1 = await getCanvas(user1);
       const canvas2 = await getCanvas(user2);
-      
+
       const box1 = await canvas1.boundingBox();
       const box2 = await canvas2.boundingBox();
-      
+
       if (box1) await user1.mouse.move(box1.x + 200, box1.y + 200);
       if (box2) await user2.mouse.move(box2.x + 400, box2.y + 400);
 
@@ -175,8 +175,12 @@ test.describe("Real-Time Collaboration", () => {
 
       // Both users move their shapes simultaneously
       await Promise.all([
-        selectShape(user1, 250, 240).then(() => canvasDrag(user1, 250, 240, 250, 400)),
-        selectShape(user2, 450, 240).then(() => canvasDrag(user2, 450, 240, 450, 400)),
+        selectShape(user1, 250, 240).then(() =>
+          canvasDrag(user1, 250, 240, 250, 400),
+        ),
+        selectShape(user2, 450, 240).then(() =>
+          canvasDrag(user2, 450, 240, 450, 400),
+        ),
       ]);
 
       // Wait for sync
@@ -191,7 +195,9 @@ test.describe("Real-Time Collaboration", () => {
       authenticatedPage,
       roomId,
     }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
       await waitForSync(authenticatedPage, 1000);
 
       // Create multiple shapes

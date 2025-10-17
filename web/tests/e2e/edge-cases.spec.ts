@@ -10,17 +10,19 @@
 
 import { expect, test } from "./fixtures";
 import {
-  createRectangle,
-  createCircle,
-  waitForSync,
   canvasDrag,
+  createCircle,
+  createRectangle,
   getCanvas,
+  waitForSync,
 } from "./helpers";
 
 test.describe("Edge Cases & Error Handling", () => {
   test.describe("Empty States", () => {
     test("new canvas shows empty state", async ({ page, roomId }) => {
-      await page.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await page.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
       await waitForSync(page, 500);
 
       // Canvas should be visible even when empty
@@ -77,7 +79,9 @@ test.describe("Edge Cases & Error Handling", () => {
       authenticatedPage,
       roomId,
     }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
       await waitForSync(authenticatedPage, 1000);
 
       const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
@@ -112,8 +116,12 @@ test.describe("Edge Cases & Error Handling", () => {
     }) => {
       const { user1, user2 } = multiUserContext;
 
-      await user1.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
-      await user2.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await user1.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
+      await user2.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
 
       await waitForSync(user1, 1000);
       await waitForSync(user2, 1000);
@@ -172,7 +180,7 @@ test.describe("Edge Cases & Error Handling", () => {
 
       // Optionally assert email input is visible
       await expect(
-        page.getByPlaceholder(/enter your email address/i)
+        page.getByPlaceholder(/enter your email address/i),
       ).toBeVisible();
 
       // Close modal (click outside or Escape)
@@ -185,11 +193,15 @@ test.describe("Edge Cases & Error Handling", () => {
       authenticatedPage,
       roomId,
     }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
       await waitForSync(authenticatedPage, 500);
 
       // Try to create a shape with negative dimensions
-      await authenticatedPage.getByRole("button", { name: /rectangle/i }).click();
+      await authenticatedPage
+        .getByRole("button", { name: /rectangle/i })
+        .click();
 
       // Draw right-to-left and bottom-to-top (negative dimensions)
       await canvasDrag(authenticatedPage, 400, 400, 200, 200);
@@ -207,7 +219,9 @@ test.describe("Edge Cases & Error Handling", () => {
       authenticatedPage,
       roomId,
     }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
       await waitForSync(authenticatedPage, 800);
 
       // Send an intentionally problematic command
@@ -222,7 +236,9 @@ test.describe("Edge Cases & Error Handling", () => {
     });
 
     test("connection lost/restored indicator", async ({ page, roomId }) => {
-      await page.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await page.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
       await waitForSync(page, 500);
 
       // App should be in connected state
@@ -235,7 +251,9 @@ test.describe("Edge Cases & Error Handling", () => {
     test("page loads within reasonable time", async ({ page, roomId }) => {
       const startTime = Date.now();
 
-      await page.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await page.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
       await waitForSync(page, 500);
 
       const endTime = Date.now();
@@ -249,7 +267,9 @@ test.describe("Edge Cases & Error Handling", () => {
       authenticatedPage,
       roomId,
     }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
       await waitForSync(authenticatedPage, 500);
 
       // Create several shapes
@@ -276,8 +296,13 @@ test.describe("Edge Cases & Error Handling", () => {
   });
 
   test.describe("Data Validation", () => {
-    test("empty text shape is not created", async ({ authenticatedPage, roomId }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+    test("empty text shape is not created", async ({
+      authenticatedPage,
+      roomId,
+    }) => {
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
       await waitForSync(authenticatedPage, 500);
 
       await authenticatedPage.getByRole("button", { name: /text/i }).click();
@@ -287,7 +312,9 @@ test.describe("Edge Cases & Error Handling", () => {
       const box = await canvas.boundingBox();
       if (box) await authenticatedPage.mouse.click(box.x + 400, box.y + 300);
 
-      const textInput = authenticatedPage.locator('input[placeholder*="Enter text"]');
+      const textInput = authenticatedPage.locator(
+        'input[placeholder*="Enter text"]',
+      );
       await textInput.waitFor({ state: "visible", timeout: 3000 });
 
       // Just press Enter without typing
@@ -302,11 +329,15 @@ test.describe("Edge Cases & Error Handling", () => {
       authenticatedPage,
       roomId,
     }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
       await waitForSync(authenticatedPage, 500);
 
       // Test rectangle - 3x3 px (too small)
-      await authenticatedPage.getByRole("button", { name: /rectangle/i }).click();
+      await authenticatedPage
+        .getByRole("button", { name: /rectangle/i })
+        .click();
       await canvasDrag(authenticatedPage, 200, 200, 203, 203);
 
       // Test circle - 2px radius (too small)

@@ -96,7 +96,7 @@ export function Canvas({
     if (canEdit) {
       locking.updateLocks(selectedShapeIds);
     }
-  }, [selectedShapeIds, canEdit]);
+  }, [selectedShapeIds, canEdit, locking]);
 
   // Update canvas size based on container dimensions
   useEffect(() => {
@@ -143,7 +143,7 @@ export function Canvas({
       setNewRect(null);
       setSelectedShapeIds([]); // Deselect when switching tools
     }
-  }, [activeTool]);
+  }, [activeTool, setSelectedShapeIds]);
 
   // Cleanup: Destroy Stage on unmount to prevent duplicate canvas elements (especially with React StrictMode)
   useEffect(() => {
@@ -358,7 +358,8 @@ export function Canvas({
     setActiveTool,
     updateShape,
     clipboard,
-    pasteCount,
+    pasteCount, // Select pasted shapes
+    setSelectedShapeIds,
   ]);
 
   // Handle zoom with mouse wheel

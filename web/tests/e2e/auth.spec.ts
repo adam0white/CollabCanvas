@@ -9,7 +9,7 @@
  */
 
 import { expect, test } from "./fixtures";
-import { waitForSync, createRectangle, getCanvas } from "./helpers";
+import { createRectangle, getCanvas, waitForSync } from "./helpers";
 
 test.describe("Authentication & Authorization", () => {
   test("guest user can view canvas without signing in", async ({ page }) => {
@@ -136,7 +136,7 @@ test.describe("Authentication & Authorization", () => {
     try {
       await page.waitForSelector(
         '.cl-modalContent, .cl-modalBackdrop, [role="dialog"]',
-        { state: "detached", timeout: 45000 }
+        { state: "detached", timeout: 45000 },
       );
     } catch {
       // If the modal didn't detach, we'll still attempt to detect auth via app indicator below.
@@ -170,7 +170,7 @@ test.describe("Authentication & Authorization", () => {
 
     // Verify toolbar buttons are enabled
     await expect(
-      page.getByRole("button", { name: /rectangle/i })
+      page.getByRole("button", { name: /rectangle/i }),
     ).toBeEnabled();
     await expect(page.getByRole("button", { name: /circle/i })).toBeEnabled();
     await expect(page.getByRole("button", { name: /text/i })).toBeEnabled();
@@ -231,8 +231,12 @@ test.describe("Authentication & Authorization", () => {
     roomId,
   }) => {
     // Navigate both to same room
-    await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
-    await guestPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+    await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+      waitUntil: "domcontentloaded",
+    });
+    await guestPage.goto(`/c/main?roomId=${roomId}`, {
+      waitUntil: "domcontentloaded",
+    });
 
     await waitForSync(authenticatedPage, 1000);
     await waitForSync(guestPage, 1000);

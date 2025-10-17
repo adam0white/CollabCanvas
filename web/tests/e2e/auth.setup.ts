@@ -3,9 +3,9 @@
  * Saves authenticated state to be reused across tests
  */
 
-import { test as setup } from "@playwright/test";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { test as setup } from "@playwright/test";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,7 +18,7 @@ setup("authenticate", async ({ page }) => {
 
   if (!testEmail || !testPassword) {
     throw new Error(
-      "TEST_USER_EMAIL and TEST_USER_PASSWORD must be set in environment variables"
+      "TEST_USER_EMAIL and TEST_USER_PASSWORD must be set in environment variables",
     );
   }
 
@@ -65,7 +65,7 @@ setup("authenticate", async ({ page }) => {
 
     // Wait for authentication to complete - check for enabled toolbar
     await page.waitForTimeout(2000);
-    
+
     // Verify auth by checking if Rectangle button is enabled
     const rectEnabled = await page
       .waitForSelector('button:has-text("Rectangle"):not([disabled])', {
@@ -78,11 +78,14 @@ setup("authenticate", async ({ page }) => {
       // Reload page to pick up auth state
       await page.reload({ waitUntil: "domcontentloaded" });
       await page.waitForTimeout(2000);
-      
+
       // Try again
-      await page.waitForSelector('button:has-text("Rectangle"):not([disabled])', {
-        timeout: 8000,
-      });
+      await page.waitForSelector(
+        'button:has-text("Rectangle"):not([disabled])',
+        {
+          timeout: 8000,
+        },
+      );
     }
   }
 
@@ -90,13 +93,15 @@ setup("authenticate", async ({ page }) => {
   await page.waitForSelector('button:has-text("Rectangle"):not([disabled])', {
     timeout: 8000,
   });
-  
+
   // Also verify canvas is visible
-  await page.locator("canvas").first().waitFor({ state: "visible", timeout: 5000 });
+  await page
+    .locator("canvas")
+    .first()
+    .waitFor({ state: "visible", timeout: 5000 });
 
   // Save signed-in state
   await page.context().storageState({ path: authFile });
-  
+
   console.log("✓ Authentication state saved successfully");
 });
-

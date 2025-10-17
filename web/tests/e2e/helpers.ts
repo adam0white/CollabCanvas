@@ -32,7 +32,7 @@ export async function canvasHover(
   const canvas = await getCanvas(page);
   const box = await canvas.boundingBox();
   if (!box) throw new Error("Canvas not found");
-  
+
   // Move mouse to absolute position
   await page.mouse.move(box.x + x, box.y + y);
   await page.waitForTimeout(50); // Small delay for stability
@@ -50,7 +50,7 @@ export async function canvasClick(
   const canvas = await getCanvas(page);
   const box = await canvas.boundingBox();
   if (!box) throw new Error("Canvas not found");
-  
+
   // Click at absolute position
   await page.mouse.click(box.x + x, box.y + y, { delay: options?.delay });
   await waitForSync(page, 150);
@@ -117,14 +117,14 @@ export async function createText(
 ): Promise<void> {
   await page.getByRole("button", { name: /text/i }).click();
   await waitForSync(page, 200);
-  
+
   // Click canvas to place text using mouse position
   const canvas = await getCanvas(page);
   const box = await canvas.boundingBox();
   if (!box) throw new Error("Canvas not found");
-  
+
   await page.mouse.click(box.x + x, box.y + y);
-  
+
   const textInput = page.locator('input[placeholder*="Enter text"]');
   await textInput.waitFor({ state: "visible", timeout: 5000 });
   await textInput.fill(text);
@@ -202,8 +202,14 @@ export async function navigateToSharedRoom(
 
   // Wait for canvas to be ready on both pages
   await Promise.all([
-    user1.locator("canvas").first().waitFor({ state: "visible", timeout: 5000 }),
-    user2.locator("canvas").first().waitFor({ state: "visible", timeout: 5000 }),
+    user1
+      .locator("canvas")
+      .first()
+      .waitFor({ state: "visible", timeout: 5000 }),
+    user2
+      .locator("canvas")
+      .first()
+      .waitFor({ state: "visible", timeout: 5000 }),
   ]);
 
   // Give Yjs time to establish connection

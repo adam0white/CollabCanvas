@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
-import { config } from 'dotenv';
-config({ path: '../.env', quiet: true });
+import { config } from "dotenv";
+
+config({ path: "../.env", quiet: true });
 
 /**
  * Playwright Configuration for CollabCanvas E2E Tests
