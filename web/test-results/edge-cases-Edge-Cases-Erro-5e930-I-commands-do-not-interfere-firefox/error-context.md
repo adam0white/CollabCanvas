@@ -1,0 +1,50 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - heading "CollabCanvas" [level=1] [ref=e6]
+      - generic [ref=e7]: Connecting...
+    - generic [ref=e9]:
+      - generic "Guest 77" [ref=e10]: "77"
+      - generic [ref=e11]: 1 person here
+  - main [ref=e12]:
+    - navigation "Canvas tools" [ref=e13]:
+      - button "Select" [ref=e14] [cursor=pointer]:
+        - generic [ref=e15]: 🖱️
+        - text: Select
+      - button "Rectangle" [disabled] [ref=e16]:
+        - generic [ref=e17]: ▭
+        - text: Rectangle
+      - button "Circle" [disabled] [ref=e18]:
+        - generic [ref=e19]: ⭕
+        - text: Circle
+      - button "Text" [disabled] [ref=e20]:
+        - generic [ref=e21]: T
+        - text: Text
+    - generic [ref=e24]:
+      - button "+" [ref=e25] [cursor=pointer]
+      - button "100%" [ref=e26] [cursor=pointer]
+      - button "−" [ref=e27] [cursor=pointer]
+    - complementary [ref=e31]:
+      - generic [ref=e32]:
+        - generic [ref=e33]:
+          - heading "AI Assistant" [level=3] [ref=e34]
+          - generic [ref=e35]:
+            - textbox "Sign in to use AI commands" [disabled] [ref=e36]
+            - button "Send" [disabled] [ref=e37]
+        - generic [ref=e38]:
+          - heading "History" [level=4] [ref=e39]
+          - generic [ref=e41]: No AI commands yet. Try asking the AI to create shapes!
+  - contentinfo [ref=e42]:
+    - generic [ref=e43]:
+      - link "Privacy Policy" [ref=e44] [cursor=pointer]:
+        - /url: /privacy
+      - generic [ref=e45]: •
+      - link "Terms of Service" [ref=e46] [cursor=pointer]:
+        - /url: /terms
+      - generic [ref=e47]: •
+      - link "GitHub" [ref=e48] [cursor=pointer]:
+        - /url: https://github.com/adam0white/CollabCanvas
+```
