@@ -644,16 +644,17 @@ Rules:
       systemPrompt.length + prompt.length + JSON.stringify(AI_TOOLS).length,
     );
 
-    console.log("[AI] Attempting function calling with runWithTools API...");
+    console.log("[AI] Attempting function calling with Llama 3.1 8B Instruct (128k context)...");
 
-    // Use the proper runWithTools API for Cloudflare Workers AI
+    // Use Cloudflare's stable Llama 3.1 model with 128k context window and tool support
+    // This model is faster and more stable than beta models
     // biome-ignore lint/suspicious/noExplicitAny: Workers AI types don't include function calling yet
     let response: any;
     try {
-      // Try with the recommended model that supports function calling
-      // biome-ignore lint/suspicious/noExplicitAny: Workers AI runWithTools not in official types
-      response = await (ai as any).runWithTools(
-        "@hf/nousresearch/hermes-2-pro-mistral-7b",
+      // Use standard run() with tools parameter for function calling
+      // biome-ignore lint/suspicious/noExplicitAny: Workers AI tool calling not fully typed
+      response = await (ai as any).run(
+        "@cf/meta/llama-3.1-8b-instruct",
         {
           messages: [
             { role: "system", content: systemPrompt },
@@ -663,13 +664,10 @@ Rules:
         },
       );
 
-      console.log(
-        "[AI] ✓ runWithTools successful, response:",
-        JSON.stringify(response).substring(0, 200),
-      );
+      console.log("[AI] ✓ Llama 3.1 response received, checking for tool calls...");
     } catch (funcCallError) {
       console.error(
-        "[AI] Function calling with runWithTools failed:",
+        "[AI] Function calling with Llama 3.1 failed:",
         funcCallError,
       );
       console.log("[AI] Falling back to text parsing with standard run()...");
@@ -678,7 +676,7 @@ Rules:
       try {
         // biome-ignore lint/suspicious/noExplicitAny: Workers AI types are not fully typed
         response = await (ai as any).run(
-          "@hf/nousresearch/hermes-2-pro-mistral-7b",
+          "@cf/meta/llama-3.1-8b-instruct",
           {
             messages: [
               {
