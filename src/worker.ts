@@ -616,14 +616,22 @@ async function generateToolCallsWithAI(
   const centerX = context.viewportCenter?.x ?? 1000;
   const centerY = context.viewportCenter?.y ?? 1000;
 
-  // Ultra-minimal system prompt
+  // Ultra-minimal system prompt with explicit JSON formatting guidance
   let systemPrompt = `Canvas 2000x2000. Center: ${centerX},${centerY}
-Format: createShape({shapes:[{type:"rectangle",x:100,y:200,width:150,height:100,fill:"#FF0000"}]})
-Rules:
-- ALWAYS use shapes:[] array
-- Colors as hex: red=#FF0000,blue=#0000FF,yellow=#FFFF00,green=#00FF00,purple=#800080,pink=#FFC0CB,orange=#FFA500
-- Sizes: tiny=40,small=80,normal=150,large=250,huge=400
-- Positions: center=${centerX},${centerY} left=${centerX - 300} right=${centerX + 300}`;
+
+CRITICAL: Use proper JSON arrays, NOT stringified arrays!
+✓ CORRECT: {shapes:[{type:"circle",x:100,y:200,radius:50}]}
+✗ WRONG: {shapes:"[{type:'circle'...}]"}
+
+Format examples:
+- Circle: {shapes:[{type:"circle",x:100,y:200,radius:50,fill:"#FF0000"}]}
+- Rectangle: {shapes:[{type:"rectangle",x:100,y:200,width:150,height:100,fill:"#0000FF"}]}
+- Text: {shapes:[{type:"text",x:100,y:200,text:"Hello",fontSize:16,fill:"#000000"}]}
+- Multiple: {shapes:[{type:"circle",...},{type:"rectangle",...}]}
+
+Colors (hex): red=#FF0000, blue=#0000FF, yellow=#FFFF00, green=#00FF00, purple=#800080, pink=#FFC0CB, orange=#FFA500
+Sizes: tiny=40, small=80, normal=150, large=250, huge=400
+Positions: center=${centerX},${centerY}, left=${centerX - 300}, right=${centerX + 300}`;
 
   if (context.selectedShapeIds && context.selectedShapeIds.length > 0) {
     systemPrompt += `\nSelected:${context.selectedShapeIds.slice(0, 2).join(",")}`;
