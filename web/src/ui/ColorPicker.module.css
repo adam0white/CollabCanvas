@@ -132,7 +132,7 @@
 }
 
 .hexInputError {
-  border-color: #ef4444 !important;
+  border-color: #ef4444;
 }
 
 .errorMessage {
