@@ -9,24 +9,34 @@
  */
 
 import { expect, test } from "./fixtures";
+import {
+  createRectangle,
+  selectShape,
+  canvasDrag,
+  waitForSync,
+  getCanvas,
+} from "./helpers";
 
 test.describe("Canvas Interactions", () => {
   test.describe("Pan & Zoom", () => {
     test("mouse wheel zooms in and out", async ({ page }) => {
-      await page.goto("/c/main");
-      await page.waitForLoadState("networkidle");
+      await page.goto("/c/main", { waitUntil: "domcontentloaded" });
+      await waitForSync(page, 500);
 
-      const canvas = page.locator("canvas").first();
+      const canvas = await getCanvas(page);
       const zoomButton = page.getByRole("button", { name: /100%/i });
 
       // Initial zoom should be 100%
       await expect(zoomButton).toHaveText("100%");
 
-      // Zoom in with wheel (simulate wheel event)
-      await canvas.hover({ position: { x: 400, y: 300 } });
-      await page.mouse.wheel(0, -100); // Negative deltaY zooms in
+      // Zoom in with wheel
+      const box = await canvas.boundingBox();
+      if (box) {
+        await page.mouse.move(box.x + 400, box.y + 300);
+        await page.mouse.wheel(0, -100);
+      }
 
-      await page.waitForTimeout(200);
+      await waitForSync(page, 200);
 
       // Zoom level should have changed
       const zoomText = await zoomButton.textContent();
@@ -34,8 +44,8 @@ test.describe("Canvas Interactions", () => {
     });
 
     test("zoom controls buttons work", async ({ page }) => {
-      await page.goto("/c/main");
-      await page.waitForLoadState("networkidle");
+      await page.goto("/c/main", { waitUntil: "domcontentloaded" });
+      await waitForSync(page, 500);
 
       const zoomButton = page.getByRole("button", { name: /100%/i });
       const zoomInButton = page.getByRole("button", { name: "+" });
@@ -43,20 +53,20 @@ test.describe("Canvas Interactions", () => {
 
       // Zoom in
       await zoomInButton.click();
-      await page.waitForTimeout(100);
+      await waitForSync(page, 100);
       let zoomText = await zoomButton.textContent();
-      expect(zoomText).toContain("110%"); // ~110% after one click
+      expect(zoomText).toContain("110%");
 
       // Zoom out
       await zoomOutButton.click();
-      await page.waitForTimeout(100);
+      await waitForSync(page, 100);
       zoomText = await zoomButton.textContent();
       expect(zoomText).toBe("100%");
     });
 
     test("reset zoom button returns to 100%", async ({ page }) => {
-      await page.goto("/c/main");
-      await page.waitForLoadState("networkidle");
+      await page.goto("/c/main", { waitUntil: "domcontentloaded" });
+      await waitForSync(page, 500);
 
       const zoomButton = page.getByRole("button", { name: /100%/i });
       const zoomInButton = page.getByRole("button", { name: "+" });
@@ -64,26 +74,26 @@ test.describe("Canvas Interactions", () => {
       // Zoom in multiple times
       await zoomInButton.click();
       await zoomInButton.click();
-      await page.waitForTimeout(200);
+      await waitForSync(page, 200);
 
       // Click reset
       await zoomButton.click();
-      await page.waitForTimeout(100);
+      await waitForSync(page, 100);
 
       // Should be back to 100%
       await expect(zoomButton).toHaveText("100%");
     });
 
     test("zoom is clamped to MIN_ZOOM and MAX_ZOOM", async ({ page }) => {
-      await page.goto("/c/main");
-      await page.waitForLoadState("networkidle");
+      await page.goto("/c/main", { waitUntil: "domcontentloaded" });
+      await waitForSync(page, 500);
 
       const zoomOutButton = page.getByRole("button", { name: "−" });
 
       // Try to zoom out many times
       for (let i = 0; i < 20; i++) {
         await zoomOutButton.click();
-        await page.waitForTimeout(50);
+        await waitForSync(page, 30);
       }
 
       // Zoom should be clamped (minimum is 10%)
@@ -99,144 +109,76 @@ test.describe("Canvas Interactions", () => {
       // Click select tool
       await authenticatedPage.getByRole("button", { name: /select/i }).click();
 
-      const canvas = authenticatedPage.locator("canvas").first();
-
-      // Get initial stage position (we can't easily verify, but ensure no errors)
-      await canvas.hover({ position: { x: 400, y: 300 } });
-      await authenticatedPage.mouse.down();
-      await canvas.hover({ position: { x: 300, y: 200 } });
-      await authenticatedPage.mouse.up();
-
-      await authenticatedPage.waitForTimeout(200);
+      // Pan the canvas
+      await canvasDrag(authenticatedPage, 400, 300, 300, 200);
     });
 
     test("guest user can pan", async ({ guestPage }) => {
-      await guestPage.waitForLoadState("networkidle");
+      await waitForSync(guestPage, 500);
 
-      // Guest should be in select mode by default
-      const canvas = guestPage.locator("canvas").first();
-
-      await canvas.hover({ position: { x: 400, y: 300 } });
-      await guestPage.mouse.down();
-      await canvas.hover({ position: { x: 300, y: 200 } });
-      await guestPage.mouse.up();
-
-      await guestPage.waitForTimeout(200);
+      // Guest users should be able to pan
+      await canvasDrag(guestPage, 400, 300, 300, 200);
     });
   });
 
   test.describe("Selection", () => {
     test("click shape to select", async ({ authenticatedPage }) => {
-      // Create a shape first
-      await authenticatedPage
-        .getByRole("button", { name: /rectangle/i })
-        .click();
-      const canvas = authenticatedPage.locator("canvas").first();
+      // Create a rectangle
+      await createRectangle(authenticatedPage, 200, 200, 150, 100);
 
-      await canvas.hover({ position: { x: 200, y: 200 } });
-      await authenticatedPage.mouse.down();
-      await canvas.hover({ position: { x: 350, y: 300 } });
-      await authenticatedPage.mouse.up();
-      await authenticatedPage.waitForTimeout(500);
-
-      // Switch to select tool and click shape
-      await authenticatedPage.getByRole("button", { name: /select/i }).click();
-      await canvas.click({ position: { x: 275, y: 250 } });
-
-      await authenticatedPage.waitForTimeout(200);
-      // Shape should be selected (transformer visible, but we can't easily verify)
+      // Select the shape
+      await selectShape(authenticatedPage, 275, 250);
     });
 
     test("click empty canvas deselects", async ({ authenticatedPage }) => {
       // Create and select a shape
-      await authenticatedPage
-        .getByRole("button", { name: /rectangle/i })
-        .click();
-      const canvas = authenticatedPage.locator("canvas").first();
-
-      await canvas.hover({ position: { x: 200, y: 200 } });
-      await authenticatedPage.mouse.down();
-      await canvas.hover({ position: { x: 350, y: 300 } });
-      await authenticatedPage.mouse.up();
-      await authenticatedPage.waitForTimeout(500);
-
-      await authenticatedPage.getByRole("button", { name: /select/i }).click();
-      await canvas.click({ position: { x: 275, y: 250 } });
-      await authenticatedPage.waitForTimeout(200);
+      await createRectangle(authenticatedPage, 200, 200, 150, 100);
+      await selectShape(authenticatedPage, 275, 250);
 
       // Click empty area
-      await canvas.click({ position: { x: 600, y: 500 } });
-      await authenticatedPage.waitForTimeout(200);
+      const canvas = await getCanvas(authenticatedPage);
+      const box = await canvas.boundingBox();
+      if (box) await authenticatedPage.mouse.click(box.x + 600, box.y + 500);
+      await waitForSync(authenticatedPage, 200);
     });
 
     test("Escape key deselects", async ({ authenticatedPage }) => {
       // Create and select a shape
-      await authenticatedPage
-        .getByRole("button", { name: /rectangle/i })
-        .click();
-      const canvas = authenticatedPage.locator("canvas").first();
-
-      await canvas.hover({ position: { x: 200, y: 200 } });
-      await authenticatedPage.mouse.down();
-      await canvas.hover({ position: { x: 350, y: 300 } });
-      await authenticatedPage.mouse.up();
-      await authenticatedPage.waitForTimeout(500);
-
-      await authenticatedPage.getByRole("button", { name: /select/i }).click();
-      await canvas.click({ position: { x: 275, y: 250 } });
-      await authenticatedPage.waitForTimeout(200);
+      await createRectangle(authenticatedPage, 200, 200, 150, 100);
+      await selectShape(authenticatedPage, 275, 250);
 
       // Press Escape
       await authenticatedPage.keyboard.press("Escape");
-      await authenticatedPage.waitForTimeout(200);
+      await waitForSync(authenticatedPage, 200);
     });
   });
 
   test.describe("Keyboard Shortcuts", () => {
     test("Delete key removes selected shape", async ({ authenticatedPage }) => {
-      // Create shape
-      await authenticatedPage
-        .getByRole("button", { name: /rectangle/i })
-        .click();
-      const canvas = authenticatedPage.locator("canvas").first();
+      // Create a rectangle
+      await createRectangle(authenticatedPage, 200, 200, 150, 100);
 
-      await canvas.hover({ position: { x: 200, y: 200 } });
-      await authenticatedPage.mouse.down();
-      await canvas.hover({ position: { x: 350, y: 300 } });
-      await authenticatedPage.mouse.up();
-      await authenticatedPage.waitForTimeout(500);
-
-      // Select shape
-      await authenticatedPage.getByRole("button", { name: /select/i }).click();
-      await canvas.click({ position: { x: 275, y: 250 } });
-      await authenticatedPage.waitForTimeout(200);
+      // Select the shape
+      await selectShape(authenticatedPage, 275, 250);
 
       // Press Delete
       await authenticatedPage.keyboard.press("Delete");
-      await authenticatedPage.waitForTimeout(500);
+      await waitForSync(authenticatedPage);
     });
 
     test("Backspace key removes selected shape", async ({
       authenticatedPage,
     }) => {
-      // Create shape
+      // Create a circle
       await authenticatedPage.getByRole("button", { name: /circle/i }).click();
-      const canvas = authenticatedPage.locator("canvas").first();
+      await canvasDrag(authenticatedPage, 300, 300, 360, 360);
 
-      await canvas.hover({ position: { x: 300, y: 300 } });
-      await authenticatedPage.mouse.down();
-      await canvas.hover({ position: { x: 360, y: 360 } });
-      await authenticatedPage.mouse.up();
-      await authenticatedPage.waitForTimeout(500);
-
-      // Select shape
-      await authenticatedPage.getByRole("button", { name: /select/i }).click();
-      await canvas.click({ position: { x: 300, y: 300 } });
-      await authenticatedPage.waitForTimeout(200);
+      // Select the shape
+      await selectShape(authenticatedPage, 330, 330);
 
       // Press Backspace
       await authenticatedPage.keyboard.press("Backspace");
-      await authenticatedPage.waitForTimeout(500);
+      await waitForSync(authenticatedPage);
     });
 
     test("shortcuts disabled when typing in text input", async ({
@@ -257,10 +199,10 @@ test.describe("Canvas Interactions", () => {
 
   test.describe("Canvas Responsiveness", () => {
     test("canvas fills viewport", async ({ page }) => {
-      await page.goto("/c/main");
-      await page.waitForLoadState("networkidle");
+      await page.goto("/c/main", { waitUntil: "domcontentloaded" });
+      await waitForSync(page, 500);
 
-      const canvas = page.locator("canvas").first();
+      const canvas = await getCanvas(page);
       const canvasBox = await canvas.boundingBox();
 
       // Canvas should be reasonably large

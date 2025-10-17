@@ -1,4 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
+import { config } from 'dotenv';
+config({ path: '../.env', quiet: true });
 
 /**
  * Playwright Configuration for CollabCanvas E2E Tests
@@ -18,7 +20,7 @@ export default defineConfig({
   fullyParallel: true, // Run tests in parallel for speed
   forbidOnly: !!process.env.CI, // Fail CI if test.only is left in
   retries: process.env.CI ? 2 : 0, // Retry failed tests in CI
-  workers: process.env.CI ? 1 : undefined, // Limit parallelism in CI
+  workers: "80%",
 
   // Reporter configuration
   reporter: [
@@ -38,14 +40,14 @@ export default defineConfig({
     screenshot: "only-on-failure", // Screenshot on failure
 
     // Timeouts
-    actionTimeout: 10000, // 10s for actions
+    actionTimeout: 15000, // 15s for actions (increased for stability)
     navigationTimeout: 30000, // 30s for page loads
   },
 
   // Test timeout
   timeout: 60000, // 60s per test (some AI commands may take time)
   expect: {
-    timeout: 10000, // 10s for assertions
+    timeout: 8000, // 8s for assertions
   },
 
   // Web server configuration
@@ -60,19 +62,28 @@ export default defineConfig({
 
   // Browser projects
   projects: [
+    // Setup project to run once
+    {
+      name: "setup",
+      testMatch: /auth\.setup\.ts/,
+    },
     {
       name: "chromium",
       use: {
         ...devices["Desktop Chrome"],
         viewport: { width: 1280, height: 720 },
+        storageState: "playwright/.auth/user.json",
       },
+      dependencies: ["setup"],
     },
     {
       name: "firefox",
       use: {
         ...devices["Desktop Firefox"],
         viewport: { width: 1280, height: 720 },
+        storageState: "playwright/.auth/user.json",
       },
+      dependencies: ["setup"],
     },
   ],
 });

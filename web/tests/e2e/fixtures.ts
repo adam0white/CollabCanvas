@@ -2,12 +2,19 @@
  * Playwright Test Fixtures for CollabCanvas
  *
  * Provides reusable fixtures for:
- * - Authenticated users (using real Clerk credentials)
+ * - Authenticated users (using stored auth state from setup)
  * - Multi-browser contexts for collaboration testing
  * - Test isolation with unique room IDs
  */
 
-import { test as base, type Page } from "@playwright/test";
+import { test as base, type Page, type BrowserContext } from "@playwright/test";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const authFile = path.join(__dirname, "../../playwright/.auth/user.json");
 
 type TestFixtures = {
   authenticatedPage: Page;
@@ -33,80 +40,41 @@ export const test = base.extend<TestFixtures>({
   /**
    * Unique room ID for each test
    */
-  roomId: async ({}, use) => {
+  roomId: async ({ page }, use) => {
     const roomId = generateRoomId();
     await use(roomId);
   },
 
   /**
-   * Authenticated user page (using real Clerk credentials)
+   * Authenticated user page (uses stored auth state from setup)
    */
-  authenticatedPage: async ({ page, context }, use) => {
-    // Get test credentials from environment
-    const testEmail = process.env.TEST_USER_EMAIL;
-    const testPassword = process.env.TEST_USER_PASSWORD;
+  authenticatedPage: async ({ page }, use) => {
+    // Navigate to app (auth state already loaded from storageState config)
+    await page.goto("/c/main", { waitUntil: "domcontentloaded" });
 
-    if (!testEmail || !testPassword) {
-      throw new Error(
-        "TEST_USER_EMAIL and TEST_USER_PASSWORD must be set in environment variables",
-      );
-    }
-
-    // Navigate to app
-    await page.goto("/c/main");
-
-    // Wait for Clerk to load
-    await page.waitForLoadState("networkidle");
-
-    // Check if already signed in (for faster tests)
-    const isSignedIn = await page
-      .getByRole("button", { name: /sign out/i })
-      .isVisible()
-      .catch(() => false);
-
-    if (!isSignedIn) {
-      // Click sign in button
-      await page.getByRole("button", { name: /sign in/i }).click();
-
-      // Wait for Clerk modal
-      await page.waitForSelector("[data-clerk-modal]", { timeout: 10000 });
-
-      // Fill in credentials
-      await page.fill('input[name="identifier"]', testEmail);
-      await page.click('button[type="submit"]');
-
-      // Wait for password field and fill
-      await page.waitForSelector('input[name="password"]', { timeout: 5000 });
-      await page.fill('input[name="password"]', testPassword);
-      await page.click('button[type="submit"]');
-
-      // Wait for sign in to complete
-      await page.waitForSelector("[data-clerk-modal]", {
-        state: "hidden",
-        timeout: 10000,
-      });
-    }
+    // Wait for canvas to be ready
+    await page.locator("canvas").first().waitFor({ state: "visible", timeout: 5000 });
 
     // Verify authentication by checking toolbar is enabled
     await page.waitForSelector('button:has-text("Rectangle"):not([disabled])', {
-      timeout: 10000,
+      timeout: 5000,
     });
 
     await use(page);
-
-    // Cleanup: sign out after test
-    // await page.getByRole('button', { name: /sign out/i }).click().catch(() => {});
   },
 
   /**
    * Guest (unauthenticated) page
    */
   guestPage: async ({ browser }, use) => {
-    const context = await browser.newContext();
+    // Create context without auth state
+    const context = await browser.newContext({ storageState: undefined });
     const page = await context.newPage();
 
-    await page.goto("/c/main");
-    await page.waitForLoadState("networkidle");
+    await page.goto("/c/main", { waitUntil: "domcontentloaded" });
+    
+    // Wait for canvas to be ready
+    await page.locator("canvas").first().waitFor({ state: "visible", timeout: 5000 });
 
     await use(page);
 
@@ -115,46 +83,17 @@ export const test = base.extend<TestFixtures>({
 
   /**
    * Two authenticated users for collaboration testing
+   * Both use the stored auth state from setup
+   * Note: Tests must navigate to specific rooms using navigateToSharedRoom helper
    */
   multiUserContext: async ({ browser }, use) => {
-    const testEmail = process.env.TEST_USER_EMAIL;
-    const testPassword = process.env.TEST_USER_PASSWORD;
-
-    if (!testEmail || !testPassword) {
-      throw new Error("TEST_USER_EMAIL and TEST_USER_PASSWORD must be set");
-    }
-
-    // Create two separate browser contexts (simulating two users)
-    const context1 = await browser.newContext();
-    const context2 = await browser.newContext();
+    // Create two separate browser contexts with the same auth state
+    // (simulating two users logged in as the same account)
+    const context1 = await browser.newContext({ storageState: authFile });
+    const context2 = await browser.newContext({ storageState: authFile });
 
     const user1 = await context1.newPage();
     const user2 = await context2.newPage();
-
-    // Sign in both users
-    for (const page of [user1, user2]) {
-      await page.goto("/c/main");
-      await page.waitForLoadState("networkidle");
-
-      const isSignedIn = await page
-        .getByRole("button", { name: /sign out/i })
-        .isVisible()
-        .catch(() => false);
-
-      if (!isSignedIn) {
-        await page.getByRole("button", { name: /sign in/i }).click();
-        await page.waitForSelector("[data-clerk-modal]", { timeout: 10000 });
-        await page.fill('input[name="identifier"]', testEmail);
-        await page.click('button[type="submit"]');
-        await page.waitForSelector('input[name="password"]', { timeout: 5000 });
-        await page.fill('input[name="password"]', testPassword);
-        await page.click('button[type="submit"]');
-        await page.waitForSelector("[data-clerk-modal]", {
-          state: "hidden",
-          timeout: 10000,
-        });
-      }
-    }
 
     await use({ user1, user2 });
 

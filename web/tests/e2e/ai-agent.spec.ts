@@ -10,6 +10,7 @@
  */
 
 import { expect, test } from "./fixtures";
+import { waitForSync, navigateToSharedRoom } from "./helpers";
 
 test.describe("AI Canvas Agent", () => {
   test.describe("Basic AI Tools", () => {
@@ -17,8 +18,8 @@ test.describe("AI Canvas Agent", () => {
       authenticatedPage,
       roomId,
     }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`);
-      await authenticatedPage.waitForLoadState("networkidle");
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await waitForSync(authenticatedPage, 1000);
 
       // Find AI textarea
       const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
@@ -35,8 +36,8 @@ test.describe("AI Canvas Agent", () => {
         authenticatedPage.locator('text="AI is thinking"'),
       ).toBeVisible();
 
-      // Wait for completion (timeout 10s)
-      await authenticatedPage.waitForTimeout(10000);
+      // Wait for completion
+      await waitForSync(authenticatedPage, 10000);
 
       // Check history for success
       const historySection = authenticatedPage.locator(
@@ -49,14 +50,14 @@ test.describe("AI Canvas Agent", () => {
       authenticatedPage,
       roomId,
     }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`);
-      await authenticatedPage.waitForLoadState("networkidle");
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await waitForSync(authenticatedPage, 1000);
 
       const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
       await aiTextarea.fill("Create a blue circle at 300, 300 with radius 50");
 
       await authenticatedPage.getByRole("button", { name: /send/i }).click();
-      await authenticatedPage.waitForTimeout(10000);
+      await waitForSync(authenticatedPage, 10000);
 
       // Verify command appears in history
       const history = authenticatedPage.locator("text=/circle|Created/i");
@@ -64,14 +65,14 @@ test.describe("AI Canvas Agent", () => {
     });
 
     test("create text with AI", async ({ authenticatedPage, roomId }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`);
-      await authenticatedPage.waitForLoadState("networkidle");
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await waitForSync(authenticatedPage, 1000);
 
       const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
       await aiTextarea.fill('Create a text that says "Hello World"');
 
       await authenticatedPage.getByRole("button", { name: /send/i }).click();
-      await authenticatedPage.waitForTimeout(10000);
+      await waitForSync(authenticatedPage, 10000);
 
       // Verify in history
       const history = authenticatedPage.locator("text=/text|Hello|Created/i");
@@ -82,8 +83,8 @@ test.describe("AI Canvas Agent", () => {
       authenticatedPage,
       roomId,
     }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`);
-      await authenticatedPage.waitForLoadState("networkidle");
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await waitForSync(authenticatedPage, 1000);
 
       const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
       await aiTextarea.fill("Create a rectangle");
@@ -99,49 +100,38 @@ test.describe("AI Canvas Agent", () => {
 
   test.describe("Advanced AI Tools", () => {
     test("move shape with AI", async ({ authenticatedPage, roomId }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`);
-      await authenticatedPage.waitForLoadState("networkidle");
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await waitForSync(authenticatedPage, 1000);
 
-      // First create a shape manually to get its ID
-      await authenticatedPage
-        .getByRole("button", { name: /rectangle/i })
-        .click();
-      const canvas = authenticatedPage.locator("canvas").first();
-      await canvas.hover({ position: { x: 200, y: 200 } });
-      await authenticatedPage.mouse.down();
-      await canvas.hover({ position: { x: 300, y: 280 } });
-      await authenticatedPage.mouse.up();
-      await authenticatedPage.waitForTimeout(1000);
-
-      // Now use AI to create another shape and move it
+      // Use AI to create a shape and then move it
       const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
       await aiTextarea.fill("Create a blue circle at 400, 300");
       await authenticatedPage.getByRole("button", { name: /send/i }).click();
-      await authenticatedPage.waitForTimeout(10000);
+      await waitForSync(authenticatedPage, 10000);
 
-      // Try to move it (AI will need to find the shape)
+      // Try to move it
       await aiTextarea.fill("Move the blue circle to 500, 500");
       await authenticatedPage.getByRole("button", { name: /send/i }).click();
-      await authenticatedPage.waitForTimeout(10000);
+      await waitForSync(authenticatedPage, 10000);
     });
 
     test("change shape color with AI", async ({
       authenticatedPage,
       roomId,
     }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`);
-      await authenticatedPage.waitForLoadState("networkidle");
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await waitForSync(authenticatedPage, 1000);
 
       // Create a shape
       const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
       await aiTextarea.fill("Create a blue circle at 300, 300");
       await authenticatedPage.getByRole("button", { name: /send/i }).click();
-      await authenticatedPage.waitForTimeout(10000);
+      await waitForSync(authenticatedPage, 10000);
 
       // Change its color
       await aiTextarea.fill("Change the blue circle to green");
       await authenticatedPage.getByRole("button", { name: /send/i }).click();
-      await authenticatedPage.waitForTimeout(10000);
+      await waitForSync(authenticatedPage, 10000);
 
       // Verify command in history
       const history = authenticatedPage.locator("text=/green|color|Changed/i");
@@ -149,19 +139,19 @@ test.describe("AI Canvas Agent", () => {
     });
 
     test("delete shape with AI", async ({ authenticatedPage, roomId }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`);
-      await authenticatedPage.waitForLoadState("networkidle");
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await waitForSync(authenticatedPage, 1000);
 
       // Create a shape
       const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
       await aiTextarea.fill("Create a red rectangle");
       await authenticatedPage.getByRole("button", { name: /send/i }).click();
-      await authenticatedPage.waitForTimeout(10000);
+      await waitForSync(authenticatedPage, 10000);
 
       // Delete it
       await aiTextarea.fill("Delete the red rectangle");
       await authenticatedPage.getByRole("button", { name: /send/i }).click();
-      await authenticatedPage.waitForTimeout(10000);
+      await waitForSync(authenticatedPage, 10000);
 
       // Verify deletion in history
       const history = authenticatedPage.locator("text=/Deleted|removed/i");
@@ -169,51 +159,51 @@ test.describe("AI Canvas Agent", () => {
     });
 
     test("resize shape with AI", async ({ authenticatedPage, roomId }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`);
-      await authenticatedPage.waitForLoadState("networkidle");
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await waitForSync(authenticatedPage, 1000);
 
       // Create a shape
       const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
       await aiTextarea.fill("Create a rectangle at 200, 200");
       await authenticatedPage.getByRole("button", { name: /send/i }).click();
-      await authenticatedPage.waitForTimeout(10000);
+      await waitForSync(authenticatedPage, 10000);
 
       // Resize it
       await aiTextarea.fill("Make the rectangle twice as big");
       await authenticatedPage.getByRole("button", { name: /send/i }).click();
-      await authenticatedPage.waitForTimeout(10000);
+      await waitForSync(authenticatedPage, 10000);
     });
 
     test("rotate shape with AI", async ({ authenticatedPage, roomId }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`);
-      await authenticatedPage.waitForLoadState("networkidle");
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await waitForSync(authenticatedPage, 1000);
 
       // Create a shape
       const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
       await aiTextarea.fill("Create a rectangle");
       await authenticatedPage.getByRole("button", { name: /send/i }).click();
-      await authenticatedPage.waitForTimeout(10000);
+      await waitForSync(authenticatedPage, 10000);
 
       // Rotate it
       await aiTextarea.fill("Rotate the rectangle 45 degrees");
       await authenticatedPage.getByRole("button", { name: /send/i }).click();
-      await authenticatedPage.waitForTimeout(10000);
+      await waitForSync(authenticatedPage, 10000);
     });
 
     test("arrange shapes with AI", async ({ authenticatedPage, roomId }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`);
-      await authenticatedPage.waitForLoadState("networkidle");
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await waitForSync(authenticatedPage, 1000);
 
       // Create multiple shapes
       const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
       await aiTextarea.fill("Create 3 rectangles");
       await authenticatedPage.getByRole("button", { name: /send/i }).click();
-      await authenticatedPage.waitForTimeout(10000);
+      await waitForSync(authenticatedPage, 10000);
 
       // Arrange them
       await aiTextarea.fill("Arrange the rectangles in a horizontal row");
       await authenticatedPage.getByRole("button", { name: /send/i }).click();
-      await authenticatedPage.waitForTimeout(10000);
+      await waitForSync(authenticatedPage, 10000);
     });
   });
 
@@ -222,8 +212,8 @@ test.describe("AI Canvas Agent", () => {
       authenticatedPage,
       roomId,
     }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`);
-      await authenticatedPage.waitForLoadState("networkidle");
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await waitForSync(authenticatedPage, 1000);
 
       const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
       await aiTextarea.fill("Create a login form");
@@ -231,7 +221,7 @@ test.describe("AI Canvas Agent", () => {
       await authenticatedPage.getByRole("button", { name: /send/i }).click();
 
       // Wait for AI to complete (complex commands may take longer)
-      await authenticatedPage.waitForTimeout(15000);
+      await waitForSync(authenticatedPage, 15000);
 
       // Check history for success - should show multiple shapes created
       const history = authenticatedPage.locator("text=/form|shape|Created|3/i");
@@ -242,14 +232,14 @@ test.describe("AI Canvas Agent", () => {
       authenticatedPage,
       roomId,
     }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`);
-      await authenticatedPage.waitForLoadState("networkidle");
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await waitForSync(authenticatedPage, 1000);
 
       const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
       await aiTextarea.fill("Build a navigation bar with 4 items");
 
       await authenticatedPage.getByRole("button", { name: /send/i }).click();
-      await authenticatedPage.waitForTimeout(15000);
+      await waitForSync(authenticatedPage, 15000);
 
       // Should create multiple text elements
       const history = authenticatedPage.locator("text=/navigation|4|items/i");
@@ -260,14 +250,14 @@ test.describe("AI Canvas Agent", () => {
       authenticatedPage,
       roomId,
     }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`);
-      await authenticatedPage.waitForLoadState("networkidle");
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await waitForSync(authenticatedPage, 1000);
 
       const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
       await aiTextarea.fill("Create a 3x3 grid of circles");
 
       await authenticatedPage.getByRole("button", { name: /send/i }).click();
-      await authenticatedPage.waitForTimeout(15000);
+      await waitForSync(authenticatedPage, 15000);
 
       // Should create 9 circles
       const history = authenticatedPage.locator("text=/grid|9|circle/i");
@@ -278,8 +268,8 @@ test.describe("AI Canvas Agent", () => {
       authenticatedPage,
       roomId,
     }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`);
-      await authenticatedPage.waitForLoadState("networkidle");
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await waitForSync(authenticatedPage, 1000);
 
       const startTime = Date.now();
 
@@ -291,7 +281,7 @@ test.describe("AI Canvas Agent", () => {
       await authenticatedPage.getByRole("button", { name: /send/i }).click();
 
       // Wait for completion or timeout
-      await authenticatedPage.waitForTimeout(15000);
+      await waitForSync(authenticatedPage, 15000);
 
       const endTime = Date.now();
       const duration = endTime - startTime;
@@ -306,19 +296,19 @@ test.describe("AI Canvas Agent", () => {
       authenticatedPage,
       roomId,
     }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`);
-      await authenticatedPage.waitForLoadState("networkidle");
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await waitForSync(authenticatedPage, 1000);
 
       // Send multiple commands
       const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
 
       await aiTextarea.fill("Create a red rectangle");
       await authenticatedPage.getByRole("button", { name: /send/i }).click();
-      await authenticatedPage.waitForTimeout(10000);
+      await waitForSync(authenticatedPage, 10000);
 
       await aiTextarea.fill("Create a blue circle");
       await authenticatedPage.getByRole("button", { name: /send/i }).click();
-      await authenticatedPage.waitForTimeout(10000);
+      await waitForSync(authenticatedPage, 10000);
 
       // History should show both commands
       const historySection = authenticatedPage.locator(
@@ -334,13 +324,13 @@ test.describe("AI Canvas Agent", () => {
       authenticatedPage,
       roomId,
     }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`);
-      await authenticatedPage.waitForLoadState("networkidle");
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await waitForSync(authenticatedPage, 1000);
 
       const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
       await aiTextarea.fill("Create a rectangle");
       await authenticatedPage.getByRole("button", { name: /send/i }).click();
-      await authenticatedPage.waitForTimeout(10000);
+      await waitForSync(authenticatedPage, 10000);
 
       // Check for user name (should show "You")
       await expect(authenticatedPage.locator('text="You"')).toBeVisible({
@@ -362,8 +352,8 @@ test.describe("AI Canvas Agent", () => {
       authenticatedPage,
       roomId,
     }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`);
-      await authenticatedPage.waitForLoadState("networkidle");
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await waitForSync(authenticatedPage, 1000);
 
       // Send a command
       const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
@@ -388,8 +378,8 @@ test.describe("AI Canvas Agent", () => {
       roomId,
     }) => {
       // Authenticated user creates a command first
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`);
-      await authenticatedPage.waitForLoadState("networkidle");
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await waitForSync(authenticatedPage, 1000);
 
       const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
       await aiTextarea.fill("Create a rectangle for testing");
@@ -417,8 +407,7 @@ test.describe("AI Canvas Agent", () => {
     }) => {
       const { user1, user2 } = multiUserContext;
 
-      await user1.goto(`/c/main?roomId=${roomId}`);
-      await user2.goto(`/c/main?roomId=${roomId}`);
+      await navigateToSharedRoom(user1, user2, roomId);
 
       await Promise.all([
         user1.waitForLoadState("networkidle"),
@@ -447,14 +436,14 @@ test.describe("AI Canvas Agent", () => {
       authenticatedPage,
       roomId,
     }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`);
-      await authenticatedPage.waitForLoadState("networkidle");
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await waitForSync(authenticatedPage, 1000);
 
       const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
       await aiTextarea.fill("asdfghjkl zxcvbnm qwertyuiop"); // Gibberish
 
       await authenticatedPage.getByRole("button", { name: /send/i }).click();
-      await authenticatedPage.waitForTimeout(10000);
+      await waitForSync(authenticatedPage, 10000);
 
       // Should show some response (either error or inability to understand)
       // The AI might respond with "I couldn't understand" or similar
@@ -464,8 +453,8 @@ test.describe("AI Canvas Agent", () => {
       authenticatedPage,
       roomId,
     }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`);
-      await authenticatedPage.waitForLoadState("networkidle");
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await waitForSync(authenticatedPage, 1000);
 
       const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
       const longPrompt = "Create a rectangle ".repeat(100); // >1000 chars

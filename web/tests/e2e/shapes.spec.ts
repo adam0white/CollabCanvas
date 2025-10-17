@@ -9,28 +9,24 @@
  */
 
 import { expect, test } from "./fixtures";
+import {
+  createRectangle,
+  createCircle,
+  createText,
+  selectShape,
+  canvasDrag,
+  canvasClick,
+  waitForSync,
+  switchToSelectMode,
+} from "./helpers";
 
 test.describe("Shape Creation & Editing", () => {
   test.describe("Rectangle Operations", () => {
     test("create rectangle with click-and-drag", async ({
       authenticatedPage,
     }) => {
-      await authenticatedPage
-        .getByRole("button", { name: /rectangle/i })
-        .click();
-
-      const canvas = authenticatedPage.locator("canvas").first();
-      const box = await canvas.boundingBox();
-      if (!box) throw new Error("Canvas not found");
-
-      // Draw rectangle
-      await canvas.hover({ position: { x: 200, y: 200 } });
-      await authenticatedPage.mouse.down();
-      await canvas.hover({ position: { x: 400, y: 350 } });
-      await authenticatedPage.mouse.up();
-
-      // Wait for Yjs sync
-      await authenticatedPage.waitForTimeout(500);
+      // Create rectangle using helper
+      await createRectangle(authenticatedPage, 200, 200, 200, 150);
 
       // Verify no errors occurred
       const consoleErrors: string[] = [];
@@ -48,72 +44,32 @@ test.describe("Shape Creation & Editing", () => {
         .getByRole("button", { name: /rectangle/i })
         .click();
 
-      const canvas = authenticatedPage.locator("canvas").first();
+      // Draw very small rectangle (5px) - should not be created
+      await canvasDrag(authenticatedPage, 200, 200, 205, 205);
 
-      // Draw very small rectangle
-      await canvas.hover({ position: { x: 200, y: 200 } });
-      await authenticatedPage.mouse.down();
-      await canvas.hover({ position: { x: 205, y: 205 } }); // Only 5px
-      await authenticatedPage.mouse.up();
-
-      await authenticatedPage.waitForTimeout(500);
-
-      // Check that no shape was created in Yjs (we'd need to inspect Yjs state)
+      // Check that no shape was created (UI should not show a tiny shape)
       // For now, verify no errors
     });
 
     test("drag rectangle to move", async ({ authenticatedPage }) => {
-      // First create a rectangle
-      await authenticatedPage
-        .getByRole("button", { name: /rectangle/i })
-        .click();
-      const canvas = authenticatedPage.locator("canvas").first();
+      // Create a rectangle
+      await createRectangle(authenticatedPage, 200, 200, 150, 100);
 
-      await canvas.hover({ position: { x: 200, y: 200 } });
-      await authenticatedPage.mouse.down();
-      await canvas.hover({ position: { x: 350, y: 300 } });
-      await authenticatedPage.mouse.up();
-      await authenticatedPage.waitForTimeout(500);
+      // Switch to select tool and select the shape
+      await selectShape(authenticatedPage, 275, 250);
 
-      // Switch to select tool
-      await authenticatedPage.getByRole("button", { name: /select/i }).click();
-
-      // Click on the shape to select it
-      await canvas.click({ position: { x: 275, y: 250 } });
-      await authenticatedPage.waitForTimeout(200);
-
-      // Drag the shape
-      await canvas.hover({ position: { x: 275, y: 250 } });
-      await authenticatedPage.mouse.down();
-      await canvas.hover({ position: { x: 400, y: 400 } });
-      await authenticatedPage.mouse.up();
-
-      await authenticatedPage.waitForTimeout(500);
+      // Drag the shape to new position
+      await canvasDrag(authenticatedPage, 275, 250, 400, 400);
     });
 
     test("delete rectangle with Delete key", async ({ authenticatedPage }) => {
       // Create rectangle
-      await authenticatedPage
-        .getByRole("button", { name: /rectangle/i })
-        .click();
-      const canvas = authenticatedPage.locator("canvas").first();
+      await createRectangle(authenticatedPage, 200, 200, 150, 100);
 
-      await canvas.hover({ position: { x: 200, y: 200 } });
-      await authenticatedPage.mouse.down();
-      await canvas.hover({ position: { x: 350, y: 300 } });
-      await authenticatedPage.mouse.up();
-      await authenticatedPage.waitForTimeout(500);
-
-      // Switch to select tool and select shape
-      await authenticatedPage.getByRole("button", { name: /select/i }).click();
-      await canvas.click({ position: { x: 275, y: 250 } });
-      await authenticatedPage.waitForTimeout(200);
-
-      // Press Delete key
+      // Select and delete
+      await selectShape(authenticatedPage, 275, 250);
       await authenticatedPage.keyboard.press("Delete");
-      await authenticatedPage.waitForTimeout(500);
-
-      // Shape should be deleted (verify no errors)
+      await waitForSync(authenticatedPage);
     });
   });
 
@@ -121,60 +77,28 @@ test.describe("Shape Creation & Editing", () => {
     test("create circle with click-and-drag from center", async ({
       authenticatedPage,
     }) => {
-      await authenticatedPage.getByRole("button", { name: /circle/i }).click();
-
-      const canvas = authenticatedPage.locator("canvas").first();
-
-      // Draw circle from center
-      await canvas.hover({ position: { x: 300, y: 300 } });
-      await authenticatedPage.mouse.down();
-      await canvas.hover({ position: { x: 350, y: 350 } }); // ~70px radius
-      await authenticatedPage.mouse.up();
-
-      await authenticatedPage.waitForTimeout(500);
+      // Create circle with 70px radius
+      await createCircle(authenticatedPage, 300, 300, 70);
     });
 
     test("small circles (<5px radius) are not created", async ({
       authenticatedPage,
     }) => {
-      await authenticatedPage.getByRole("button", { name: /circle/i }).click();
-
-      const canvas = authenticatedPage.locator("canvas").first();
-
-      // Draw tiny circle
-      await canvas.hover({ position: { x: 300, y: 300 } });
-      await authenticatedPage.mouse.down();
-      await canvas.hover({ position: { x: 303, y: 303 } }); // ~4px radius
-      await authenticatedPage.mouse.up();
-
-      await authenticatedPage.waitForTimeout(500);
+      // Attempt to create very small circle (should not be created)
+      await createCircle(authenticatedPage, 300, 300, 4);
     });
 
     test("move and delete circle", async ({ authenticatedPage }) => {
       // Create circle
-      await authenticatedPage.getByRole("button", { name: /circle/i }).click();
-      const canvas = authenticatedPage.locator("canvas").first();
-
-      await canvas.hover({ position: { x: 300, y: 300 } });
-      await authenticatedPage.mouse.down();
-      await canvas.hover({ position: { x: 360, y: 360 } });
-      await authenticatedPage.mouse.up();
-      await authenticatedPage.waitForTimeout(500);
+      await createCircle(authenticatedPage, 300, 300, 60);
 
       // Select and move
-      await authenticatedPage.getByRole("button", { name: /select/i }).click();
-      await canvas.click({ position: { x: 300, y: 300 } });
-      await authenticatedPage.waitForTimeout(200);
-
-      await canvas.hover({ position: { x: 300, y: 300 } });
-      await authenticatedPage.mouse.down();
-      await canvas.hover({ position: { x: 450, y: 450 } });
-      await authenticatedPage.mouse.up();
-      await authenticatedPage.waitForTimeout(500);
+      await selectShape(authenticatedPage, 300, 300);
+      await canvasDrag(authenticatedPage, 300, 300, 450, 450);
 
       // Delete
       await authenticatedPage.keyboard.press("Delete");
-      await authenticatedPage.waitForTimeout(500);
+      await waitForSync(authenticatedPage);
     });
   });
 
@@ -182,112 +106,70 @@ test.describe("Shape Creation & Editing", () => {
     test("create text shape by clicking canvas", async ({
       authenticatedPage,
     }) => {
-      await authenticatedPage.getByRole("button", { name: /text/i }).click();
-
-      const canvas = authenticatedPage.locator("canvas").first();
-
-      // Click to place text
-      await canvas.click({ position: { x: 400, y: 300 } });
-
-      // Wait for text input overlay
-      await authenticatedPage.waitForSelector(
-        'input[placeholder*="Enter text"]',
-        { timeout: 2000 },
-      );
-
-      // Type text
-      await authenticatedPage.fill(
-        'input[placeholder*="Enter text"]',
-        "Hello World",
-      );
-
-      // Press Enter to submit
-      await authenticatedPage.keyboard.press("Enter");
-
-      await authenticatedPage.waitForTimeout(500);
+      await createText(authenticatedPage, 400, 300, "Hello World");
     });
 
     test("cancel text creation with Escape", async ({ authenticatedPage }) => {
       await authenticatedPage.getByRole("button", { name: /text/i }).click();
-
+      await waitForSync(authenticatedPage, 200);
+      
+      // Click canvas using mouse position
       const canvas = authenticatedPage.locator("canvas").first();
-      await canvas.click({ position: { x: 400, y: 300 } });
+      const box = await canvas.boundingBox();
+      if (box) await authenticatedPage.mouse.click(box.x + 400, box.y + 300);
 
       // Wait for text input
-      await authenticatedPage.waitForSelector(
-        'input[placeholder*="Enter text"]',
-        { timeout: 2000 },
-      );
+      const textInput = authenticatedPage.locator('input[placeholder*="Enter text"]');
+      await textInput.waitFor({ state: "visible", timeout: 5000 });
 
       // Type some text
-      await authenticatedPage.fill(
-        'input[placeholder*="Enter text"]',
-        "Cancel this",
-      );
+      await textInput.fill("Cancel this");
 
       // Press Escape to cancel
       await authenticatedPage.keyboard.press("Escape");
 
       // Input should disappear
-      await expect(
-        authenticatedPage.locator('input[placeholder*="Enter text"]'),
-      ).not.toBeVisible();
+      await expect(textInput).not.toBeVisible();
     });
 
     test("empty text is not created", async ({ authenticatedPage }) => {
       await authenticatedPage.getByRole("button", { name: /text/i }).click();
-
+      await waitForSync(authenticatedPage, 200);
+      
+      // Click canvas using mouse position
       const canvas = authenticatedPage.locator("canvas").first();
-      await canvas.click({ position: { x: 400, y: 300 } });
+      const box = await canvas.boundingBox();
+      if (box) await authenticatedPage.mouse.click(box.x + 400, box.y + 300);
 
       // Wait for text input
-      await authenticatedPage.waitForSelector(
-        'input[placeholder*="Enter text"]',
-        { timeout: 2000 },
-      );
+      const textInput = authenticatedPage.locator('input[placeholder*="Enter text"]');
+      await textInput.waitFor({ state: "visible", timeout: 5000 });
 
       // Don't type anything, just press Enter
       await authenticatedPage.keyboard.press("Enter");
-
-      await authenticatedPage.waitForTimeout(500);
+      await waitForSync(authenticatedPage);
 
       // No text shape should be created
     });
 
     test("double-click text to edit", async ({ authenticatedPage }) => {
-      // First create a text shape
-      await authenticatedPage.getByRole("button", { name: /text/i }).click();
-      const canvas = authenticatedPage.locator("canvas").first();
-
-      await canvas.click({ position: { x: 400, y: 300 } });
-      await authenticatedPage.waitForSelector(
-        'input[placeholder*="Enter text"]',
-        { timeout: 2000 },
-      );
-      await authenticatedPage.fill(
-        'input[placeholder*="Enter text"]',
-        "Original Text",
-      );
-      await authenticatedPage.keyboard.press("Enter");
-      await authenticatedPage.waitForTimeout(500);
+      // Create a text shape
+      await createText(authenticatedPage, 400, 300, "Original Text");
 
       // Switch to select tool
-      await authenticatedPage.getByRole("button", { name: /select/i }).click();
-      await authenticatedPage.waitForTimeout(200);
+      await switchToSelectMode(authenticatedPage);
 
-      // Double-click the text to edit (approximate position)
-      await canvas.dblclick({ position: { x: 400, y: 300 } });
-      await authenticatedPage.waitForTimeout(300);
+      // Double-click the text to edit
+      await authenticatedPage.locator("canvas").first().dblclick({ position: { x: 400, y: 300 } });
+      await waitForSync(authenticatedPage, 300);
 
       // Text input should appear again
-      const textInput = authenticatedPage.locator(
-        'input[placeholder*="Enter text"]',
-      );
-      if (await textInput.isVisible()) {
+      const textInput = authenticatedPage.locator('input[placeholder*="Enter text"]');
+      if (await textInput.isVisible({ timeout: 2000 }).catch(() => false)) {
         await textInput.clear();
         await textInput.fill("Updated Text");
         await authenticatedPage.keyboard.press("Enter");
-        await authenticatedPage.waitForTimeout(500);
+        await waitForSync(authenticatedPage);
       }
     });
   });
@@ -295,52 +177,25 @@ test.describe("Shape Creation & Editing", () => {
   test.describe("Shape Properties", () => {
     test("deselect with Escape key", async ({ authenticatedPage }) => {
       // Create and select a rectangle
-      await authenticatedPage
-        .getByRole("button", { name: /rectangle/i })
-        .click();
-      const canvas = authenticatedPage.locator("canvas").first();
-
-      await canvas.hover({ position: { x: 200, y: 200 } });
-      await authenticatedPage.mouse.down();
-      await canvas.hover({ position: { x: 350, y: 300 } });
-      await authenticatedPage.mouse.up();
-      await authenticatedPage.waitForTimeout(500);
-
-      // Select the shape
-      await authenticatedPage.getByRole("button", { name: /select/i }).click();
-      await canvas.click({ position: { x: 275, y: 250 } });
-      await authenticatedPage.waitForTimeout(200);
+      await createRectangle(authenticatedPage, 200, 200, 150, 100);
+      await selectShape(authenticatedPage, 275, 250);
 
       // Press Escape to deselect
       await authenticatedPage.keyboard.press("Escape");
-      await authenticatedPage.waitForTimeout(200);
+      await waitForSync(authenticatedPage, 200);
 
-      // Shape should be deselected (no visual way to verify, but no errors should occur)
+      // Shape should be deselected
     });
 
     test("click empty canvas deselects shape", async ({
       authenticatedPage,
     }) => {
       // Create and select a rectangle
-      await authenticatedPage
-        .getByRole("button", { name: /rectangle/i })
-        .click();
-      const canvas = authenticatedPage.locator("canvas").first();
-
-      await canvas.hover({ position: { x: 200, y: 200 } });
-      await authenticatedPage.mouse.down();
-      await canvas.hover({ position: { x: 350, y: 300 } });
-      await authenticatedPage.mouse.up();
-      await authenticatedPage.waitForTimeout(500);
-
-      // Select the shape
-      await authenticatedPage.getByRole("button", { name: /select/i }).click();
-      await canvas.click({ position: { x: 275, y: 250 } });
-      await authenticatedPage.waitForTimeout(200);
+      await createRectangle(authenticatedPage, 200, 200, 150, 100);
+      await selectShape(authenticatedPage, 275, 250);
 
       // Click empty area
-      await canvas.click({ position: { x: 600, y: 500 } });
-      await authenticatedPage.waitForTimeout(200);
+      await canvasClick(authenticatedPage, 600, 500);
     });
 
     test("shapes persist across page refresh", async ({
@@ -348,28 +203,18 @@ test.describe("Shape Creation & Editing", () => {
       roomId,
     }) => {
       // Navigate to specific room
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`);
-      await authenticatedPage.waitForLoadState("networkidle");
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await waitForSync(authenticatedPage, 1000);
 
       // Create a rectangle
-      await authenticatedPage
-        .getByRole("button", { name: /rectangle/i })
-        .click();
-      const canvas = authenticatedPage.locator("canvas").first();
-
-      await canvas.hover({ position: { x: 200, y: 200 } });
-      await authenticatedPage.mouse.down();
-      await canvas.hover({ position: { x: 350, y: 300 } });
-      await authenticatedPage.mouse.up();
-      await authenticatedPage.waitForTimeout(1000); // Wait for persistence
+      await createRectangle(authenticatedPage, 200, 200, 150, 100);
+      await waitForSync(authenticatedPage, 1000); // Wait for persistence
 
       // Refresh page
-      await authenticatedPage.reload();
-      await authenticatedPage.waitForLoadState("networkidle");
-      await authenticatedPage.waitForTimeout(1000); // Wait for Yjs to load state
+      await authenticatedPage.reload({ waitUntil: "domcontentloaded" });
+      await waitForSync(authenticatedPage, 1000); // Wait for Yjs to load state
 
       // Shape should still be there (we'd need to inspect Yjs state to verify)
-      // For now, verify no errors occurred
     });
   });
 });

@@ -11,7 +11,7 @@
     "frontend:install": "npm --prefix web ci",
     "frontend:build": "npm --prefix web run build",
     "frontend:dev": "npm --prefix web run dev -- --host",
-    "frontend:test": "npm --prefix web run test",
+    "frontend:test": "npm --prefix web run test:e2e",
     "test": "npm-run-all wrangler:types test:run",
     "lint": "biome check .",
     "format": "biome format .",

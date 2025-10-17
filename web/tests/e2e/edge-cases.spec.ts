@@ -9,24 +9,28 @@
  */
 
 import { expect, test } from "./fixtures";
+import {
+  createRectangle,
+  createCircle,
+  waitForSync,
+  canvasDrag,
+  getCanvas,
+} from "./helpers";
 
 test.describe("Edge Cases & Error Handling", () => {
   test.describe("Empty States", () => {
     test("new canvas shows empty state", async ({ page, roomId }) => {
-      await page.goto(`/c/main?roomId=${roomId}`);
-      await page.waitForLoadState("networkidle");
+      await page.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await waitForSync(page, 500);
 
       // Canvas should be visible even when empty
-      const canvas = page.locator("canvas").first();
+      const canvas = await getCanvas(page);
       await expect(canvas).toBeVisible();
-
-      // No shapes should be present initially
-      await page.waitForTimeout(500);
     });
 
     test("AI history empty state message", async ({ page }) => {
-      await page.goto("/c/main");
-      await page.waitForLoadState("networkidle");
+      await page.goto("/c/main", { waitUntil: "domcontentloaded" });
+      await waitForSync(page, 500);
 
       // Should show empty state message
       await expect(
@@ -53,22 +57,12 @@ test.describe("Edge Cases & Error Handling", () => {
     test("rapid shape creation does not create duplicates", async ({
       authenticatedPage,
     }) => {
-      await authenticatedPage
-        .getByRole("button", { name: /rectangle/i })
-        .click();
-      const canvas = authenticatedPage.locator("canvas").first();
-
-      // Rapidly create multiple shapes
+      // Rapidly create multiple rectangles
       for (let i = 0; i < 3; i++) {
         const x = 150 + i * 100;
-        await canvas.hover({ position: { x, y: 200 } });
-        await authenticatedPage.mouse.down();
-        await canvas.hover({ position: { x: x + 80, y: 280 } });
-        await authenticatedPage.mouse.up();
-        await authenticatedPage.waitForTimeout(200); // Small delay between shapes
+        await createRectangle(authenticatedPage, x, 200, 80, 80);
+        await waitForSync(authenticatedPage, 200);
       }
-
-      await authenticatedPage.waitForTimeout(1000);
 
       // Should have created 3 distinct shapes (verify no errors)
       const errors: string[] = [];
@@ -83,8 +77,8 @@ test.describe("Edge Cases & Error Handling", () => {
       authenticatedPage,
       roomId,
     }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`);
-      await authenticatedPage.waitForLoadState("networkidle");
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await waitForSync(authenticatedPage, 1000);
 
       const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
       const sendButton = authenticatedPage.getByRole("button", {
@@ -94,14 +88,14 @@ test.describe("Edge Cases & Error Handling", () => {
       // Send first command
       await aiTextarea.fill("Create a red rectangle");
       await sendButton.click();
-      await authenticatedPage.waitForTimeout(2000); // Don't wait for full completion
+      await waitForSync(authenticatedPage, 2000);
 
       // Send second command while first is processing
       await aiTextarea.fill("Create a blue circle");
       await sendButton.click();
 
       // Both should eventually complete
-      await authenticatedPage.waitForTimeout(15000);
+      await waitForSync(authenticatedPage, 15000);
 
       // History should show both commands
       await expect(
@@ -118,37 +112,16 @@ test.describe("Edge Cases & Error Handling", () => {
     }) => {
       const { user1, user2 } = multiUserContext;
 
-      await user1.goto(`/c/main?roomId=${roomId}`);
-      await user2.goto(`/c/main?roomId=${roomId}`);
+      await user1.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await user2.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
 
-      await Promise.all([
-        user1.waitForLoadState("networkidle"),
-        user2.waitForLoadState("networkidle"),
-      ]);
-
-      await user1.waitForTimeout(1000);
+      await waitForSync(user1, 1000);
+      await waitForSync(user2, 1000);
 
       // Both users create shapes simultaneously in different areas
-      await user1.getByRole("button", { name: /rectangle/i }).click();
-      await user2.getByRole("button", { name: /circle/i }).click();
-
-      const canvas1 = user1.locator("canvas").first();
-      const canvas2 = user2.locator("canvas").first();
-
-      // Create in parallel
       await Promise.all([
-        (async () => {
-          await canvas1.hover({ position: { x: 150, y: 150 } });
-          await user1.mouse.down();
-          await canvas1.hover({ position: { x: 250, y: 230 } });
-          await user1.mouse.up();
-        })(),
-        (async () => {
-          await canvas2.hover({ position: { x: 500, y: 300 } });
-          await user2.mouse.down();
-          await canvas2.hover({ position: { x: 560, y: 360 } });
-          await user2.mouse.up();
-        })(),
+        createRectangle(user1, 150, 150, 100, 80),
+        createCircle(user2, 500, 300, 60),
       ]);
 
       // Wait for sync
@@ -191,9 +164,16 @@ test.describe("Edge Cases & Error Handling", () => {
       const signInButton = page.getByRole("button", { name: /sign in/i });
       await signInButton.click();
 
-      // Clerk modal should appear
-      await page.waitForSelector("[data-clerk-modal]", { timeout: 10000 });
-      await expect(page.locator("[data-clerk-modal]")).toBeVisible();
+      // Clerk sign-in dialog should appear
+      const signInDialog = page.getByRole("dialog", {
+        name: /sign in to collabcanvas/i,
+      });
+      await signInDialog.waitFor({ state: "visible", timeout: 15000 });
+
+      // Optionally assert email input is visible
+      await expect(
+        page.getByPlaceholder(/enter your email address/i)
+      ).toBeVisible();
 
       // Close modal (click outside or Escape)
       await page.keyboard.press("Escape");
@@ -203,20 +183,16 @@ test.describe("Edge Cases & Error Handling", () => {
   test.describe("Error Recovery", () => {
     test("invalid shape data handled gracefully", async ({
       authenticatedPage,
+      roomId,
     }) => {
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await waitForSync(authenticatedPage, 500);
+
       // Try to create a shape with negative dimensions
-      await authenticatedPage
-        .getByRole("button", { name: /rectangle/i })
-        .click();
-      const canvas = authenticatedPage.locator("canvas").first();
+      await authenticatedPage.getByRole("button", { name: /rectangle/i }).click();
 
       // Draw right-to-left and bottom-to-top (negative dimensions)
-      await canvas.hover({ position: { x: 400, y: 400 } });
-      await authenticatedPage.mouse.down();
-      await canvas.hover({ position: { x: 200, y: 200 } });
-      await authenticatedPage.mouse.up();
-
-      await authenticatedPage.waitForTimeout(500);
+      await canvasDrag(authenticatedPage, 400, 400, 200, 200);
 
       // Should handle gracefully (normalize dimensions or reject)
       const errors: string[] = [];
@@ -231,40 +207,36 @@ test.describe("Edge Cases & Error Handling", () => {
       authenticatedPage,
       roomId,
     }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`);
-      await authenticatedPage.waitForLoadState("networkidle");
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await waitForSync(authenticatedPage, 800);
 
       // Send an intentionally problematic command
       const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
       await aiTextarea.fill("Delete a shape that does not exist");
 
       await authenticatedPage.getByRole("button", { name: /send/i }).click();
-      await authenticatedPage.waitForTimeout(10000);
+      await waitForSync(authenticatedPage, 10000);
 
       // Should show some response (even if it's an error or "shape not found")
       // Don't assert specific error, just ensure no crashes
     });
 
-    test("connection lost/restored indicator", async ({ page }) => {
-      await page.goto("/c/main");
-      await page.waitForLoadState("networkidle");
+    test("connection lost/restored indicator", async ({ page, roomId }) => {
+      await page.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await waitForSync(page, 500);
 
       // App should be in connected state
-      await page.waitForTimeout(1000);
-
-      // We can't easily simulate network disconnection in Playwright,
-      // but we can verify the page loads and works
-      const canvas = page.locator("canvas").first();
+      const canvas = await getCanvas(page);
       await expect(canvas).toBeVisible();
     });
   });
 
   test.describe("Performance", () => {
-    test("page loads within reasonable time", async ({ page }) => {
+    test("page loads within reasonable time", async ({ page, roomId }) => {
       const startTime = Date.now();
 
-      await page.goto("/c/main");
-      await page.waitForLoadState("networkidle");
+      await page.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await waitForSync(page, 500);
 
       const endTime = Date.now();
       const loadTime = endTime - startTime;
@@ -275,25 +247,23 @@ test.describe("Edge Cases & Error Handling", () => {
 
     test("canvas remains responsive with multiple shapes", async ({
       authenticatedPage,
+      roomId,
     }) => {
-      // Create several shapes
-      await authenticatedPage
-        .getByRole("button", { name: /rectangle/i })
-        .click();
-      const canvas = authenticatedPage.locator("canvas").first();
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await waitForSync(authenticatedPage, 500);
 
+      // Create several shapes
       for (let i = 0; i < 5; i++) {
         const x = 100 + i * 120;
-        await canvas.hover({ position: { x, y: 200 } });
-        await authenticatedPage.mouse.down();
-        await canvas.hover({ position: { x: x + 100, y: 280 } });
-        await authenticatedPage.mouse.up();
-        await authenticatedPage.waitForTimeout(300);
+        await createRectangle(authenticatedPage, x, 200, 100, 80);
+        await waitForSync(authenticatedPage, 200);
       }
 
       // Canvas should still be responsive
-      await canvas.hover({ position: { x: 300, y: 300 } });
-      await authenticatedPage.waitForTimeout(100);
+      const canvas = await getCanvas(authenticatedPage);
+      const box = await canvas.boundingBox();
+      if (box) await authenticatedPage.mouse.move(box.x + 300, box.y + 300);
+      await waitForSync(authenticatedPage, 100);
 
       // No performance errors
       const errors: string[] = [];
@@ -306,48 +276,42 @@ test.describe("Edge Cases & Error Handling", () => {
   });
 
   test.describe("Data Validation", () => {
-    test("empty text shape is not created", async ({ authenticatedPage }) => {
-      await authenticatedPage.getByRole("button", { name: /text/i }).click();
-      const canvas = authenticatedPage.locator("canvas").first();
+    test("empty text shape is not created", async ({ authenticatedPage, roomId }) => {
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await waitForSync(authenticatedPage, 500);
 
-      await canvas.click({ position: { x: 400, y: 300 } });
-      await authenticatedPage.waitForSelector(
-        'input[placeholder*="Enter text"]',
-        { timeout: 2000 },
-      );
+      await authenticatedPage.getByRole("button", { name: /text/i }).click();
+      await waitForSync(authenticatedPage, 200);
+
+      const canvas = await getCanvas(authenticatedPage);
+      const box = await canvas.boundingBox();
+      if (box) await authenticatedPage.mouse.click(box.x + 400, box.y + 300);
+
+      const textInput = authenticatedPage.locator('input[placeholder*="Enter text"]');
+      await textInput.waitFor({ state: "visible", timeout: 3000 });
 
       // Just press Enter without typing
       await authenticatedPage.keyboard.press("Enter");
-      await authenticatedPage.waitForTimeout(500);
+      await waitForSync(authenticatedPage);
 
       // Input should close, no shape created
-      await expect(
-        authenticatedPage.locator('input[placeholder*="Enter text"]'),
-      ).not.toBeVisible();
+      await expect(textInput).not.toBeVisible();
     });
 
     test("very small shapes (<minimum size) are not created", async ({
       authenticatedPage,
+      roomId,
     }) => {
-      // Test rectangle
-      await authenticatedPage
-        .getByRole("button", { name: /rectangle/i })
-        .click();
-      const canvas = authenticatedPage.locator("canvas").first();
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" });
+      await waitForSync(authenticatedPage, 500);
 
-      await canvas.hover({ position: { x: 200, y: 200 } });
-      await authenticatedPage.mouse.down();
-      await canvas.hover({ position: { x: 203, y: 203 } }); // 3x3 px
-      await authenticatedPage.mouse.up();
-      await authenticatedPage.waitForTimeout(500);
+      // Test rectangle - 3x3 px (too small)
+      await authenticatedPage.getByRole("button", { name: /rectangle/i }).click();
+      await canvasDrag(authenticatedPage, 200, 200, 203, 203);
 
-      // Test circle
+      // Test circle - 2px radius (too small)
       await authenticatedPage.getByRole("button", { name: /circle/i }).click();
-      await canvas.hover({ position: { x: 300, y: 300 } });
-      await authenticatedPage.mouse.down();
-      await canvas.hover({ position: { x: 302, y: 302 } }); // 2px radius
-      await authenticatedPage.mouse.up();
-      await authenticatedPage.waitForTimeout(500);
+      await canvasDrag(authenticatedPage, 300, 300, 302, 302);
 
       // Neither shape should be created (too small)
     });
