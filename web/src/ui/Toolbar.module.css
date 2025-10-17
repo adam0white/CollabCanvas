@@ -56,3 +56,10 @@
 .toolButton span {
   font-size: 1.15rem;
 }
+
+.toolDivider {
+  width: 1px;
+  height: 1.5rem;
+  background: rgba(15, 23, 42, 0.15);
+  margin: 0 0.25rem;
+}

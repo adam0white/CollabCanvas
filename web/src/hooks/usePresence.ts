@@ -9,6 +9,8 @@ export type PresenceState = {
   color: string;
   cursor: { x: number; y: number } | null;
   imageUrl?: string; // Profile picture URL for authenticated users
+  lockedShapeIds?: string[]; // Shape IDs currently locked by this user
+  lockTimestamp?: number; // Timestamp when lock was acquired
 };
 
 type PresenceHook = {

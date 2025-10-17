@@ -2,6 +2,10 @@ import { useAuth } from "@clerk/clerk-react";
 import clsx from "clsx";
 
 import { useToolbar } from "../hooks/useToolbar";
+import { useSelection } from "../hooks/useSelection";
+import { useUndoRedo } from "../hooks/useUndoRedo";
+import { useShapes } from "../shapes/useShapes";
+import { ColorPicker } from "./ColorPicker";
 import styles from "./Toolbar.module.css";
 
 type ToolbarProps = {
@@ -11,6 +15,33 @@ type ToolbarProps = {
 export function Toolbar({ className }: ToolbarProps): React.JSX.Element {
   const { activeTool, setActiveTool } = useToolbar();
   const { isSignedIn } = useAuth();
+  const { canUndo, canRedo, undo, redo } = useUndoRedo();
+  const { shapes, updateShape, canEdit } = useShapes();
+  const { selectedShapeIds } = useSelection();
+
+  // Get current color of selected shapes (or "mixed" if multiple colors)
+  const getCurrentColor = (): string | "mixed" => {
+    if (selectedShapeIds.length === 0) return "#38bdf8"; // default
+
+    const selectedShapes = shapes.filter((s) =>
+      selectedShapeIds.includes(s.id),
+    );
+    if (selectedShapes.length === 0) return "#38bdf8";
+
+    const firstColor = selectedShapes[0].fill;
+    const allSameColor = selectedShapes.every((s) => s.fill === firstColor);
+
+    return allSameColor ? firstColor : "mixed";
+  };
+
+  const handleColorChange = (color: string) => {
+    if (!canEdit || selectedShapeIds.length === 0) return;
+
+    // Apply color to all selected shapes
+    for (const shapeId of selectedShapeIds) {
+      updateShape(shapeId, { fill: color });
+    }
+  };
 
   return (
     <nav className={clsx(styles.toolbar, className)} aria-label="Canvas tools">
@@ -66,6 +97,45 @@ export function Toolbar({ className }: ToolbarProps): React.JSX.Element {
         <span aria-hidden>T</span>
         Text
       </button>
+
+      <div className={styles.toolDivider} />
+
+      <button
+        type="button"
+        className={clsx(styles.toolButton, {
+          [styles.toolButtonDisabled]: !canUndo || !isSignedIn,
+        })}
+        onClick={undo}
+        disabled={!canUndo || !isSignedIn}
+        title="Undo (Cmd+Z)"
+      >
+        <span aria-hidden>↶</span>
+        Undo
+      </button>
+
+      <button
+        type="button"
+        className={clsx(styles.toolButton, {
+          [styles.toolButtonDisabled]: !canRedo || !isSignedIn,
+        })}
+        onClick={redo}
+        disabled={!canRedo || !isSignedIn}
+        title="Redo (Cmd+Shift+Z)"
+      >
+        <span aria-hidden>↷</span>
+        Redo
+      </button>
+
+      {selectedShapeIds.length > 0 && (
+        <>
+          <div className={styles.toolDivider} />
+          <ColorPicker
+            currentColor={getCurrentColor()}
+            onColorChange={handleColorChange}
+            disabled={!canEdit}
+          />
+        </>
+      )}
     </nav>
   );
 }

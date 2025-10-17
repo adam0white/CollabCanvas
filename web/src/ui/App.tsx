@@ -4,8 +4,10 @@ import {
   SignInButton,
   UserButton,
 } from "@clerk/clerk-react";
+import { useEffect, useState } from "react";
 import { usePresence } from "../hooks/usePresence";
 import { ToolbarProvider } from "../hooks/useToolbar";
+import { SelectionProvider } from "../hooks/useSelection";
 import { useShapes } from "../shapes/useShapes";
 import { useConnectionStatus } from "../yjs/client";
 import { AIPanel } from "./AIPanel";
@@ -13,6 +15,7 @@ import styles from "./App.module.css";
 import { Canvas } from "./Canvas";
 import { Footer } from "./Footer";
 import { PresenceBar } from "./PresenceBar";
+import { ShortcutsPanel } from "./ShortcutsPanel";
 import { Toolbar } from "./Toolbar";
 
 export function App(): React.JSX.Element {
@@ -25,6 +28,7 @@ export function App(): React.JSX.Element {
   const presenceState = usePresence();
   const connectionStatus = useConnectionStatus();
   const { isLoading: shapesLoading } = useShapes();
+  const [isShortcutsPanelOpen, setIsShortcutsPanelOpen] = useState(false);
 
   // Show loading only on initial load (when shapes are loading)
   // Don't block the UI during reconnection - show connection status badge instead
@@ -43,10 +47,43 @@ export function App(): React.JSX.Element {
     disconnected: "rgba(239, 68, 68, 0.9)", // red
   }[connectionStatus];
 
+  // Global keyboard shortcuts (? for help)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check if user is typing in an input
+      const target = e.target as HTMLElement;
+      const isTyping =
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target.isContentEditable;
+
+      if (isTyping) return;
+
+      // ? to open shortcuts panel
+      if (e.key === "?" && !e.shiftKey) {
+        e.preventDefault();
+        setIsShortcutsPanelOpen(true);
+      }
+
+      // / to focus AI input
+      if (e.key === "/") {
+        e.preventDefault();
+        const aiTextarea = document.querySelector(".AIPanel_textarea__") as HTMLTextAreaElement;
+        if (aiTextarea) {
+          aiTextarea.focus();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   return (
     <ToolbarProvider>
-      <div className={styles.app}>
-        <header className={styles.header}>
+      <SelectionProvider>
+        <div className={styles.app}>
+          <header className={styles.header}>
           <div className={styles.headerLeft}>
             <h1 className={styles.title}>CollabCanvas</h1>
             <div
@@ -99,7 +136,14 @@ export function App(): React.JSX.Element {
         </main>
 
         <Footer />
-      </div>
+
+        {/* Keyboard shortcuts help panel */}
+        <ShortcutsPanel
+          isOpen={isShortcutsPanelOpen}
+          onClose={() => setIsShortcutsPanelOpen(false)}
+        />
+        </div>
+      </SelectionProvider>
     </ToolbarProvider>
   );
 }
