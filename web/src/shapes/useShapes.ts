@@ -47,7 +47,31 @@ export function useShapes(): UseShapesReturn {
           "id" in shapeData &&
           "type" in shapeData
         ) {
-          newShapes.push(shapeData as Shape);
+          // Validate and fix position data
+          const x =
+            typeof shapeData.x === "number" && !Number.isNaN(shapeData.x)
+              ? shapeData.x
+              : 0;
+          const y =
+            typeof shapeData.y === "number" && !Number.isNaN(shapeData.y)
+              ? shapeData.y
+              : 0;
+
+          // Log warning if position was invalid
+          if (shapeData.x !== x || shapeData.y !== y) {
+            console.warn(
+              `[Shape] Invalid position for shape ${id}: x=${shapeData.x}, y=${shapeData.y}. Defaulting to (0, 0)`,
+            );
+          }
+
+          // Create validated shape with guaranteed valid position
+          const validatedShape = {
+            ...shapeData,
+            x,
+            y,
+          } as Shape;
+
+          newShapes.push(validatedShape);
         } else {
           console.warn(`[Shapes] Invalid shape data for ${id}:`, shapeData);
         }
@@ -119,8 +143,29 @@ export function useShapes(): UseShapesReturn {
         ? Object.fromEntries(existing.entries())
         : existing;
 
+    // Validate position updates - ensure x and y are valid numbers
+    const validatedUpdates = { ...updates };
+    if ("x" in validatedUpdates) {
+      const x = validatedUpdates.x;
+      if (typeof x !== "number" || Number.isNaN(x)) {
+        console.error(
+          `[Shape] Invalid x position in update for ${id}: ${x}. Ignoring update.`,
+        );
+        delete validatedUpdates.x;
+      }
+    }
+    if ("y" in validatedUpdates) {
+      const y = validatedUpdates.y;
+      if (typeof y !== "number" || Number.isNaN(y)) {
+        console.error(
+          `[Shape] Invalid y position in update for ${id}: ${y}. Ignoring update.`,
+        );
+        delete validatedUpdates.y;
+      }
+    }
+
     // Merge updates
-    const updated = { ...currentData, ...updates };
+    const updated = { ...currentData, ...validatedUpdates };
     shapesMap.set(id, updated);
   };
 
