@@ -644,14 +644,16 @@ Rules:
       systemPrompt.length + prompt.length + JSON.stringify(AI_TOOLS).length,
     );
 
-    console.log("[AI] Attempting function calling with Mistral...");
+    console.log("[AI] Attempting function calling with runWithTools API...");
 
-    // Try function calling first
+    // Use the proper runWithTools API for Cloudflare Workers AI
     // biome-ignore lint/suspicious/noExplicitAny: Workers AI types don't include function calling yet
     let response: any;
     try {
-      response = await (ai as any).run(
-        "@cf/mistralai/mistral-small-3.1-24b-instruct",
+      // Try with the recommended model that supports function calling
+      // biome-ignore lint/suspicious/noExplicitAny: Workers AI runWithTools not in official types
+      response = await (ai as any).runWithTools(
+        "@hf/nousresearch/hermes-2-pro-mistral-7b",
         {
           messages: [
             { role: "system", content: systemPrompt },
@@ -660,58 +662,76 @@ Rules:
           tools: AI_TOOLS,
         },
       );
-    } catch (funcCallError) {
-      console.error("[AI] Function calling failed:", funcCallError);
+
       console.log(
-        "[AI] Trying WITHOUT function calling, will parse text response...",
+        "[AI] ✓ runWithTools successful, response:",
+        JSON.stringify(response).substring(0, 200),
       );
-
-      // Try without tools parameter
-      response = await (ai as any).run(
-        "@cf/mistralai/mistral-small-3.1-24b-instruct",
-        {
-          messages: [
-            {
-              role: "system",
-              content:
-                systemPrompt +
-                '\n\nRespond ONLY with valid JSON: {"shapes":[{"type":"...","x":...,"y":...}]}',
-            },
-            { role: "user", content: prompt },
-          ],
-        },
+    } catch (funcCallError) {
+      console.error(
+        "[AI] Function calling with runWithTools failed:",
+        funcCallError,
       );
+      console.log("[AI] Falling back to text parsing with standard run()...");
 
-      // Parse text response as JSON
-      if (response && typeof response === "object" && "response" in response) {
-        const textResponse = (response as { response?: string }).response;
-        console.log("[AI] Got text response:", textResponse);
+      // Fallback: Try without tools parameter using standard run API
+      try {
+        // biome-ignore lint/suspicious/noExplicitAny: Workers AI types are not fully typed
+        response = await (ai as any).run(
+          "@hf/nousresearch/hermes-2-pro-mistral-7b",
+          {
+            messages: [
+              {
+                role: "system",
+                content:
+                  systemPrompt +
+                  '\n\nRespond ONLY with valid JSON: {"shapes":[{"type":"...","x":...,"y":...}]}',
+              },
+              { role: "user", content: prompt },
+            ],
+          },
+        );
 
-        // Try to extract JSON from response
-        try {
-          const jsonMatch = textResponse?.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            const parsed = JSON.parse(jsonMatch[0]);
-            if (parsed.shapes && Array.isArray(parsed.shapes)) {
-              console.log(
-                "[AI] ✓ Parsed",
-                parsed.shapes.length,
-                "shapes from text response",
-              );
-              return [
-                {
-                  name: "createShape",
-                  parameters: { shapes: parsed.shapes },
-                },
-              ];
+        // Parse text response as JSON
+        if (
+          response &&
+          typeof response === "object" &&
+          "response" in response
+        ) {
+          const textResponse = (response as { response?: string }).response;
+          console.log("[AI] Got text response:", textResponse);
+
+          // Try to extract JSON from response
+          try {
+            const jsonMatch = textResponse?.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              const parsed = JSON.parse(jsonMatch[0]);
+              if (parsed.shapes && Array.isArray(parsed.shapes)) {
+                console.log(
+                  "[AI] ✓ Parsed",
+                  parsed.shapes.length,
+                  "shapes from text response",
+                );
+                return [
+                  {
+                    name: "createShape",
+                    parameters: { shapes: parsed.shapes },
+                  },
+                ];
+              }
             }
+          } catch (parseError) {
+            console.error(
+              "[AI] Failed to parse JSON from text response:",
+              parseError,
+            );
           }
-        } catch (parseError) {
-          console.error(
-            "[AI] Failed to parse JSON from text response:",
-            parseError,
-          );
         }
+      } catch (fallbackError) {
+        console.error("[AI] Fallback also failed:", fallbackError);
+        throw new Error(
+          `AI request failed: ${fallbackError instanceof Error ? fallbackError.message : "Unknown error"}`,
+        );
       }
     }
 
@@ -768,8 +788,9 @@ Rules:
 /**
  * Simple command parser for MVP/fallback
  * Used when Workers AI is unavailable or errors out
+ * Currently unused but kept for potential fallback scenarios
  */
-function parseSimpleCommand(prompt: string): {
+function _parseSimpleCommand(prompt: string): {
   name: string;
   parameters: Record<string, unknown>;
 }[] {
