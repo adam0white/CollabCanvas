@@ -1,8 +1,7 @@
 import { useAuth } from "@clerk/clerk-react";
 import clsx from "clsx";
-
-import { useToolbar } from "../hooks/useToolbar";
 import { useSelection } from "../hooks/useSelection";
+import { useToolbar } from "../hooks/useToolbar";
 import { useUndoRedo } from "../hooks/useUndoRedo";
 import { useShapes } from "../shapes/useShapes";
 import { ColorPicker } from "./ColorPicker";

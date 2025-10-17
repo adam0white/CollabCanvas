@@ -1,6 +1,6 @@
 /**
  * Color Picker Component
- * 
+ *
  * Features:
  * - Standard color palette
  * - Custom hex input
@@ -142,13 +142,17 @@ export function ColorPicker({
         className={styles.trigger}
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
-        title={currentColor === "mixed" ? "Multiple colors selected" : currentColor}
+        title={
+          currentColor === "mixed" ? "Multiple colors selected" : currentColor
+        }
       >
         <div
           className={styles.colorSwatch}
           style={{ background: displayColor }}
         />
-        {currentColor === "mixed" && <span className={styles.mixedLabel}>Mixed</span>}
+        {currentColor === "mixed" && (
+          <span className={styles.mixedLabel}>Mixed</span>
+        )}
       </button>
 
       {isOpen && (

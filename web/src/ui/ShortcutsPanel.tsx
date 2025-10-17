@@ -82,7 +82,9 @@ export function ShortcutsPanel({
               </div>
               <div className={styles.shortcut}>
                 <span className={styles.key}>Shift+Click</span>
-                <span className={styles.description}>Multi-select (toggle)</span>
+                <span className={styles.description}>
+                  Multi-select (toggle)
+                </span>
               </div>
               <div className={styles.shortcut}>
                 <span className={styles.key}>Drag on empty</span>

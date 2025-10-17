@@ -6,8 +6,8 @@ import {
 } from "@clerk/clerk-react";
 import { useEffect, useRef, useState } from "react";
 import { usePresence } from "../hooks/usePresence";
-import { ToolbarProvider } from "../hooks/useToolbar";
 import { SelectionProvider } from "../hooks/useSelection";
+import { ToolbarProvider } from "../hooks/useToolbar";
 import { useShapes } from "../shapes/useShapes";
 import { useConnectionStatus } from "../yjs/client";
 import { AIPanel } from "./AIPanel";
@@ -82,64 +82,64 @@ export function App(): React.JSX.Element {
       <SelectionProvider>
         <div className={styles.app}>
           <header className={styles.header}>
-          <div className={styles.headerLeft}>
-            <h1 className={styles.title}>CollabCanvas</h1>
-            <div
-              className={styles.connectionStatus}
-              style={{ backgroundColor: connectionStatusColor }}
-            >
-              <div className={styles.connectionDot} />
-              {connectionStatusText}
+            <div className={styles.headerLeft}>
+              <h1 className={styles.title}>CollabCanvas</h1>
+              <div
+                className={styles.connectionStatus}
+                style={{ backgroundColor: connectionStatusColor }}
+              >
+                <div className={styles.connectionDot} />
+                {connectionStatusText}
+              </div>
             </div>
-          </div>
 
-          <PresenceBar
-            presence={presenceState.presence}
-            localPresence={presenceState.localPresence}
-            roomId={roomId}
-          />
-
-          <div className={styles.headerRight}>
-            <SignedOut>
-              <SignInButton mode="modal" fallbackRedirectUrl="/c/main" />
-            </SignedOut>
-            <SignedIn>
-              <UserButton userProfileUrl="/c/main" />
-            </SignedIn>
-          </div>
-        </header>
-
-        <main className={styles.main}>
-          {isLoading && (
-            <div className={styles.loadingOverlay}>
-              <div className={styles.loadingSpinner} />
-              <p>Connecting to canvas...</p>
-            </div>
-          )}
-
-          {/* Floating toolbar */}
-          <Toolbar className={styles.floatingToolbar} />
-
-          <div className={styles.canvasContainer}>
-            <Canvas
+            <PresenceBar
               presence={presenceState.presence}
-              setPresence={presenceState.setPresence}
+              localPresence={presenceState.localPresence}
+              roomId={roomId}
             />
-          </div>
 
-          {/* AI Panel */}
-          <aside className={styles.aiPanel}>
-            <AIPanel ref={aiPanelRef} />
-          </aside>
-        </main>
+            <div className={styles.headerRight}>
+              <SignedOut>
+                <SignInButton mode="modal" fallbackRedirectUrl="/c/main" />
+              </SignedOut>
+              <SignedIn>
+                <UserButton userProfileUrl="/c/main" />
+              </SignedIn>
+            </div>
+          </header>
 
-        <Footer />
+          <main className={styles.main}>
+            {isLoading && (
+              <div className={styles.loadingOverlay}>
+                <div className={styles.loadingSpinner} />
+                <p>Connecting to canvas...</p>
+              </div>
+            )}
 
-        {/* Keyboard shortcuts help panel */}
-        <ShortcutsPanel
-          isOpen={isShortcutsPanelOpen}
-          onClose={() => setIsShortcutsPanelOpen(false)}
-        />
+            {/* Floating toolbar */}
+            <Toolbar className={styles.floatingToolbar} />
+
+            <div className={styles.canvasContainer}>
+              <Canvas
+                presence={presenceState.presence}
+                setPresence={presenceState.setPresence}
+              />
+            </div>
+
+            {/* AI Panel */}
+            <aside className={styles.aiPanel}>
+              <AIPanel ref={aiPanelRef} />
+            </aside>
+          </main>
+
+          <Footer />
+
+          {/* Keyboard shortcuts help panel */}
+          <ShortcutsPanel
+            isOpen={isShortcutsPanelOpen}
+            onClose={() => setIsShortcutsPanelOpen(false)}
+          />
         </div>
       </SelectionProvider>
     </ToolbarProvider>

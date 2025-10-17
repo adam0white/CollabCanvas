@@ -1,6 +1,6 @@
 /**
  * useUndoRedo - Manages undo/redo functionality with Yjs UndoManager
- * 
+ *
  * Features:
  * - Local-only undo/redo (only undoes user's own changes)
  * - Tracks shapes Y.Map
@@ -28,7 +28,7 @@ export function useUndoRedo(): UndoRedoHook {
   // Initialize UndoManager
   useEffect(() => {
     const shapesMap = doc.getMap("shapes");
-    
+
     // Create UndoManager tracking the shapes map
     const undoManager = new UndoManager(shapesMap, {
       // Track only local changes (don't undo other users' changes)

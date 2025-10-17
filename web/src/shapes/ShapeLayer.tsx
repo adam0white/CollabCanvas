@@ -54,9 +54,11 @@ export function ShapeLayer({
   const transformerRef = useRef<Konva.Transformer | null>(null);
   const shapeRefs = useRef<{ [key: string]: Konva.Shape | null }>({});
   const lastTransformUpdateRef = useRef(0);
-  
+
   // Track initial positions for group dragging
-  const dragStartPositionsRef = useRef<{ [key: string]: { x: number; y: number } }>({});
+  const dragStartPositionsRef = useRef<{
+    [key: string]: { x: number; y: number };
+  }>({});
 
   // Attach transformer to selected shapes (multi-select support)
   useEffect(() => {
@@ -64,7 +66,7 @@ export function ShapeLayer({
       const selectedNodes = selectedShapeIds
         .map((id) => shapeRefs.current[id])
         .filter((node): node is Konva.Shape => node !== null);
-      
+
       if (selectedNodes.length > 0) {
         transformerRef.current.nodes(selectedNodes);
         transformerRef.current.getLayer()?.batchDraw();
@@ -81,7 +83,10 @@ export function ShapeLayer({
       for (const shapeId of selectedShapeIds) {
         const targetShape = shapes.find((s) => s.id === shapeId);
         if (targetShape) {
-          dragStartPositionsRef.current[shapeId] = { x: targetShape.x, y: targetShape.y };
+          dragStartPositionsRef.current[shapeId] = {
+            x: targetShape.x,
+            y: targetShape.y,
+          };
         }
       }
     }
@@ -111,15 +116,18 @@ export function ShapeLayer({
 
     const node = e.target as Konva.Shape;
     const draggedShapeId = shape.id;
-    
+
     // If multiple shapes are selected and this is one of them, move all selected shapes
-    if (selectedShapeIds.includes(draggedShapeId) && selectedShapeIds.length > 1) {
+    if (
+      selectedShapeIds.includes(draggedShapeId) &&
+      selectedShapeIds.length > 1
+    ) {
       const startPos = dragStartPositionsRef.current[draggedShapeId];
       if (startPos) {
         // Calculate the offset from the original position
         const dx = node.x() - startPos.x;
         const dy = node.y() - startPos.y;
-        
+
         // Apply the same offset to all selected shapes
         for (const shapeId of selectedShapeIds) {
           const startPosition = dragStartPositionsRef.current[shapeId];
@@ -145,15 +153,18 @@ export function ShapeLayer({
 
     const node = e.target as Konva.Shape;
     const draggedShapeId = shape.id;
-    
+
     // If multiple shapes are selected and this is one of them, finalize positions for all
-    if (selectedShapeIds.includes(draggedShapeId) && selectedShapeIds.length > 1) {
+    if (
+      selectedShapeIds.includes(draggedShapeId) &&
+      selectedShapeIds.length > 1
+    ) {
       const startPos = dragStartPositionsRef.current[draggedShapeId];
       if (startPos) {
         // Calculate the final offset
         const dx = node.x() - startPos.x;
         const dy = node.y() - startPos.y;
-        
+
         // Apply final position to all selected shapes
         for (const shapeId of selectedShapeIds) {
           const startPosition = dragStartPositionsRef.current[shapeId];
@@ -165,7 +176,7 @@ export function ShapeLayer({
           }
         }
       }
-      
+
       // Clear drag start positions
       dragStartPositionsRef.current = {};
     } else {
@@ -306,7 +317,7 @@ export function ShapeLayer({
       // Check if Shift key is held for additive selection
       // For touch events, shiftKey won't be available, default to false
       const evt = e.evt as MouseEvent | TouchEvent;
-      const addToSelection = 'shiftKey' in evt ? evt.shiftKey : false;
+      const addToSelection = "shiftKey" in evt ? evt.shiftKey : false;
       onShapeSelect(shapeId, addToSelection);
     }
   };
@@ -335,8 +346,10 @@ export function ShapeLayer({
         const isSelected = selectedShapeIds.includes(shape.id);
         const isTransforming = transformingShapeId === shape.id;
         const lockOwner = locking.getLockOwner(shape.id);
-        const isLockedByOther = lockOwner !== null && lockOwner.userId !== userId;
-        const isDraggable = canEdit && selectedTool === "select" && !isLockedByOther;
+        const isLockedByOther =
+          lockOwner !== null && lockOwner.userId !== userId;
+        const isDraggable =
+          canEdit && selectedTool === "select" && !isLockedByOther;
 
         if (isRectangle(shape)) {
           return (

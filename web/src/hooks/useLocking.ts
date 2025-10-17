@@ -1,6 +1,6 @@
 /**
  * useLocking - Manages shape locking via Yjs Awareness
- * 
+ *
  * Features:
  * - Broadcast locks when shapes are selected
  * - Check if shapes are locked by other users
@@ -89,11 +89,14 @@ export function useLocking(currentUserId: string): LockingHook {
   useEffect(() => {
     const interval = setInterval(() => {
       const now = Date.now();
-      
+
       // Check if local locks are stale (shouldn't happen, but safety check)
       if (localPresence?.lockTimestamp) {
         const age = now - localPresence.lockTimestamp;
-        if (age > STALE_LOCK_TIMEOUT_MS && localPresence.lockedShapeIds?.length) {
+        if (
+          age > STALE_LOCK_TIMEOUT_MS &&
+          localPresence.lockedShapeIds?.length
+        ) {
           // Clear stale local locks
           setPresence({
             lockedShapeIds: [],
