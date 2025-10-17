@@ -12,41 +12,46 @@ test.describe('Smoke Tests', () => {
     // Navigate to app
     await page.goto('/');
     
-    // Wait for React to mount
-    await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(2000); // Give React time to render
+    // Wait for app to fully load
+    await page.waitForLoadState('networkidle');
     
-    // Check that root div has content
+    // Check that root div has content (app renders)
     const rootContent = await page.locator('#root').innerHTML();
-    expect(rootContent.length).toBeGreaterThan(10); // Less strict - just check it rendered something
+    expect(rootContent.length).toBeGreaterThan(100);
     
-    // Should show header or main container
-    const hasHeader = await page.locator('header, [class*="header"], [class*="app"]').count();
-    expect(hasHeader).toBeGreaterThan(0);
+    // Should show header with title
+    await expect(page.locator('h1')).toContainText('CollabCanvas');
+    
+    // Should show toolbar
+    await expect(page.locator('nav[aria-label="Canvas tools"]')).toBeVisible();
   });
 
-  test('app attempts to load canvas', async ({ page }) => {
+  test('app renders canvas', async ({ page }) => {
     await page.goto('/');
-    await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState('networkidle');
     
-    // Check for canvas, loading state, or main app container
-    const hasCanvasOrApp = await page.locator('canvas, [data-loading="true"], [class*="canvas"], #root > div').count();
-    expect(hasCanvasOrApp).toBeGreaterThan(0);
+    // Canvas should be visible (Konva creates canvas elements)
+    await expect(page.locator('canvas').first()).toBeVisible();
+    
+    // Should have at least one canvas (Konva uses multiple layers)
+    const canvasCount = await page.locator('canvas').count();
+    expect(canvasCount).toBeGreaterThanOrEqual(1);
   });
 
-  test('app shows authentication UI', async ({ page }) => {
+  test('guest users see disabled tools and sign in button', async ({ page }) => {
     await page.goto('/');
-    await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState('networkidle');
     
-    // Should show some authentication-related UI (sign in button, user button, or Clerk iframe)
-    const hasAuthUI = await page.locator('button, [class*="clerk"], iframe').count();
-    expect(hasAuthUI).toBeGreaterThan(0);
+    // Should show sign in button
+    await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible();
     
-    // The app should be interactive (not just a blank page)
-    const htmlContent = await page.content();
-    expect(htmlContent).toContain('CollabCanvas');
+    // Shape tools should be disabled for guests
+    const rectangleBtn = page.getByRole('button', { name: /rectangle/i });
+    await expect(rectangleBtn).toBeDisabled();
+    
+    // AI textarea should be disabled
+    const aiTextarea = page.getByPlaceholder(/sign in to use ai/i);
+    await expect(aiTextarea).toBeDisabled();
   });
 
   test('page title is correct', async ({ page }) => {
