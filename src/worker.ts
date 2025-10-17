@@ -616,14 +616,22 @@ async function generateToolCallsWithAI(
   const centerX = context.viewportCenter?.x ?? 1000;
   const centerY = context.viewportCenter?.y ?? 1000;
 
-  // Ultra-minimal system prompt
+  // Ultra-minimal system prompt with explicit JSON formatting guidance
   let systemPrompt = `Canvas 2000x2000. Center: ${centerX},${centerY}
-Format: createShape({shapes:[{type:"rectangle",x:100,y:200,width:150,height:100,fill:"#FF0000"}]})
-Rules:
-- ALWAYS use shapes:[] array
-- Colors as hex: red=#FF0000,blue=#0000FF,yellow=#FFFF00,green=#00FF00,purple=#800080,pink=#FFC0CB,orange=#FFA500
-- Sizes: tiny=40,small=80,normal=150,large=250,huge=400
-- Positions: center=${centerX},${centerY} left=${centerX - 300} right=${centerX + 300}`;
+
+CRITICAL: Use proper JSON arrays, NOT stringified arrays!
+✓ CORRECT: {shapes:[{type:"circle",x:100,y:200,radius:50}]}
+✗ WRONG: {shapes:"[{type:'circle'...}]"}
+
+Format examples:
+- Circle: {shapes:[{type:"circle",x:100,y:200,radius:50,fill:"#FF0000"}]}
+- Rectangle: {shapes:[{type:"rectangle",x:100,y:200,width:150,height:100,fill:"#0000FF"}]}
+- Text: {shapes:[{type:"text",x:100,y:200,text:"Hello",fontSize:16,fill:"#000000"}]}
+- Multiple: {shapes:[{type:"circle",...},{type:"rectangle",...}]}
+
+Colors (hex): red=#FF0000, blue=#0000FF, yellow=#FFFF00, green=#00FF00, purple=#800080, pink=#FFC0CB, orange=#FFA500
+Sizes: tiny=40, small=80, normal=150, large=250, huge=400
+Positions: center=${centerX},${centerY}, left=${centerX - 300}, right=${centerX + 300}`;
 
   if (context.selectedShapeIds && context.selectedShapeIds.length > 0) {
     systemPrompt += `\nSelected:${context.selectedShapeIds.slice(0, 2).join(",")}`;
@@ -644,32 +652,39 @@ Rules:
       systemPrompt.length + prompt.length + JSON.stringify(AI_TOOLS).length,
     );
 
-    console.log("[AI] Attempting function calling with Mistral...");
+    console.log(
+      "[AI] Attempting function calling with Llama 3.1 8B Instruct (128k context)...",
+    );
 
-    // Try function calling first
+    // Use Cloudflare's stable Llama 3.1 model with 128k context window and tool support
+    // This model is faster and more stable than beta models
     // biome-ignore lint/suspicious/noExplicitAny: Workers AI types don't include function calling yet
     let response: any;
     try {
-      response = await (ai as any).run(
-        "@cf/mistralai/mistral-small-3.1-24b-instruct",
-        {
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: prompt },
-          ],
-          tools: AI_TOOLS,
-        },
+      // Use standard run() with tools parameter for function calling
+      // biome-ignore lint/suspicious/noExplicitAny: Workers AI tool calling not fully typed
+      response = await (ai as any).run("@cf/meta/llama-3.1-8b-instruct", {
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: prompt },
+        ],
+        tools: AI_TOOLS,
+      });
+
+      console.log(
+        "[AI] ✓ Llama 3.1 response received, checking for tool calls...",
       );
     } catch (funcCallError) {
-      console.error("[AI] Function calling failed:", funcCallError);
-      console.log(
-        "[AI] Trying WITHOUT function calling, will parse text response...",
+      console.error(
+        "[AI] Function calling with Llama 3.1 failed:",
+        funcCallError,
       );
+      console.log("[AI] Falling back to text parsing with standard run()...");
 
-      // Try without tools parameter
-      response = await (ai as any).run(
-        "@cf/mistralai/mistral-small-3.1-24b-instruct",
-        {
+      // Fallback: Try without tools parameter using standard run API
+      try {
+        // biome-ignore lint/suspicious/noExplicitAny: Workers AI types are not fully typed
+        response = await (ai as any).run("@cf/meta/llama-3.1-8b-instruct", {
           messages: [
             {
               role: "system",
@@ -679,39 +694,48 @@ Rules:
             },
             { role: "user", content: prompt },
           ],
-        },
-      );
+        });
 
-      // Parse text response as JSON
-      if (response && typeof response === "object" && "response" in response) {
-        const textResponse = (response as { response?: string }).response;
-        console.log("[AI] Got text response:", textResponse);
+        // Parse text response as JSON
+        if (
+          response &&
+          typeof response === "object" &&
+          "response" in response
+        ) {
+          const textResponse = (response as { response?: string }).response;
+          console.log("[AI] Got text response:", textResponse);
 
-        // Try to extract JSON from response
-        try {
-          const jsonMatch = textResponse?.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            const parsed = JSON.parse(jsonMatch[0]);
-            if (parsed.shapes && Array.isArray(parsed.shapes)) {
-              console.log(
-                "[AI] ✓ Parsed",
-                parsed.shapes.length,
-                "shapes from text response",
-              );
-              return [
-                {
-                  name: "createShape",
-                  parameters: { shapes: parsed.shapes },
-                },
-              ];
+          // Try to extract JSON from response
+          try {
+            const jsonMatch = textResponse?.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              const parsed = JSON.parse(jsonMatch[0]);
+              if (parsed.shapes && Array.isArray(parsed.shapes)) {
+                console.log(
+                  "[AI] ✓ Parsed",
+                  parsed.shapes.length,
+                  "shapes from text response",
+                );
+                return [
+                  {
+                    name: "createShape",
+                    parameters: { shapes: parsed.shapes },
+                  },
+                ];
+              }
             }
+          } catch (parseError) {
+            console.error(
+              "[AI] Failed to parse JSON from text response:",
+              parseError,
+            );
           }
-        } catch (parseError) {
-          console.error(
-            "[AI] Failed to parse JSON from text response:",
-            parseError,
-          );
         }
+      } catch (fallbackError) {
+        console.error("[AI] Fallback also failed:", fallbackError);
+        throw new Error(
+          `AI request failed: ${fallbackError instanceof Error ? fallbackError.message : "Unknown error"}`,
+        );
       }
     }
 
@@ -727,10 +751,67 @@ Rules:
         toolCalls.length,
         "tool calls from AI",
       );
-      return toolCalls.map((call) => ({
-        name: call.name,
-        parameters: call.arguments,
-      }));
+
+      // Parse and validate tool call parameters
+      return toolCalls.map((call) => {
+        const params = call.arguments;
+
+        // Fix: AI sometimes returns shapes as a stringified JSON array instead of actual array
+        if (params.shapes && typeof params.shapes === "string") {
+          console.warn(
+            "[AI] ⚠ Fixing stringified shapes parameter - AI returned string instead of array",
+          );
+          console.log(
+            "[AI] Raw shapes string:",
+            params.shapes.substring(0, 200),
+          );
+
+          try {
+            // Try 1: Direct JSON.parse
+            params.shapes = JSON.parse(params.shapes);
+            console.log(
+              "[AI] ✓ Successfully parsed",
+              Array.isArray(params.shapes) ? params.shapes.length : 0,
+              "shapes from stringified parameter",
+            );
+          } catch (parseError1) {
+            console.warn(
+              "[AI] Direct JSON.parse failed, trying with quote normalization...",
+            );
+
+            try {
+              // Try 2: Replace single quotes with double quotes, then parse
+              // This handles AI using JS object notation instead of JSON
+              const normalized = (params.shapes as string)
+                .replace(/'/g, '"') // Replace single quotes with double quotes
+                .replace(/(\w+):/g, '"$1":'); // Add quotes around unquoted keys
+
+              console.log(
+                "[AI] Normalized string:",
+                normalized.substring(0, 200),
+              );
+              params.shapes = JSON.parse(normalized);
+              console.log(
+                "[AI] ✓ Successfully parsed after normalization:",
+                Array.isArray(params.shapes) ? params.shapes.length : 0,
+                "shapes",
+              );
+            } catch (parseError2) {
+              console.error(
+                "[AI] ✗ Failed to parse even after normalization:",
+                parseError2,
+              );
+              console.error("[AI] Original string:", params.shapes);
+              // Keep as-is, let the tool handler deal with it
+            }
+          }
+        }
+
+        return {
+          name: call.name,
+          parameters: params,
+        };
+      });
     }
 
     // If AI gave text response but no tool calls, return it as error context
@@ -768,8 +849,9 @@ Rules:
 /**
  * Simple command parser for MVP/fallback
  * Used when Workers AI is unavailable or errors out
+ * Currently unused but kept for potential fallback scenarios
  */
-function parseSimpleCommand(prompt: string): {
+function _parseSimpleCommand(prompt: string): {
   name: string;
   parameters: Record<string, unknown>;
 }[] {

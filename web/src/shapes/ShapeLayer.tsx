@@ -13,6 +13,7 @@ import type { KonvaEventObject } from "konva/lib/Node";
 import { useEffect, useRef, useState } from "react";
 import { Circle, Rect, Text, Transformer } from "react-konva";
 import { THROTTLE } from "../config/constants";
+import type { LockingHook } from "../hooks/useLocking";
 import type { Shape } from "./types";
 import { isCircle, isRectangle, isText } from "./types";
 
@@ -20,8 +21,10 @@ type ShapeLayerProps = {
   shapes: Shape[];
   canEdit: boolean;
   selectedTool: "select" | "rectangle" | "circle" | "text";
-  selectedShapeId: string | null;
-  onShapeSelect: (id: string | null) => void;
+  selectedShapeIds: string[];
+  userId: string;
+  locking: LockingHook;
+  onShapeSelect: (id: string, addToSelection: boolean) => void;
   onShapeUpdate: (id: string, updates: Partial<Shape>) => void;
   onDragMove?: (x: number, y: number) => void;
   onTextEdit?: (
@@ -35,7 +38,9 @@ export function ShapeLayer({
   shapes,
   canEdit,
   selectedTool,
-  selectedShapeId,
+  selectedShapeIds,
+  userId,
+  locking,
   onShapeSelect,
   onShapeUpdate,
   onDragMove,
@@ -50,18 +55,42 @@ export function ShapeLayer({
   const shapeRefs = useRef<{ [key: string]: Konva.Shape | null }>({});
   const lastTransformUpdateRef = useRef(0);
 
-  // Attach transformer to selected shape
+  // Track initial positions for group dragging
+  const dragStartPositionsRef = useRef<{
+    [key: string]: { x: number; y: number };
+  }>({});
+
+  // Attach transformer to selected shapes (multi-select support)
   useEffect(() => {
-    if (transformerRef.current && selectedShapeId) {
-      const selectedNode = shapeRefs.current[selectedShapeId];
-      if (selectedNode) {
-        transformerRef.current.nodes([selectedNode]);
+    if (transformerRef.current && selectedShapeIds.length > 0) {
+      const selectedNodes = selectedShapeIds
+        .map((id) => shapeRefs.current[id])
+        .filter((node): node is Konva.Shape => node !== null);
+
+      if (selectedNodes.length > 0) {
+        transformerRef.current.nodes(selectedNodes);
         transformerRef.current.getLayer()?.batchDraw();
       }
     } else if (transformerRef.current) {
       transformerRef.current.nodes([]);
     }
-  }, [selectedShapeId]);
+  }, [selectedShapeIds]);
+
+  const handleDragStart = (_e: KonvaEventObject<DragEvent>, shape: Shape) => {
+    // Store initial positions of all selected shapes for group dragging
+    if (selectedShapeIds.includes(shape.id) && selectedShapeIds.length > 1) {
+      dragStartPositionsRef.current = {};
+      for (const shapeId of selectedShapeIds) {
+        const targetShape = shapes.find((s) => s.id === shapeId);
+        if (targetShape) {
+          dragStartPositionsRef.current[shapeId] = {
+            x: targetShape.x,
+            y: targetShape.y,
+          };
+        }
+      }
+    }
+  };
 
   const handleDragMove = (e: KonvaEventObject<DragEvent>, shape: Shape) => {
     // Update cursor position for presence
@@ -86,21 +115,77 @@ export function ShapeLayer({
     lastDragUpdateRef.current[shape.id] = now;
 
     const node = e.target as Konva.Shape;
-    onShapeUpdate(shape.id, {
-      x: node.x(),
-      y: node.y(),
-    });
+    const draggedShapeId = shape.id;
+
+    // If multiple shapes are selected and this is one of them, move all selected shapes
+    if (
+      selectedShapeIds.includes(draggedShapeId) &&
+      selectedShapeIds.length > 1
+    ) {
+      const startPos = dragStartPositionsRef.current[draggedShapeId];
+      if (startPos) {
+        // Calculate the offset from the original position
+        const dx = node.x() - startPos.x;
+        const dy = node.y() - startPos.y;
+
+        // Apply the same offset to all selected shapes
+        for (const shapeId of selectedShapeIds) {
+          const startPosition = dragStartPositionsRef.current[shapeId];
+          if (startPosition) {
+            onShapeUpdate(shapeId, {
+              x: startPosition.x + dx,
+              y: startPosition.y + dy,
+            });
+          }
+        }
+      }
+    } else {
+      // Single shape drag
+      onShapeUpdate(shape.id, {
+        x: node.x(),
+        y: node.y(),
+      });
+    }
   };
 
   const handleDragEnd = (e: KonvaEventObject<DragEvent>, shape: Shape) => {
     if (!canEdit || selectedTool !== "select") return;
 
-    // Final position update on drag end
     const node = e.target as Konva.Shape;
-    onShapeUpdate(shape.id, {
-      x: node.x(),
-      y: node.y(),
-    });
+    const draggedShapeId = shape.id;
+
+    // If multiple shapes are selected and this is one of them, finalize positions for all
+    if (
+      selectedShapeIds.includes(draggedShapeId) &&
+      selectedShapeIds.length > 1
+    ) {
+      const startPos = dragStartPositionsRef.current[draggedShapeId];
+      if (startPos) {
+        // Calculate the final offset
+        const dx = node.x() - startPos.x;
+        const dy = node.y() - startPos.y;
+
+        // Apply final position to all selected shapes
+        for (const shapeId of selectedShapeIds) {
+          const startPosition = dragStartPositionsRef.current[shapeId];
+          if (startPosition) {
+            onShapeUpdate(shapeId, {
+              x: startPosition.x + dx,
+              y: startPosition.y + dy,
+            });
+          }
+        }
+      }
+
+      // Clear drag start positions
+      dragStartPositionsRef.current = {};
+    } else {
+      // Single shape drag end
+      onShapeUpdate(shape.id, {
+        x: node.x(),
+        y: node.y(),
+      });
+    }
 
     // Clear throttle tracking for this shape
     delete lastDragUpdateRef.current[shape.id];
@@ -227,9 +312,13 @@ export function ShapeLayer({
     }
   };
 
-  const handleShapeClick = (shapeId: string) => {
+  const handleShapeClick = (shapeId: string, e: KonvaEventObject<Event>) => {
     if (selectedTool === "select" && canEdit) {
-      onShapeSelect(shapeId);
+      // Check if Shift key is held for additive selection
+      // For touch events, shiftKey won't be available, default to false
+      const evt = e.evt as MouseEvent | TouchEvent;
+      const addToSelection = "shiftKey" in evt ? evt.shiftKey : false;
+      onShapeSelect(shapeId, addToSelection);
     }
   };
 
@@ -254,9 +343,13 @@ export function ShapeLayer({
     <>
       {shapes.map((shape) => {
         const isHovered = hoveredShapeId === shape.id;
-        const isSelected = selectedShapeId === shape.id;
+        const isSelected = selectedShapeIds.includes(shape.id);
         const isTransforming = transformingShapeId === shape.id;
-        const isDraggable = canEdit && selectedTool === "select";
+        const lockOwner = locking.getLockOwner(shape.id);
+        const isLockedByOther =
+          lockOwner !== null && lockOwner.userId !== userId;
+        const isDraggable =
+          canEdit && selectedTool === "select" && !isLockedByOther;
 
         if (isRectangle(shape)) {
           return (
@@ -272,18 +365,22 @@ export function ShapeLayer({
               rotation={shape.rotation ?? 0}
               fill={shape.fill}
               stroke={
-                isSelected
-                  ? "#0ea5e9"
-                  : isHovered && isDraggable
+                isLockedByOther
+                  ? lockOwner.color
+                  : isSelected
                     ? "#0ea5e9"
-                    : shape.stroke
+                    : isHovered && isDraggable
+                      ? "#0ea5e9"
+                      : shape.stroke
               }
               strokeWidth={
-                isSelected
+                isLockedByOther
                   ? 3
-                  : isHovered && isDraggable
+                  : isSelected
                     ? 3
-                    : (shape.strokeWidth ?? 0)
+                    : isHovered && isDraggable
+                      ? 3
+                      : (shape.strokeWidth ?? 0)
               }
               cornerRadius={8}
               shadowBlur={isSelected || (isHovered && isDraggable) ? 16 : 12}
@@ -295,17 +392,18 @@ export function ShapeLayer({
               onClick={(e) => {
                 if (selectedTool === "select" && canEdit) {
                   e.cancelBubble = true;
-                  handleShapeClick(shape.id);
+                  handleShapeClick(shape.id, e);
                 }
               }}
               onTap={(e) => {
                 if (selectedTool === "select" && canEdit) {
                   e.cancelBubble = true;
-                  handleShapeClick(shape.id);
+                  handleShapeClick(shape.id, e);
                 }
               }}
               onMouseEnter={() => isDraggable && setHoveredShapeId(shape.id)}
               onMouseLeave={() => setHoveredShapeId(null)}
+              onDragStart={(e) => handleDragStart(e, shape)}
               onDragMove={(e) => handleDragMove(e, shape)}
               onDragEnd={(e) => handleDragEnd(e, shape)}
               onTransformEnd={() => handleTransformEnd(shape)}
@@ -326,18 +424,22 @@ export function ShapeLayer({
               rotation={shape.rotation ?? 0}
               fill={shape.fill}
               stroke={
-                isSelected
-                  ? "#0ea5e9"
-                  : isHovered && isDraggable
+                isLockedByOther
+                  ? lockOwner.color
+                  : isSelected
                     ? "#0ea5e9"
-                    : shape.stroke
+                    : isHovered && isDraggable
+                      ? "#0ea5e9"
+                      : shape.stroke
               }
               strokeWidth={
-                isSelected
+                isLockedByOther
                   ? 3
-                  : isHovered && isDraggable
+                  : isSelected
                     ? 3
-                    : (shape.strokeWidth ?? 0)
+                    : isHovered && isDraggable
+                      ? 3
+                      : (shape.strokeWidth ?? 0)
               }
               shadowBlur={isSelected || (isHovered && isDraggable) ? 16 : 12}
               shadowOpacity={
@@ -348,17 +450,18 @@ export function ShapeLayer({
               onClick={(e) => {
                 if (selectedTool === "select" && canEdit) {
                   e.cancelBubble = true;
-                  handleShapeClick(shape.id);
+                  handleShapeClick(shape.id, e);
                 }
               }}
               onTap={(e) => {
                 if (selectedTool === "select" && canEdit) {
                   e.cancelBubble = true;
-                  handleShapeClick(shape.id);
+                  handleShapeClick(shape.id, e);
                 }
               }}
               onMouseEnter={() => isDraggable && setHoveredShapeId(shape.id)}
               onMouseLeave={() => setHoveredShapeId(null)}
+              onDragStart={(e) => handleDragStart(e, shape)}
               onDragMove={(e) => handleDragMove(e, shape)}
               onDragEnd={(e) => handleDragEnd(e, shape)}
               onTransformEnd={() => handleTransformEnd(shape)}
@@ -405,17 +508,18 @@ export function ShapeLayer({
               onClick={(e) => {
                 if (selectedTool === "select" && canEdit) {
                   e.cancelBubble = true;
-                  handleShapeClick(shape.id);
+                  handleShapeClick(shape.id, e);
                 }
               }}
               onTap={(e) => {
                 if (selectedTool === "select" && canEdit) {
                   e.cancelBubble = true;
-                  handleShapeClick(shape.id);
+                  handleShapeClick(shape.id, e);
                 }
               }}
               onMouseEnter={() => isDraggable && setHoveredShapeId(shape.id)}
               onMouseLeave={() => setHoveredShapeId(null)}
+              onDragStart={(e) => handleDragStart(e, shape)}
               onDragMove={(e) => handleDragMove(e, shape)}
               onDragEnd={(e) => handleDragEnd(e, shape)}
               onTransformEnd={() => handleTransformEnd(shape)}
@@ -446,10 +550,15 @@ export function ShapeLayer({
             "bottom-right",
           ]}
           onTransform={() => {
-            if (selectedShapeId) {
-              const shape = shapes.find((s) => s.id === selectedShapeId);
-              if (shape) {
-                handleTransform(shape);
+            // Handle transform for all selected shapes
+            if (selectedShapeIds.length > 0) {
+              // For now, we apply the transform to each shape individually
+              // This maintains the relative positions of shapes during group transform
+              for (const shapeId of selectedShapeIds) {
+                const shape = shapes.find((s) => s.id === shapeId);
+                if (shape) {
+                  handleTransform(shape);
+                }
               }
             }
           }}

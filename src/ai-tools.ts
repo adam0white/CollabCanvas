@@ -17,24 +17,55 @@ import type { Doc } from "yjs";
 export const AI_TOOLS = [
   {
     name: "createShape",
-    description: "Create shapes (rect/circle/text). Use shapes array",
+    description:
+      "Create one or more shapes (rectangle/circle/text) on the canvas. IMPORTANT: Pass shapes as a JSON array, NOT a string.",
     parameters: {
       type: "object",
       properties: {
         shapes: {
           type: "array",
+          description:
+            "Array of shape objects to create. MUST be a JSON array, NOT a stringified array. Example: [{type:'circle',x:100,y:200,radius:50}]",
           items: {
             type: "object",
             properties: {
-              type: { type: "string" },
-              x: { type: "number" },
-              y: { type: "number" },
-              width: { type: "number" },
-              height: { type: "number" },
-              radius: { type: "number" },
-              text: { type: "string" },
-              fontSize: { type: "number" },
-              fill: { type: "string" },
+              type: {
+                type: "string",
+                enum: ["rectangle", "circle", "text"],
+                description: "Shape type: rectangle, circle, or text",
+              },
+              x: {
+                type: "number",
+                description: "X coordinate (0-2000)",
+              },
+              y: {
+                type: "number",
+                description: "Y coordinate (0-2000)",
+              },
+              width: {
+                type: "number",
+                description: "Width in pixels (for rectangle)",
+              },
+              height: {
+                type: "number",
+                description: "Height in pixels (for rectangle)",
+              },
+              radius: {
+                type: "number",
+                description: "Radius in pixels (for circle)",
+              },
+              text: {
+                type: "string",
+                description: "Text content (for text shape)",
+              },
+              fontSize: {
+                type: "number",
+                description: "Font size in pixels (for text, default: 16)",
+              },
+              fill: {
+                type: "string",
+                description: "Fill color as hex code (e.g., #FF0000 for red)",
+              },
             },
             required: ["type", "x", "y"],
           },
@@ -181,7 +212,7 @@ export function normalizeColor(color: string | undefined): string {
 
 export function createShape(
   doc: Doc,
-  params: { shapes: CreateShapeParams[] } | CreateShapeParams,
+  params: { shapes: CreateShapeParams[] | string } | CreateShapeParams,
   _userId: string,
 ): ToolResult {
   try {
@@ -191,7 +222,75 @@ export function createShape(
     const now = Date.now();
 
     // Normalize to array format
-    const shapesArray = "shapes" in params ? params.shapes : [params];
+    let shapesArray: CreateShapeParams[];
+
+    if ("shapes" in params) {
+      // Handle case where AI returns stringified JSON array instead of actual array
+      if (typeof params.shapes === "string") {
+        console.warn(
+          "[AI Tools] Received stringified shapes, attempting to parse...",
+        );
+        console.log(
+          "[AI Tools] Raw string:",
+          (params.shapes as string).substring(0, 150),
+        );
+
+        try {
+          // Try direct JSON.parse first
+          shapesArray = JSON.parse(params.shapes) as CreateShapeParams[];
+          console.log(
+            "[AI Tools] ✓ Parsed",
+            shapesArray.length,
+            "shapes from string",
+          );
+        } catch (parseError1) {
+          console.warn("[AI Tools] Direct parse failed, normalizing quotes...");
+
+          try {
+            // Normalize single quotes to double quotes and add quotes to unquoted keys
+            const normalized = (params.shapes as string)
+              .replace(/'/g, '"')
+              .replace(/(\w+):/g, '"$1":');
+
+            shapesArray = JSON.parse(normalized) as CreateShapeParams[];
+            console.log(
+              "[AI Tools] ✓ Parsed after normalization:",
+              shapesArray.length,
+              "shapes",
+            );
+          } catch (parseError2) {
+            console.error(
+              "[AI Tools] Failed to parse stringified shapes:",
+              parseError2,
+            );
+            console.error("[AI Tools] String that failed:", params.shapes);
+            return {
+              success: false,
+              message:
+                "Invalid shapes parameter: expected array but got unparseable string",
+              error:
+                parseError2 instanceof Error
+                  ? parseError2.message
+                  : "Parse error",
+            };
+          }
+        }
+      } else {
+        shapesArray = params.shapes;
+      }
+    } else {
+      shapesArray = [params as CreateShapeParams];
+    }
+
+    // Validate that we have an array
+    if (!Array.isArray(shapesArray)) {
+      console.error("[AI Tools] shapes is not an array:", typeof shapesArray);
+      return {
+        success: false,
+        message: `Invalid shapes parameter: expected array but got ${typeof shapesArray}`,
+        error: "Type validation failed",
+      };
+    }
 
     for (const shapeSpec of shapesArray) {
       const shapeId = crypto.randomUUID();
