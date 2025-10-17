@@ -11,7 +11,7 @@ import {
   useState,
 } from "react";
 
-export type Tool = "select" | "rectangle";
+export type Tool = "select" | "rectangle" | "circle" | "text";
 
 type ToolbarContextValue = {
   activeTool: Tool;

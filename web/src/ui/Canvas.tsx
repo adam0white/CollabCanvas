@@ -1,11 +1,11 @@
 import type Konva from "konva";
 import type { KonvaEventObject } from "konva/lib/Node";
 import { useEffect, useRef, useState } from "react";
-import { Group, Layer, Rect, Stage, Text } from "react-konva";
+import { Circle, Group, Layer, Rect, Stage, Text } from "react-konva";
 import type { PresenceState } from "../hooks/usePresence";
 import { useToolbar } from "../hooks/useToolbar";
 import { ShapeLayer } from "../shapes/ShapeLayer";
-import { createRectangle } from "../shapes/types";
+import { createCircle, createRectangle, createText } from "../shapes/types";
 import { useShapes } from "../shapes/useShapes";
 import styles from "./Canvas.module.css";
 
@@ -36,6 +36,24 @@ export function Canvas({
     width: number;
     height: number;
   } | null>(null);
+
+  // State for circle creation (click-and-drag from center)
+  const [newCircle, setNewCircle] = useState<{
+    x: number;
+    y: number;
+    radius: number;
+  } | null>(null);
+
+  // State for text creation (click to place)
+  const [isCreatingText, setIsCreatingText] = useState(false);
+  const [textInput, setTextInput] = useState("");
+  const [textPosition, setTextPosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+  const [editingTextShapeId, setEditingTextShapeId] = useState<string | null>(
+    null,
+  );
 
   // State for pan and zoom
   const [scale, setScale] = useState(1);
@@ -194,6 +212,40 @@ export function Canvas({
       return;
     }
 
+    // Handle circle creation (click+drag from center)
+    if (activeTool === "circle" && canEdit && clickedOnEmpty) {
+      const pos = stage.getPointerPosition();
+      if (!pos) return;
+
+      const adjustedPos = {
+        x: (pos.x - position.x) / scale,
+        y: (pos.y - position.y) / scale,
+      };
+
+      setIsDrawing(true);
+      setNewCircle({
+        x: adjustedPos.x,
+        y: adjustedPos.y,
+        radius: 0,
+      });
+      return;
+    }
+
+    // Handle text creation (click to place)
+    if (activeTool === "text" && canEdit && clickedOnEmpty) {
+      const pos = stage.getPointerPosition();
+      if (!pos) return;
+
+      const adjustedPos = {
+        x: (pos.x - position.x) / scale,
+        y: (pos.y - position.y) / scale,
+      };
+
+      setTextPosition(adjustedPos);
+      setIsCreatingText(true);
+      return;
+    }
+
     // Handle panning:
     // - For authenticated users: pan when clicking on empty space in select mode
     // - For guests: always allow panning (they can't edit shapes anyway)
@@ -239,6 +291,18 @@ export function Canvas({
         y: newRect.y,
         width: adjustedPos.x - newRect.x,
         height: adjustedPos.y - newRect.y,
+      });
+    }
+
+    // Update circle being drawn
+    if (isDrawing && activeTool === "circle" && newCircle) {
+      const dx = adjustedPos.x - newCircle.x;
+      const dy = adjustedPos.y - newCircle.y;
+      const radius = Math.sqrt(dx * dx + dy * dy);
+      setNewCircle({
+        x: newCircle.x,
+        y: newCircle.y,
+        radius,
       });
     }
   };
@@ -291,6 +355,24 @@ export function Canvas({
       // Reset drawing state
       setIsDrawing(false);
       setNewRect(null);
+    }
+
+    // Handle end of circle drawing
+    if (isDrawing && activeTool === "circle" && newCircle) {
+      // Only create if circle has minimum radius
+      if (newCircle.radius > 5) {
+        const circle = createCircle(
+          newCircle.x,
+          newCircle.y,
+          newCircle.radius,
+          "user",
+        );
+        createShape(circle);
+      }
+
+      // Reset drawing state
+      setIsDrawing(false);
+      setNewCircle(null);
     }
   };
 
@@ -346,6 +428,49 @@ export function Canvas({
       });
     }
   }
+
+  // Handle text input submission
+  const handleTextSubmit = () => {
+    if (textInput.trim()) {
+      if (editingTextShapeId) {
+        // Update existing text shape
+        updateShape(editingTextShapeId, { text: textInput });
+      } else if (textPosition) {
+        // Create new text shape
+        const text = createText(
+          textPosition.x,
+          textPosition.y,
+          textInput,
+          "user",
+        );
+        createShape(text);
+      }
+    }
+    setIsCreatingText(false);
+    setTextInput("");
+    setTextPosition(null);
+    setEditingTextShapeId(null);
+  };
+
+  // Handle text input cancel
+  const handleTextCancel = () => {
+    setIsCreatingText(false);
+    setTextInput("");
+    setTextPosition(null);
+    setEditingTextShapeId(null);
+  };
+
+  // Handle text shape double-click for editing
+  const handleTextEdit = (
+    shapeId: string,
+    currentText: string,
+    screenPos: { x: number; y: number },
+  ) => {
+    setEditingTextShapeId(shapeId);
+    setTextInput(currentText);
+    setTextPosition(screenPos);
+    setIsCreatingText(true);
+  };
 
   return (
     <div ref={containerRef} className={styles.canvasWrapper}>
@@ -455,6 +580,7 @@ export function Canvas({
             selectedShapeId={selectedShapeId}
             onShapeSelect={setSelectedShapeId}
             onShapeUpdate={updateShape}
+            onTextEdit={handleTextEdit}
             onDragMove={(screenX, screenY) => {
               // Adjust screen coordinates to canvas space for presence
               const adjustedPos = {
@@ -472,6 +598,19 @@ export function Canvas({
               y={newRect.y}
               width={newRect.width}
               height={newRect.height}
+              fill="rgba(56, 189, 248, 0.3)"
+              stroke="#38bdf8"
+              strokeWidth={2}
+              dash={[5, 5]}
+            />
+          )}
+
+          {/* Render circle being drawn */}
+          {newCircle && isDrawing && (
+            <Circle
+              x={newCircle.x}
+              y={newCircle.y}
+              radius={newCircle.radius}
               fill="rgba(56, 189, 248, 0.3)"
               stroke="#38bdf8"
               strokeWidth={2}
@@ -586,6 +725,37 @@ export function Canvas({
           })}
         </Layer>
       </Stage>
+
+      {/* Text input overlay */}
+      {isCreatingText && textPosition && (
+        <div
+          className={styles.textInputOverlay}
+          style={{
+            position: "absolute",
+            left: `${textPosition.x * scale + position.x}px`,
+            top: `${textPosition.y * scale + position.y}px`,
+            zIndex: 1000,
+          }}
+        >
+          <input
+            type="text"
+            value={textInput}
+            onChange={(e) => setTextInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleTextSubmit();
+              } else if (e.key === "Escape") {
+                e.preventDefault();
+                handleTextCancel();
+              }
+            }}
+            onBlur={handleTextSubmit}
+            placeholder="Enter text..."
+            className={styles.textInput}
+          />
+        </div>
+      )}
     </div>
   );
 }
