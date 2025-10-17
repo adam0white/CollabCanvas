@@ -8,6 +8,7 @@ declare namespace Cloudflare {
 	}
 	interface Env {
 		CLERK_PUBLISHABLE_KEY: "pk_live_Y2xlcmsuYWRhbXdoaXRlLndvcmsk";
+		CLERK_SECRET_KEY: string;
 		RoomDO: DurableObjectNamespace<import("./src/worker").RoomDO>;
 		AI: Ai;
 		ASSETS: Fetcher;

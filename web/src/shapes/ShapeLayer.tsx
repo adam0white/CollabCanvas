@@ -12,6 +12,7 @@ import type Konva from "konva";
 import type { KonvaEventObject } from "konva/lib/Node";
 import { useEffect, useRef, useState } from "react";
 import { Circle, Rect, Text, Transformer } from "react-konva";
+import { THROTTLE } from "../config/constants";
 import type { Shape } from "./types";
 import { isCircle, isRectangle, isText } from "./types";
 
@@ -30,8 +31,6 @@ type ShapeLayerProps = {
   ) => void;
 };
 
-const DRAG_UPDATE_INTERVAL_MS = 50; // Throttle shape updates during drag
-
 export function ShapeLayer({
   shapes,
   canEdit,
@@ -44,6 +43,9 @@ export function ShapeLayer({
 }: ShapeLayerProps): React.JSX.Element {
   const lastDragUpdateRef = useRef<{ [key: string]: number }>({});
   const [hoveredShapeId, setHoveredShapeId] = useState<string | null>(null);
+  const [transformingShapeId, setTransformingShapeId] = useState<string | null>(
+    null,
+  );
   const transformerRef = useRef<Konva.Transformer | null>(null);
   const shapeRefs = useRef<{ [key: string]: Konva.Shape | null }>({});
   const lastTransformUpdateRef = useRef(0);
@@ -79,7 +81,7 @@ export function ShapeLayer({
     const now = performance.now();
     const lastUpdate = lastDragUpdateRef.current[shape.id] ?? 0;
 
-    if (now - lastUpdate < DRAG_UPDATE_INTERVAL_MS) return;
+    if (now - lastUpdate < THROTTLE.TRANSFORM_MS) return;
 
     lastDragUpdateRef.current[shape.id] = now;
 
@@ -104,30 +106,84 @@ export function ShapeLayer({
     delete lastDragUpdateRef.current[shape.id];
   };
 
-  const handleTransform = () => {
-    // Update cursor position during transform (throttled)
-    if (!onDragMove) return;
+  const handleTransform = (shape: Shape) => {
+    if (!canEdit || selectedTool !== "select") return;
+
+    // Set visual indicator
+    if (transformingShapeId !== shape.id) {
+      setTransformingShapeId(shape.id);
+    }
 
     const now = performance.now();
-    if (now - lastTransformUpdateRef.current < DRAG_UPDATE_INTERVAL_MS) {
+    if (now - lastTransformUpdateRef.current < THROTTLE.TRANSFORM_MS) {
       return;
     }
     lastTransformUpdateRef.current = now;
 
-    const transformer = transformerRef.current;
-    if (!transformer) return;
+    // Update cursor position
+    if (onDragMove) {
+      const transformer = transformerRef.current;
+      if (transformer) {
+        const stage = transformer.getStage();
+        if (stage) {
+          const pos = stage.getPointerPosition();
+          if (pos) {
+            onDragMove(pos.x, pos.y);
+          }
+        }
+      }
+    }
 
-    const stage = transformer.getStage();
-    if (!stage) return;
+    // Broadcast throttled transform updates
+    const node = shapeRefs.current[shape.id];
+    if (!node) return;
 
-    const pos = stage.getPointerPosition();
-    if (pos) {
-      onDragMove(pos.x, pos.y);
+    const scaleX = node.scaleX();
+    const scaleY = node.scaleY();
+
+    // Prepare updates based on shape type
+    if (isCircle(shape)) {
+      const avgScale = (scaleX + scaleY) / 2;
+      const currentRadius = (node as Konva.Circle).radius();
+      onShapeUpdate(shape.id, {
+        x: node.x(),
+        y: node.y(),
+        radius: Math.max(5, currentRadius * avgScale),
+        rotation: node.rotation(),
+      });
+      // Reset scale after broadcasting
+      node.scaleX(1);
+      node.scaleY(1);
+    } else if (isRectangle(shape)) {
+      onShapeUpdate(shape.id, {
+        x: node.x(),
+        y: node.y(),
+        width: Math.max(5, node.width() * scaleX),
+        height: Math.max(5, node.height() * scaleY),
+        rotation: node.rotation(),
+      });
+      // Reset scale after broadcasting
+      node.scaleX(1);
+      node.scaleY(1);
+    } else if (isText(shape)) {
+      const avgScale = (scaleX + scaleY) / 2;
+      onShapeUpdate(shape.id, {
+        x: node.x(),
+        y: node.y(),
+        fontSize: Math.max(8, shape.fontSize * avgScale),
+        rotation: node.rotation(),
+      });
+      // Reset scale after broadcasting
+      node.scaleX(1);
+      node.scaleY(1);
     }
   };
 
   const handleTransformEnd = (shape: Shape) => {
     if (!canEdit || selectedTool !== "select") return;
+
+    // Clear visual indicator
+    setTransformingShapeId(null);
 
     const node = shapeRefs.current[shape.id];
     if (!node) return;
@@ -199,6 +255,7 @@ export function ShapeLayer({
       {shapes.map((shape) => {
         const isHovered = hoveredShapeId === shape.id;
         const isSelected = selectedShapeId === shape.id;
+        const isTransforming = transformingShapeId === shape.id;
         const isDraggable = canEdit && selectedTool === "select";
 
         if (isRectangle(shape)) {
@@ -233,6 +290,7 @@ export function ShapeLayer({
               shadowOpacity={
                 isSelected || (isHovered && isDraggable) ? 0.25 : 0.15
               }
+              opacity={isTransforming ? 0.8 : 1}
               draggable={isDraggable}
               onClick={(e) => {
                 if (selectedTool === "select" && canEdit) {
@@ -285,6 +343,7 @@ export function ShapeLayer({
               shadowOpacity={
                 isSelected || (isHovered && isDraggable) ? 0.25 : 0.15
               }
+              opacity={isTransforming ? 0.8 : 1}
               draggable={isDraggable}
               onClick={(e) => {
                 if (selectedTool === "select" && canEdit) {
@@ -341,6 +400,7 @@ export function ShapeLayer({
               shadowOpacity={
                 isSelected || (isHovered && isDraggable) ? 0.25 : 0.15
               }
+              opacity={isTransforming ? 0.8 : 1}
               draggable={isDraggable}
               onClick={(e) => {
                 if (selectedTool === "select" && canEdit) {
@@ -385,7 +445,14 @@ export function ShapeLayer({
             "bottom-left",
             "bottom-right",
           ]}
-          onTransform={handleTransform}
+          onTransform={() => {
+            if (selectedShapeId) {
+              const shape = shapes.find((s) => s.id === selectedShapeId);
+              if (shape) {
+                handleTransform(shape);
+              }
+            }
+          }}
         />
       )}
     </>
