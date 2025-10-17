@@ -209,14 +209,19 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
           toolResults.push(result);
 
           if (result.success) {
-            if (result.shapeId) {
+            // Prefer shapeIds array over single shapeId to avoid duplicates
+            if (result.shapeIds && result.shapeIds.length > 0) {
+              // Use shapeIds array (handles multiple shapes and single shape)
+              if (toolCall.name === "createShape") {
+                shapesCreated.push(...result.shapeIds);
+              }
+              shapesAffected.push(...result.shapeIds);
+            } else if (result.shapeId) {
+              // Fallback to single shapeId (for tools that don't return shapeIds array)
               if (toolCall.name === "createShape") {
                 shapesCreated.push(result.shapeId);
               }
               shapesAffected.push(result.shapeId);
-            }
-            if (result.shapeIds) {
-              shapesAffected.push(...result.shapeIds);
             }
           }
         }
