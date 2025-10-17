@@ -10,15 +10,19 @@
  */
 
 import { useUser } from "@clerk/clerk-react";
-import { useCallback, useRef, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { useAI } from "../hooks/useAI";
 import styles from "./AIPanel.module.css";
 
-export function AIPanel(): React.JSX.Element {
-  const { history, isLoading, error, sendCommand, canUseAI } = useAI();
-  const { user } = useUser();
-  const [prompt, setPrompt] = useState("");
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+export const AIPanel = React.forwardRef<HTMLTextAreaElement>(
+  function AIPanel(_, ref): React.JSX.Element {
+    const { history, isLoading, error, sendCommand, canUseAI } = useAI();
+    const { user } = useUser();
+    const [prompt, setPrompt] = useState("");
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    
+    // Merge external ref with internal ref
+    React.useImperativeHandle(ref, () => textareaRef.current!);
 
   // Get current user ID for highlighting their commands
   const currentUserId = user?.id ?? null;
@@ -137,7 +141,7 @@ export function AIPanel(): React.JSX.Element {
       </div>
     </div>
   );
-}
+});
 
 /**
  * Format timestamp as relative time (e.g., "2m ago")

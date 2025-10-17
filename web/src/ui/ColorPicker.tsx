@@ -49,6 +49,7 @@ export function ColorPicker({
 }: ColorPickerProps): React.JSX.Element {
   const [isOpen, setIsOpen] = useState(false);
   const [customColor, setCustomColor] = useState("");
+  const [customColorError, setCustomColorError] = useState("");
   const [recentColors, setRecentColors] = useState<string[]>([]);
   const pickerRef = useRef<HTMLDivElement>(null);
   const lastColorChangeRef = useRef(0);
@@ -115,12 +116,21 @@ export function ColorPicker({
     // Validate hex color
     const hexPattern = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
     if (!hexPattern.test(trimmed)) {
-      alert("Please enter a valid hex color (e.g., #FF5733)");
+      setCustomColorError("Please enter a valid hex color (e.g., #FF5733)");
       return;
     }
 
     handleColorSelect(trimmed);
     setCustomColor("");
+    setCustomColorError("");
+  };
+
+  const handleCustomColorChange = (value: string) => {
+    setCustomColor(value);
+    // Clear error when user starts typing
+    if (customColorError) {
+      setCustomColorError("");
+    }
   };
 
   const displayColor = currentColor === "mixed" ? "#64748b" : currentColor;
@@ -186,14 +196,14 @@ export function ColorPicker({
               <input
                 type="text"
                 value={customColor}
-                onChange={(e) => setCustomColor(e.target.value)}
+                onChange={(e) => handleCustomColorChange(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     handleCustomColorSubmit();
                   }
                 }}
                 placeholder="#FF5733"
-                className={styles.hexInput}
+                className={`${styles.hexInput} ${customColorError ? styles.hexInputError : ""}`}
               />
               <button
                 type="button"
@@ -203,6 +213,9 @@ export function ColorPicker({
                 Apply
               </button>
             </div>
+            {customColorError && (
+              <div className={styles.errorMessage}>{customColorError}</div>
+            )}
           </div>
         </div>
       )}

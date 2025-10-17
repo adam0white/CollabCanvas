@@ -281,9 +281,6 @@ export function Canvas({
         const selectedShapes = shapes.filter((s) => selectedShapeIds.includes(s.id));
         setClipboard(selectedShapes);
         setPasteCount(0); // Reset paste count for new copy
-        
-        // Visual feedback could be added here (toast notification)
-        console.log(`Copied ${selectedShapes.length} shape(s)`);
       }
 
       // Paste with Cmd+V / Ctrl+V
@@ -315,9 +312,6 @@ export function Canvas({
         // Select pasted shapes
         setSelectedShapeIds(pastedShapeIds);
         setPasteCount(pasteCount + 1);
-        
-        // Visual feedback
-        console.log(`Pasted ${pastedShapeIds.length} shape(s)`);
       }
     };
 
@@ -451,7 +445,7 @@ export function Canvas({
     }
 
     // Handle panning:
-    // - For authenticated users: pan when clicking on empty space in select mode with Spacebar
+    // - For authenticated users: pan when clicking on empty space with middle mouse button
     // - For guests: allow panning when clicking empty
     const shouldPan =
       (canEdit && clickedOnEmpty && activeTool === "select" && e.evt.button === 1) || // Middle mouse button

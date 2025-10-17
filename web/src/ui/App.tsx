@@ -4,7 +4,7 @@ import {
   SignInButton,
   UserButton,
 } from "@clerk/clerk-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePresence } from "../hooks/usePresence";
 import { ToolbarProvider } from "../hooks/useToolbar";
 import { SelectionProvider } from "../hooks/useSelection";
@@ -29,6 +29,7 @@ export function App(): React.JSX.Element {
   const connectionStatus = useConnectionStatus();
   const { isLoading: shapesLoading } = useShapes();
   const [isShortcutsPanelOpen, setIsShortcutsPanelOpen] = useState(false);
+  const aiPanelRef = useRef<HTMLTextAreaElement>(null);
 
   // Show loading only on initial load (when shapes are loading)
   // Don't block the UI during reconnection - show connection status badge instead
@@ -68,10 +69,7 @@ export function App(): React.JSX.Element {
       // / to focus AI input
       if (e.key === "/") {
         e.preventDefault();
-        const aiTextarea = document.querySelector(".AIPanel_textarea__") as HTMLTextAreaElement;
-        if (aiTextarea) {
-          aiTextarea.focus();
-        }
+        aiPanelRef.current?.focus();
       }
     };
 
@@ -131,7 +129,7 @@ export function App(): React.JSX.Element {
 
           {/* AI Panel */}
           <aside className={styles.aiPanel}>
-            <AIPanel />
+            <AIPanel ref={aiPanelRef} />
           </aside>
         </main>
 
