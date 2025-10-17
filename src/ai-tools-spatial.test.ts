@@ -61,11 +61,7 @@ describe("AI Tools - createMultipleShapes", () => {
 
   it("should fail with empty shapes array", () => {
     const doc = new Doc();
-    const result = createMultipleShapes(
-      doc,
-      { shapes: [] },
-      "test-user",
-    );
+    const result = createMultipleShapes(doc, { shapes: [] }, "test-user");
 
     expect(result.success).toBe(false);
     expect(result.error).toContain("Empty");
@@ -403,11 +399,7 @@ describe("AI Tools - getSelectedShapesBounds", () => {
 
   it("should fail with empty shape IDs", () => {
     const doc = new Doc();
-    const result = getSelectedShapesBounds(
-      doc,
-      { shapeIds: [] },
-      "test-user",
-    );
+    const result = getSelectedShapesBounds(doc, { shapeIds: [] }, "test-user");
 
     expect(result.success).toBe(false);
     expect(result.error).toContain("Empty");

@@ -11,9 +11,9 @@
 import type Konva from "konva";
 import type { KonvaEventObject } from "konva/lib/Node";
 import { useEffect, useRef, useState } from "react";
-import { Rect, Transformer } from "react-konva";
+import { Circle, Rect, Text, Transformer } from "react-konva";
 import type { Shape } from "./types";
-import { isRectangle } from "./types";
+import { isCircle, isRectangle, isText } from "./types";
 
 type ShapeLayerProps = {
   shapes: Shape[];
@@ -129,17 +129,40 @@ export function ShapeLayer({
     const scaleX = node.scaleX();
     const scaleY = node.scaleY();
 
-    // Reset scale and apply to width/height
+    // Reset scale and apply to dimensions
     node.scaleX(1);
     node.scaleY(1);
 
-    onShapeUpdate(shape.id, {
-      x: node.x(),
-      y: node.y(),
-      width: Math.max(5, node.width() * scaleX),
-      height: Math.max(5, node.height() * scaleY),
-      rotation: node.rotation(),
-    });
+    // Handle different shape types
+    if (isCircle(shape)) {
+      // For circles, maintain aspect ratio using the average scale
+      const avgScale = (scaleX + scaleY) / 2;
+      const currentRadius = (node as Konva.Circle).radius();
+      onShapeUpdate(shape.id, {
+        x: node.x(),
+        y: node.y(),
+        radius: Math.max(5, currentRadius * avgScale),
+        rotation: node.rotation(),
+      });
+    } else if (isRectangle(shape)) {
+      // For rectangles, apply scale to width and height
+      onShapeUpdate(shape.id, {
+        x: node.x(),
+        y: node.y(),
+        width: Math.max(5, node.width() * scaleX),
+        height: Math.max(5, node.height() * scaleY),
+        rotation: node.rotation(),
+      });
+    } else if (isText(shape)) {
+      // For text, update fontSize based on scale
+      const avgScale = (scaleX + scaleY) / 2;
+      onShapeUpdate(shape.id, {
+        x: node.x(),
+        y: node.y(),
+        fontSize: Math.max(8, shape.fontSize * avgScale),
+        rotation: node.rotation(),
+      });
+    }
   };
 
   const handleShapeClick = (shapeId: string) => {
@@ -151,11 +174,11 @@ export function ShapeLayer({
   return (
     <>
       {shapes.map((shape) => {
-        if (isRectangle(shape)) {
-          const isHovered = hoveredShapeId === shape.id;
-          const isSelected = selectedShapeId === shape.id;
-          const isDraggable = canEdit && selectedTool === "select";
+        const isHovered = hoveredShapeId === shape.id;
+        const isSelected = selectedShapeId === shape.id;
+        const isDraggable = canEdit && selectedTool === "select";
 
+        if (isRectangle(shape)) {
           return (
             <Rect
               key={shape.id}
@@ -208,6 +231,115 @@ export function ShapeLayer({
             />
           );
         }
+
+        if (isCircle(shape)) {
+          return (
+            <Circle
+              key={shape.id}
+              ref={(node) => {
+                shapeRefs.current[shape.id] = node;
+              }}
+              x={shape.x}
+              y={shape.y}
+              radius={shape.radius}
+              rotation={shape.rotation ?? 0}
+              fill={shape.fill}
+              stroke={
+                isSelected
+                  ? "#0ea5e9"
+                  : isHovered && isDraggable
+                    ? "#0ea5e9"
+                    : shape.stroke
+              }
+              strokeWidth={
+                isSelected
+                  ? 3
+                  : isHovered && isDraggable
+                    ? 3
+                    : (shape.strokeWidth ?? 0)
+              }
+              shadowBlur={isSelected || (isHovered && isDraggable) ? 16 : 12}
+              shadowOpacity={
+                isSelected || (isHovered && isDraggable) ? 0.25 : 0.15
+              }
+              draggable={isDraggable}
+              onClick={(e) => {
+                if (selectedTool === "select" && canEdit) {
+                  e.cancelBubble = true;
+                  handleShapeClick(shape.id);
+                }
+              }}
+              onTap={(e) => {
+                if (selectedTool === "select" && canEdit) {
+                  e.cancelBubble = true;
+                  handleShapeClick(shape.id);
+                }
+              }}
+              onMouseEnter={() => isDraggable && setHoveredShapeId(shape.id)}
+              onMouseLeave={() => setHoveredShapeId(null)}
+              onDragMove={(e) => handleDragMove(e, shape)}
+              onDragEnd={(e) => handleDragEnd(e, shape)}
+              onTransformEnd={() => handleTransformEnd(shape)}
+            />
+          );
+        }
+
+        if (isText(shape)) {
+          return (
+            <Text
+              key={shape.id}
+              ref={(node) => {
+                shapeRefs.current[shape.id] = node;
+              }}
+              x={shape.x}
+              y={shape.y}
+              text={shape.text}
+              fontSize={shape.fontSize}
+              fontFamily={shape.fontFamily ?? "Arial"}
+              align={shape.align ?? "left"}
+              width={shape.width}
+              rotation={shape.rotation ?? 0}
+              fill={shape.fill}
+              stroke={
+                isSelected
+                  ? "#0ea5e9"
+                  : isHovered && isDraggable
+                    ? "#0ea5e9"
+                    : shape.stroke
+              }
+              strokeWidth={
+                isSelected
+                  ? 2
+                  : isHovered && isDraggable
+                    ? 2
+                    : (shape.strokeWidth ?? 0)
+              }
+              shadowBlur={isSelected || (isHovered && isDraggable) ? 16 : 12}
+              shadowOpacity={
+                isSelected || (isHovered && isDraggable) ? 0.25 : 0.15
+              }
+              draggable={isDraggable}
+              onClick={(e) => {
+                if (selectedTool === "select" && canEdit) {
+                  e.cancelBubble = true;
+                  handleShapeClick(shape.id);
+                }
+              }}
+              onTap={(e) => {
+                if (selectedTool === "select" && canEdit) {
+                  e.cancelBubble = true;
+                  handleShapeClick(shape.id);
+                }
+              }}
+              onMouseEnter={() => isDraggable && setHoveredShapeId(shape.id)}
+              onMouseLeave={() => setHoveredShapeId(null)}
+              onDragMove={(e) => handleDragMove(e, shape)}
+              onDragEnd={(e) => handleDragEnd(e, shape)}
+              onTransformEnd={() => handleTransformEnd(shape)}
+            />
+          );
+        }
+
         return null;
       })}
 

@@ -22,12 +22,11 @@ import { createDecoder, readVarUint, readVarUint8Array } from "lib0/decoding";
 import { YDurableObjects } from "y-durableobjects";
 import type { Awareness } from "y-protocols/awareness";
 import { applyAwarenessUpdate } from "y-protocols/awareness";
-
+import { dispatchTool, type ToolCall, type ToolResult } from "./ai-tools";
 import {
   createDebouncedCommit,
   type DebouncedCommitController,
 } from "./utils/debounced-storage";
-import { dispatchTool, type ToolCall, type ToolResult } from "./ai-tools";
 
 export const ROOM_PERSIST_IDLE_MS = 500;
 export const ROOM_PERSIST_MAX_MS = 2000;
@@ -190,7 +189,11 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
         error: "Exceeded shape limit",
         commandId,
       };
-      this.commandCache.set(commandId, { commandId, result, timestamp: Date.now() });
+      this.commandCache.set(commandId, {
+        commandId,
+        result,
+        timestamp: Date.now(),
+      });
       return result;
     }
 
@@ -220,12 +223,23 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
 
         // Append to AI history within same transaction
         const aiHistory = this.doc.getArray("aiHistory");
+
+        // Build a better response message
+        let responseMessage = "";
+        if (shapesCreated.length > 0) {
+          responseMessage = `Created ${shapesCreated.length} shape${shapesCreated.length > 1 ? "s" : ""}`;
+        } else if (toolResults.length > 0) {
+          responseMessage = toolResults.map((r) => r.message).join("; ");
+        } else {
+          responseMessage = "No operations performed";
+        }
+
         const historyEntry = {
           id: commandId,
           userId,
           userName,
           prompt,
-          response: toolResults.map((r) => r.message).join("; "),
+          response: responseMessage,
           timestamp: Date.now(),
           shapesAffected,
           success: toolResults.every((r) => r.success),
@@ -249,7 +263,11 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
       };
 
       // Cache result for idempotency
-      this.commandCache.set(commandId, { commandId, result, timestamp: Date.now() });
+      this.commandCache.set(commandId, {
+        commandId,
+        result,
+        timestamp: Date.now(),
+      });
 
       // Clean old cache entries (keep last 50)
       if (this.commandCache.size > 50) {
@@ -271,7 +289,11 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
         error: error instanceof Error ? error.message : "Unknown error",
         commandId,
       };
-      this.commandCache.set(commandId, { commandId, result, timestamp: Date.now() });
+      this.commandCache.set(commandId, {
+        commandId,
+        result,
+        timestamp: Date.now(),
+      });
       return result;
     }
   }

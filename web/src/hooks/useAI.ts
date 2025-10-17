@@ -10,8 +10,8 @@
 
 import { useAuth } from "@clerk/clerk-react";
 import { useCallback, useEffect, useState } from "react";
-import { useYDoc } from "../yjs/client";
 import { AI } from "../config/constants";
+import { useYDoc } from "../yjs/client";
 
 export type AIHistoryEntry = {
   id: string;
@@ -125,7 +125,8 @@ export function useAI(): UseAIReturn {
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           throw new Error(
-            errorData.error || `HTTP error ${response.status}: ${response.statusText}`,
+            errorData.error ||
+              `HTTP error ${response.status}: ${response.statusText}`,
           );
         }
 

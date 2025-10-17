@@ -61,11 +61,7 @@ describe("AI Tools - resizeShape", () => {
       radius: 25,
     });
 
-    const result = resizeShape(
-      doc,
-      { shapeId, radius: 75 },
-      "test-user",
-    );
+    const result = resizeShape(doc, { shapeId, radius: 75 }, "test-user");
 
     expect(result.success).toBe(true);
     const updated = shapesMap.get(shapeId);
@@ -86,11 +82,7 @@ describe("AI Tools - resizeShape", () => {
       height: 50,
     });
 
-    const result = resizeShape(
-      doc,
-      { shapeId, scale: 2 },
-      "test-user",
-    );
+    const result = resizeShape(doc, { shapeId, scale: 2 }, "test-user");
 
     expect(result.success).toBe(true);
     const updated = shapesMap.get(shapeId);
@@ -138,11 +130,7 @@ describe("AI Tools - rotateShape", () => {
       height: 50,
     });
 
-    const result = rotateShape(
-      doc,
-      { shapeId, rotation: 45 },
-      "test-user",
-    );
+    const result = rotateShape(doc, { shapeId, rotation: 45 }, "test-user");
 
     expect(result.success).toBe(true);
     const updated = shapesMap.get(shapeId);
@@ -163,11 +151,7 @@ describe("AI Tools - rotateShape", () => {
       height: 50,
     });
 
-    const result = rotateShape(
-      doc,
-      { shapeId, rotation: -45 },
-      "test-user",
-    );
+    const result = rotateShape(doc, { shapeId, rotation: -45 }, "test-user");
 
     expect(result.success).toBe(true);
     const updated = shapesMap.get(shapeId);
@@ -188,11 +172,7 @@ describe("AI Tools - rotateShape", () => {
       height: 50,
     });
 
-    const result = rotateShape(
-      doc,
-      { shapeId, rotation: 405 },
-      "test-user",
-    );
+    const result = rotateShape(doc, { shapeId, rotation: 405 }, "test-user");
 
     expect(result.success).toBe(true);
     const updated = shapesMap.get(shapeId);

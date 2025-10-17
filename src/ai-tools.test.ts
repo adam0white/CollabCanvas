@@ -63,7 +63,10 @@ describe("AI Tools - createShape", () => {
     expect(result.shapeId).toBeDefined();
 
     const shapesMap = doc.getMap("shapes");
-    const shape = shapesMap.get(result.shapeId!);
+    const shapeId = result.shapeId;
+    expect(shapeId).toBeDefined();
+    if (!shapeId) throw new Error("shapeId should be defined");
+    const shape = shapesMap.get(shapeId);
     expect(shape).toBeDefined();
     expect((shape as { type: string }).type).toBe("rectangle");
     expect((shape as { fill: string }).fill).toBe("#FF0000"); // Color normalized
@@ -87,7 +90,10 @@ describe("AI Tools - createShape", () => {
     expect(result.shapeId).toBeDefined();
 
     const shapesMap = doc.getMap("shapes");
-    const shape = shapesMap.get(result.shapeId!);
+    const shapeId = result.shapeId;
+    expect(shapeId).toBeDefined();
+    if (!shapeId) throw new Error("shapeId should be defined");
+    const shape = shapesMap.get(shapeId);
     expect(shape).toBeDefined();
     expect((shape as { type: string }).type).toBe("circle");
     expect((shape as { radius: number }).radius).toBe(50);
@@ -112,7 +118,10 @@ describe("AI Tools - createShape", () => {
     expect(result.shapeId).toBeDefined();
 
     const shapesMap = doc.getMap("shapes");
-    const shape = shapesMap.get(result.shapeId!);
+    const shapeId = result.shapeId;
+    expect(shapeId).toBeDefined();
+    if (!shapeId) throw new Error("shapeId should be defined");
+    const shape = shapesMap.get(shapeId);
     expect(shape).toBeDefined();
     expect((shape as { type: string }).type).toBe("text");
     expect((shape as { text: string }).text).toBe("Hello World");
@@ -184,7 +193,10 @@ describe("AI Tools - createShape", () => {
     );
 
     const shapesMap = doc.getMap("shapes");
-    const shape = shapesMap.get(result.shapeId!);
+    const shapeId = result.shapeId;
+    expect(shapeId).toBeDefined();
+    if (!shapeId) throw new Error("shapeId should be defined");
+    const shape = shapesMap.get(shapeId);
     expect((shape as { createdBy: string }).createdBy).toBe("ai-assistant");
     expect((shape as { aiGenerated: boolean }).aiGenerated).toBe(true);
   });
@@ -207,11 +219,7 @@ describe("AI Tools - moveShape", () => {
     });
 
     // Move the shape
-    const result = moveShape(
-      doc,
-      { shapeId, x: 200, y: 300 },
-      "test-user",
-    );
+    const result = moveShape(doc, { shapeId, x: 200, y: 300 }, "test-user");
 
     expect(result.success).toBe(true);
     expect(result.shapeId).toBe(shapeId);

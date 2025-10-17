@@ -17,238 +17,16 @@ import type { Doc } from "yjs";
 export const AI_TOOLS = [
   {
     name: "createShape",
-    description:
-      "Creates a new shape on the canvas at the specified position with styling",
-    parameters: {
-      type: "object",
-      properties: {
-        type: {
-          type: "string",
-          enum: ["rectangle", "circle", "text"],
-          description: "Type of shape to create",
-        },
-        x: {
-          type: "number",
-          description: "X coordinate on canvas",
-        },
-        y: {
-          type: "number",
-          description: "Y coordinate on canvas",
-        },
-        width: {
-          type: "number",
-          description: "Width for rectangles (required for rectangle)",
-        },
-        height: {
-          type: "number",
-          description: "Height for rectangles (required for rectangle)",
-        },
-        radius: {
-          type: "number",
-          description: "Radius for circles (required for circle)",
-        },
-        text: {
-          type: "string",
-          description: "Text content (required for text shapes)",
-        },
-        fontSize: {
-          type: "number",
-          description: "Font size for text shapes (default: 16)",
-        },
-        fill: {
-          type: "string",
-          description: 'Fill color as hex (e.g., "#FF0000") or color name',
-        },
-        stroke: {
-          type: "string",
-          description: "Stroke color as hex or color name (optional)",
-        },
-        strokeWidth: {
-          type: "number",
-          description: "Stroke width in pixels (optional)",
-        },
-      },
-      required: ["type", "x", "y"],
-    },
-  },
-  {
-    name: "moveShape",
-    description: "Moves a shape to a new position by updating x and y coordinates",
-    parameters: {
-      type: "object",
-      properties: {
-        shapeId: {
-          type: "string",
-          description: "ID of the shape to move",
-        },
-        x: {
-          type: "number",
-          description: "New X coordinate",
-        },
-        y: {
-          type: "number",
-          description: "New Y coordinate",
-        },
-      },
-      required: ["shapeId", "x", "y"],
-    },
-  },
-  {
-    name: "resizeShape",
-    description:
-      "Resizes a shape by setting new dimensions or scaling by a factor",
-    parameters: {
-      type: "object",
-      properties: {
-        shapeId: {
-          type: "string",
-          description: "ID of the shape to resize",
-        },
-        width: {
-          type: "number",
-          description: "New width for rectangles (absolute)",
-        },
-        height: {
-          type: "number",
-          description: "New height for rectangles (absolute)",
-        },
-        radius: {
-          type: "number",
-          description: "New radius for circles (absolute)",
-        },
-        scale: {
-          type: "number",
-          description: "Scale factor (e.g., 2 = double size, 0.5 = half size)",
-        },
-      },
-      required: ["shapeId"],
-    },
-  },
-  {
-    name: "rotateShape",
-    description: "Rotates a shape by setting rotation angle in degrees",
-    parameters: {
-      type: "object",
-      properties: {
-        shapeId: {
-          type: "string",
-          description: "ID of the shape to rotate",
-        },
-        rotation: {
-          type: "number",
-          description: "Rotation angle in degrees (0-360)",
-        },
-      },
-      required: ["shapeId", "rotation"],
-    },
-  },
-  {
-    name: "updateShapeStyle",
-    description: "Updates the visual style of a shape (color, stroke)",
-    parameters: {
-      type: "object",
-      properties: {
-        shapeId: {
-          type: "string",
-          description: "ID of the shape to update",
-        },
-        fill: {
-          type: "string",
-          description: "New fill color (hex or color name)",
-        },
-        stroke: {
-          type: "string",
-          description: "New stroke color (hex or color name)",
-        },
-        strokeWidth: {
-          type: "number",
-          description: "New stroke width in pixels",
-        },
-      },
-      required: ["shapeId"],
-    },
-  },
-  {
-    name: "deleteShape",
-    description: "Deletes a shape from the canvas",
-    parameters: {
-      type: "object",
-      properties: {
-        shapeId: {
-          type: "string",
-          description: "ID of the shape to delete",
-        },
-      },
-      required: ["shapeId"],
-    },
-  },
-  {
-    name: "arrangeShapes",
-    description: "Arranges multiple shapes in a layout pattern",
-    parameters: {
-      type: "object",
-      properties: {
-        shapeIds: {
-          type: "array",
-          items: { type: "string" },
-          description: "Array of shape IDs to arrange",
-        },
-        layout: {
-          type: "string",
-          enum: ["horizontal", "vertical", "grid"],
-          description: "Layout type",
-        },
-        spacing: {
-          type: "number",
-          description: "Spacing between shapes in pixels (default: 20)",
-        },
-        columns: {
-          type: "number",
-          description: "Number of columns for grid layout (required for grid)",
-        },
-      },
-      required: ["shapeIds", "layout"],
-    },
-  },
-  {
-    name: "findShapes",
-    description: "Finds shapes matching specified criteria",
-    parameters: {
-      type: "object",
-      properties: {
-        type: {
-          type: "string",
-          enum: ["rectangle", "circle", "text"],
-          description: "Filter by shape type",
-        },
-        color: {
-          type: "string",
-          description: "Filter by fill color (color name or hex)",
-        },
-        contains: {
-          type: "string",
-          description: "Filter text shapes by content substring",
-        },
-      },
-    },
-  },
-  {
-    name: "createMultipleShapes",
-    description:
-      "Creates multiple shapes at once in a single atomic operation",
+    description: "Create shapes (rect/circle/text). Use shapes array",
     parameters: {
       type: "object",
       properties: {
         shapes: {
           type: "array",
-          description: "Array of shape specifications to create",
           items: {
             type: "object",
             properties: {
-              type: {
-                type: "string",
-                enum: ["rectangle", "circle", "text"],
-              },
+              type: { type: "string" },
               x: { type: "number" },
               y: { type: "number" },
               width: { type: "number" },
@@ -257,80 +35,12 @@ export const AI_TOOLS = [
               text: { type: "string" },
               fontSize: { type: "number" },
               fill: { type: "string" },
-              stroke: { type: "string" },
-              strokeWidth: { type: "number" },
             },
             required: ["type", "x", "y"],
           },
         },
       },
       required: ["shapes"],
-    },
-  },
-  {
-    name: "computeCenter",
-    description:
-      "Computes the center point of the canvas or viewport for positioning shapes",
-    parameters: {
-      type: "object",
-      properties: {
-        viewportCenter: {
-          type: "object",
-          description: "Optional viewport center from context",
-          properties: {
-            x: { type: "number" },
-            y: { type: "number" },
-          },
-        },
-      },
-    },
-  },
-  {
-    name: "computeRelativePosition",
-    description:
-      "Computes a position relative to a base shape in a specified direction",
-    parameters: {
-      type: "object",
-      properties: {
-        baseShapeId: {
-          type: "string",
-          description: "ID of the base shape to position relative to",
-        },
-        direction: {
-          type: "string",
-          enum: ["above", "below", "left", "right"],
-          description: "Direction relative to base shape",
-        },
-        offset: {
-          type: "number",
-          description: "Distance from base shape in pixels (default: 20)",
-        },
-      },
-      required: ["baseShapeId", "direction"],
-    },
-  },
-  {
-    name: "getSelectedShapesBounds",
-    description: "Gets the bounding box of selected shapes",
-    parameters: {
-      type: "object",
-      properties: {
-        shapeIds: {
-          type: "array",
-          items: { type: "string" },
-          description: "Array of shape IDs to compute bounds for",
-        },
-      },
-      required: ["shapeIds"],
-    },
-  },
-  {
-    name: "getCanvasState",
-    description:
-      "Returns all shapes currently on the canvas with their properties",
-    parameters: {
-      type: "object",
-      properties: {},
     },
   },
 ] as const;
@@ -471,81 +181,88 @@ export function normalizeColor(color: string | undefined): string {
 
 export function createShape(
   doc: Doc,
-  params: CreateShapeParams,
-  userId: string,
+  params: { shapes: CreateShapeParams[] } | CreateShapeParams,
+  _userId: string,
 ): ToolResult {
   try {
     const shapesMap = doc.getMap("shapes");
-    const shapeId = crypto.randomUUID();
+    const createdIds: string[] = [];
+    const errors: string[] = [];
     const now = Date.now();
 
-    // Validate and normalize parameters
-    const fill = normalizeColor(params.fill);
-    const stroke = params.stroke ? normalizeColor(params.stroke) : undefined;
+    // Normalize to array format
+    const shapesArray = "shapes" in params ? params.shapes : [params];
 
-    // Build shape data based on type
-    let shapeData: Record<string, unknown> = {
-      id: shapeId,
-      type: params.type,
-      x: params.x,
-      y: params.y,
-      fill,
-      stroke,
-      strokeWidth: params.strokeWidth,
-      createdBy: "ai-assistant",
-      createdAt: now,
-      aiGenerated: true,
-    };
+    for (const shapeSpec of shapesArray) {
+      const shapeId = crypto.randomUUID();
 
-    // Add type-specific properties
-    if (params.type === "rectangle") {
-      if (!params.width || !params.height) {
-        return {
-          success: false,
-          message: "Rectangle requires width and height",
-          error: "Missing required parameters: width, height",
-        };
-      }
-      shapeData = {
-        ...shapeData,
-        width: params.width,
-        height: params.height,
+      // Validate and normalize colors - MUST be hex format
+      const fill = shapeSpec.fill ? normalizeColor(shapeSpec.fill) : "#3B82F6";
+      const stroke = shapeSpec.stroke
+        ? normalizeColor(shapeSpec.stroke)
+        : undefined;
+
+      let shapeData: Record<string, unknown> = {
+        id: shapeId,
+        type: shapeSpec.type,
+        x: shapeSpec.x,
+        y: shapeSpec.y,
+        fill,
+        stroke,
+        strokeWidth: shapeSpec.strokeWidth,
+        createdBy: "ai-assistant",
+        createdAt: now,
+        aiGenerated: true,
       };
-    } else if (params.type === "circle") {
-      if (!params.radius) {
-        return {
-          success: false,
-          message: "Circle requires radius",
-          error: "Missing required parameter: radius",
+
+      // Add type-specific properties
+      if (shapeSpec.type === "rectangle") {
+        if (!shapeSpec.width || !shapeSpec.height) {
+          errors.push(`Rectangle missing width/height`);
+          continue;
+        }
+        shapeData = {
+          ...shapeData,
+          width: shapeSpec.width,
+          height: shapeSpec.height,
+        };
+      } else if (shapeSpec.type === "circle") {
+        if (!shapeSpec.radius) {
+          errors.push(`Circle missing radius`);
+          continue;
+        }
+        shapeData = { ...shapeData, radius: shapeSpec.radius };
+      } else if (shapeSpec.type === "text") {
+        if (!shapeSpec.text) {
+          errors.push(`Text shape missing text content`);
+          continue;
+        }
+        shapeData = {
+          ...shapeData,
+          text: shapeSpec.text,
+          fontSize: shapeSpec.fontSize ?? 16,
+          fontFamily: "Arial",
+          align: "left",
         };
       }
-      shapeData = {
-        ...shapeData,
-        radius: params.radius,
-      };
-    } else if (params.type === "text") {
-      if (!params.text) {
-        return {
-          success: false,
-          message: "Text shape requires text content",
-          error: "Missing required parameter: text",
-        };
-      }
-      shapeData = {
-        ...shapeData,
-        text: params.text,
-        fontSize: params.fontSize ?? 16,
-        fontFamily: "Arial",
-        align: "left",
+
+      shapesMap.set(shapeId, shapeData);
+      createdIds.push(shapeId);
+    }
+
+    if (createdIds.length === 0) {
+      return {
+        success: false,
+        message: "Failed to create shapes",
+        error: errors.join("; "),
       };
     }
 
-    shapesMap.set(shapeId, shapeData);
-
     return {
       success: true,
-      message: `Created ${params.type} shape`,
-      shapeId,
+      message: `Created ${createdIds.length} shape${createdIds.length > 1 ? "s" : ""}`,
+      shapeIds: createdIds,
+      shapeId: createdIds[0], // For backward compatibility
     };
   } catch (error) {
     console.error("[AI Tools] createShape error:", error);
@@ -861,8 +578,8 @@ export function arrangeShapes(
 
     // Use first shape's position as anchor
     const anchor = shapes[0].data;
-    let startX = (anchor.x as number) ?? 0;
-    let startY = (anchor.y as number) ?? 0;
+    const startX = (anchor.x as number) ?? 0;
+    const startY = (anchor.y as number) ?? 0;
 
     // Calculate dimensions for each shape
     const getShapeWidth = (data: Record<string, unknown>): number => {
@@ -983,7 +700,11 @@ export function findShapes(
       // Filter by text content
       if (params.contains !== undefined && isMatch) {
         if ("text" in shapeData && typeof shapeData.text === "string") {
-          if (!shapeData.text.toLowerCase().includes(params.contains.toLowerCase())) {
+          if (
+            !shapeData.text
+              .toLowerCase()
+              .includes(params.contains.toLowerCase())
+          ) {
             isMatch = false;
           }
         } else {
@@ -1287,14 +1008,28 @@ export function dispatchTool(
 ): ToolResult {
   try {
     switch (toolCall.name) {
-      case "createShape":
-        return createShape(doc, toolCall.parameters as CreateShapeParams, userId);
+      case "createShape": {
+        // Ensure params are in array format
+        const params = toolCall.parameters as
+          | { shapes: CreateShapeParams[] }
+          | CreateShapeParams;
+        const shapesArray = "shapes" in params ? params : { shapes: [params] };
+        return createShape(doc, shapesArray, userId);
+      }
       case "moveShape":
         return moveShape(doc, toolCall.parameters as MoveShapeParams, userId);
       case "resizeShape":
-        return resizeShape(doc, toolCall.parameters as ResizeShapeParams, userId);
+        return resizeShape(
+          doc,
+          toolCall.parameters as ResizeShapeParams,
+          userId,
+        );
       case "rotateShape":
-        return rotateShape(doc, toolCall.parameters as RotateShapeParams, userId);
+        return rotateShape(
+          doc,
+          toolCall.parameters as RotateShapeParams,
+          userId,
+        );
       case "updateShapeStyle":
         return updateShapeStyle(
           doc,
@@ -1302,7 +1037,11 @@ export function dispatchTool(
           userId,
         );
       case "deleteShape":
-        return deleteShape(doc, toolCall.parameters as DeleteShapeParams, userId);
+        return deleteShape(
+          doc,
+          toolCall.parameters as DeleteShapeParams,
+          userId,
+        );
       case "arrangeShapes":
         return arrangeShapes(
           doc,
@@ -1312,9 +1051,12 @@ export function dispatchTool(
       case "findShapes":
         return findShapes(doc, toolCall.parameters as FindShapesParams, userId);
       case "createMultipleShapes":
-        return createMultipleShapes(
+        // Redirect to createShape with array format (unified API)
+        return createShape(
           doc,
-          toolCall.parameters as CreateMultipleShapesParams,
+          {
+            shapes: (toolCall.parameters as CreateMultipleShapesParams).shapes,
+          },
           userId,
         );
       case "computeCenter":

@@ -372,10 +372,12 @@ async function handleAICommand(
   }
 
   try {
-    // For MVP: Simple tool execution without LLM
-    // In production, this would call Workers AI or OpenAI to generate tool calls
-    // For now, parse simple commands directly
-    const toolCalls = parseSimpleCommand(prompt);
+    // Call Workers AI to generate tool calls from natural language
+    const toolCalls = await generateToolCallsWithAI(
+      env.AI,
+      prompt,
+      body.context ?? {},
+    );
 
     if (toolCalls.length === 0) {
       return new Response(
@@ -383,6 +385,31 @@ async function handleAICommand(
           success: false,
           error:
             "Could not understand command. Try something like 'create a red rectangle at 100, 200'",
+        }),
+        {
+          status: 400,
+          headers: { "content-type": "application/json" },
+        },
+      );
+    }
+
+    // Log tool calls for debugging
+    console.log(
+      `[AI] Generated ${toolCalls.length} tool calls:`,
+      toolCalls.map(
+        (t) => `${t.name}(${JSON.stringify(t.parameters).slice(0, 100)})`,
+      ),
+    );
+
+    // Validate tool calls BEFORE execution
+    const validation = validateToolCalls(toolCalls);
+    if (!validation.valid) {
+      console.warn("[AI] Validation failed:", validation.errors);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: validation.errors.join("; "),
+          message: "AI generated invalid commands",
         }),
         {
           status: 400,
@@ -424,8 +451,323 @@ async function handleAICommand(
 }
 
 /**
- * Simple command parser for MVP
- * In production, this would be replaced with Workers AI / OpenAI function calling
+ * Validate tool calls before execution to catch AI hallucinations
+ */
+function validateToolCalls(
+  toolCalls: Array<{ name: string; parameters: Record<string, unknown> }>,
+): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+  let totalShapesToCreate = 0;
+  const MAX_SHAPES = 50;
+  const MIN_RECTANGLE_SIZE = 10;
+  const MIN_CIRCLE_RADIUS = 5;
+
+  for (const call of toolCalls) {
+    // Count shapes being created
+    if (call.name === "createShape") {
+      const params = call.parameters;
+
+      // Handle new array format
+      if ("shapes" in params && Array.isArray(params.shapes)) {
+        const shapes = params.shapes as Array<Record<string, unknown>>;
+        totalShapesToCreate += shapes.length;
+
+        // Validate each shape in the array
+        for (const shape of shapes) {
+          if (shape.type === "rectangle") {
+            const width = shape.width as number;
+            const height = shape.height as number;
+            if (
+              width &&
+              height &&
+              (width < MIN_RECTANGLE_SIZE || height < MIN_RECTANGLE_SIZE)
+            ) {
+              errors.push(
+                `Rectangle too small: ${width}x${height}px (min ${MIN_RECTANGLE_SIZE}x${MIN_RECTANGLE_SIZE}px)`,
+              );
+            }
+            if (width && width > 2000)
+              errors.push(`Rectangle width ${width}px exceeds canvas`);
+            if (height && height > 2000)
+              errors.push(`Rectangle height ${height}px exceeds canvas`);
+          } else if (shape.type === "circle") {
+            const radius = shape.radius as number;
+            if (radius && radius < MIN_CIRCLE_RADIUS) {
+              errors.push(
+                `Circle too small: ${radius}px radius (min ${MIN_CIRCLE_RADIUS}px)`,
+              );
+            }
+            if (radius && radius > 1000)
+              errors.push(`Circle radius ${radius}px too large`);
+          } else if (shape.type === "text") {
+            const fontSize = shape.fontSize as number;
+            if (fontSize && fontSize < 8)
+              errors.push(`Text too small: ${fontSize}px (min 8px)`);
+            if (fontSize && fontSize > 200)
+              errors.push(`Text too large: ${fontSize}px (max 200px)`);
+          }
+
+          // Check for unsupported types
+          if (
+            shape.type &&
+            shape.type !== "rectangle" &&
+            shape.type !== "circle" &&
+            shape.type !== "text"
+          ) {
+            errors.push(
+              `Unsupported shape: ${shape.type}. Only rectangles, circles, text.`,
+            );
+          }
+        }
+        continue;
+      }
+
+      // Handle old single-shape format (backward compatibility)
+      totalShapesToCreate++;
+      if (params.type === "rectangle") {
+        const width = params.width as number;
+        const height = params.height as number;
+        if (
+          width &&
+          height &&
+          (width < MIN_RECTANGLE_SIZE || height < MIN_RECTANGLE_SIZE)
+        ) {
+          errors.push(
+            `Rectangle too small: ${width}x${height}px (minimum ${MIN_RECTANGLE_SIZE}x${MIN_RECTANGLE_SIZE}px)`,
+          );
+        }
+        if (width && width > 2000) {
+          errors.push(
+            `Rectangle width ${width}px exceeds canvas size (2000px)`,
+          );
+        }
+        if (height && height > 2000) {
+          errors.push(
+            `Rectangle height ${height}px exceeds canvas size (2000px)`,
+          );
+        }
+      } else if (params.type === "circle") {
+        const radius = params.radius as number;
+        if (radius && radius < MIN_CIRCLE_RADIUS) {
+          errors.push(
+            `Circle too small: ${radius}px radius (minimum ${MIN_CIRCLE_RADIUS}px)`,
+          );
+        }
+        if (radius && radius > 1000) {
+          errors.push(`Circle radius ${radius}px exceeds reasonable size`);
+        }
+      } else if (params.type === "text") {
+        const fontSize = params.fontSize as number;
+        if (fontSize && fontSize < 8) {
+          errors.push(`Text too small: ${fontSize}px (minimum 8px)`);
+        }
+        if (fontSize && fontSize > 200) {
+          errors.push(`Text too large: ${fontSize}px (maximum 200px)`);
+        }
+      }
+
+      // Check for unsupported types
+      if (
+        params.type &&
+        params.type !== "rectangle" &&
+        params.type !== "circle" &&
+        params.type !== "text"
+      ) {
+        errors.push(
+          `Unsupported shape type: ${params.type}. Only rectangles, circles, and text are supported.`,
+        );
+      }
+    }
+  }
+
+  // Check total shapes across all calls
+  if (totalShapesToCreate > MAX_SHAPES) {
+    errors.push(
+      `Total shapes requested: ${totalShapesToCreate}. Maximum is ${MAX_SHAPES} per command.`,
+    );
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
+}
+
+/**
+ * Call Workers AI with function calling to generate tool calls from natural language
+ */
+async function generateToolCallsWithAI(
+  ai: Ai,
+  prompt: string,
+  context: {
+    selectedShapeIds?: string[];
+    viewportCenter?: { x: number; y: number };
+  },
+): Promise<
+  {
+    name: string;
+    parameters: Record<string, unknown>;
+  }[]
+> {
+  // Import AI_TOOLS from ai-tools module (outside try for error access)
+  const { AI_TOOLS } = await import("./ai-tools");
+
+  // Default to viewport center or canvas center
+  const centerX = context.viewportCenter?.x ?? 1000;
+  const centerY = context.viewportCenter?.y ?? 1000;
+
+  // Ultra-minimal system prompt
+  let systemPrompt = `Canvas 2000x2000. Center: ${centerX},${centerY}
+Format: createShape({shapes:[{type:"rectangle",x:100,y:200,width:150,height:100,fill:"#FF0000"}]})
+Rules:
+- ALWAYS use shapes:[] array
+- Colors as hex: red=#FF0000,blue=#0000FF,yellow=#FFFF00,green=#00FF00,purple=#800080,pink=#FFC0CB,orange=#FFA500
+- Sizes: tiny=40,small=80,normal=150,large=250,huge=400
+- Positions: center=${centerX},${centerY} left=${centerX - 300} right=${centerX + 300}`;
+
+  if (context.selectedShapeIds && context.selectedShapeIds.length > 0) {
+    systemPrompt += `\nSelected:${context.selectedShapeIds.slice(0, 2).join(",")}`;
+  }
+
+  try {
+    // Log what we're sending (debug)
+    console.log("[AI] System prompt length:", systemPrompt.length);
+    console.log("[AI] User prompt length:", prompt.length);
+    console.log("[AI] Tools count:", AI_TOOLS.length);
+    console.log(
+      "[AI] Tool schema size (approx):",
+      JSON.stringify(AI_TOOLS).length,
+      "chars",
+    );
+    console.log(
+      "[AI] Total payload estimate:",
+      systemPrompt.length + prompt.length + JSON.stringify(AI_TOOLS).length,
+    );
+
+    console.log("[AI] Attempting function calling with Mistral...");
+
+    // Try function calling first
+    // biome-ignore lint/suspicious/noExplicitAny: Workers AI types don't include function calling yet
+    let response: any;
+    try {
+      response = await (ai as any).run(
+        "@cf/mistralai/mistral-small-3.1-24b-instruct",
+        {
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: prompt },
+          ],
+          tools: AI_TOOLS,
+        },
+      );
+    } catch (funcCallError) {
+      console.error("[AI] Function calling failed:", funcCallError);
+      console.log(
+        "[AI] Trying WITHOUT function calling, will parse text response...",
+      );
+
+      // Try without tools parameter
+      response = await (ai as any).run(
+        "@cf/mistralai/mistral-small-3.1-24b-instruct",
+        {
+          messages: [
+            {
+              role: "system",
+              content:
+                systemPrompt +
+                '\n\nRespond ONLY with valid JSON: {"shapes":[{"type":"...","x":...,"y":...}]}',
+            },
+            { role: "user", content: prompt },
+          ],
+        },
+      );
+
+      // Parse text response as JSON
+      if (response && typeof response === "object" && "response" in response) {
+        const textResponse = (response as { response?: string }).response;
+        console.log("[AI] Got text response:", textResponse);
+
+        // Try to extract JSON from response
+        try {
+          const jsonMatch = textResponse?.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[0]);
+            if (parsed.shapes && Array.isArray(parsed.shapes)) {
+              console.log(
+                "[AI] ✓ Parsed",
+                parsed.shapes.length,
+                "shapes from text response",
+              );
+              return [
+                {
+                  name: "createShape",
+                  parameters: { shapes: parsed.shapes },
+                },
+              ];
+            }
+          }
+        } catch (parseError) {
+          console.error(
+            "[AI] Failed to parse JSON from text response:",
+            parseError,
+          );
+        }
+      }
+    }
+
+    // Extract tool calls from response
+    if (response && typeof response === "object" && "tool_calls" in response) {
+      const toolCalls = response.tool_calls as Array<{
+        name: string;
+        arguments: Record<string, unknown>;
+      }>;
+
+      console.log(
+        "[AI] ✓ SUCCESS - Got",
+        toolCalls.length,
+        "tool calls from AI",
+      );
+      return toolCalls.map((call) => ({
+        name: call.name,
+        parameters: call.arguments,
+      }));
+    }
+
+    // If AI gave text response but no tool calls, return it as error context
+    if (response && typeof response === "object" && "response" in response) {
+      const textResponse = (response as { response?: string }).response;
+      console.log("[AI] Text response (no tool calls):", textResponse);
+      // Return empty with error context
+      throw new Error(
+        `AI responded but didn't call any tools: ${textResponse || "unknown reason"}`,
+      );
+    }
+
+    // Fallback to empty array if no tool calls
+    console.warn("[AI] ⚠ No tool calls or response in AI output");
+    return [];
+  } catch (error) {
+    console.error("[AI] ✘ FAILED - Workers AI error:", error);
+    console.error(
+      "[AI] Error type:",
+      error instanceof Error ? error.constructor.name : typeof error,
+    );
+    console.error(
+      "[AI] Error message:",
+      error instanceof Error ? error.message : String(error),
+    );
+
+    // Throw error so frontend knows AI is broken
+    throw new Error(
+      `AI inference failed: ${error instanceof Error ? error.message : String(error)}. ` +
+        `Check that the AI model is available and responding correctly.`,
+    );
+  }
+}
+
+/**
+ * Simple command parser for MVP/fallback
+ * Used when Workers AI is unavailable or errors out
  */
 function parseSimpleCommand(prompt: string): {
   name: string;
@@ -541,11 +883,11 @@ function parseSimpleCommand(prompt: string): {
   );
   if (arrangeMatch) {
     const [, layoutType] = arrangeMatch;
-    let layout: "horizontal" | "vertical" | "grid" = "horizontal";
+    let _layout: "horizontal" | "vertical" | "grid" = "horizontal";
     if (layoutType === "vertical" || layoutType === "column") {
-      layout = "vertical";
+      _layout = "vertical";
     } else if (layoutType === "grid") {
-      layout = "grid";
+      _layout = "grid";
     }
 
     // For MVP, this would need shape IDs - in production AI would use findShapes first
@@ -558,7 +900,9 @@ function parseSimpleCommand(prompt: string): {
   }
 
   // Pattern: "create a login form" or "build a login form"
-  const loginFormMatch = lower.match(/(?:create|build|make)\s+(?:a\s+)?login\s+form/);
+  const loginFormMatch = lower.match(
+    /(?:create|build|make)\s+(?:a\s+)?login\s+form/,
+  );
   if (loginFormMatch) {
     return [
       {

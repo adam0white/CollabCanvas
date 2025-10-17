@@ -12,6 +12,10 @@ custom_domain = true
 binding = "ASSETS"
 directory = "web/dist"
 
+[ai]
+binding = "AI"
+remote = true
+
 [durable_objects]
 bindings = [
   { name = "RoomDO", class_name = "RoomDO" }
