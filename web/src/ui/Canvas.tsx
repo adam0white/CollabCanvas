@@ -92,7 +92,7 @@ export function Canvas({
   const [pasteCount, setPasteCount] = useState(0);
 
   // State for default fill color (used when creating new shapes)
-  const [defaultFillColor, setDefaultFillColor] = useState("#38bdf8");
+  const [defaultFillColor] = useState("#38bdf8");
 
   // Update locks when selection changes
   useEffect(() => {
