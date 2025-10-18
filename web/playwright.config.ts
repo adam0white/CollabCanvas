@@ -62,7 +62,7 @@ export default defineConfig({
     timeout: 120000, // 2 minutes to start
     stdout: "pipe",
     stderr: "pipe",
-    cwd: path.resolve(__dirname, ".."),
+    cwd: path.resolve(process.cwd(), ".."),
   },
 
   // Browser projects
