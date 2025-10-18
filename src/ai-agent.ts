@@ -27,8 +27,7 @@ import { AI_TOOLS } from "./ai-tools";
  * - Conversation context
  * - Command execution history
  */
-// biome-ignore lint/suspicious/noExplicitAny: Env type from worker-configuration.d.ts not properly recognized in Agent context
-export class AIAgent extends Agent<any> {
+export class AIAgent extends Agent<Env> {
   /**
    * Handle HTTP requests for AI commands
    * Route: POST /ai-command
@@ -149,8 +148,7 @@ export class AIAgent extends Agent<any> {
       const roomId = this.getRoomId(request);
       console.log(`[AIAgent] Executing commands for room: ${roomId}`);
 
-      // biome-ignore lint/suspicious/noExplicitAny: Type assertion for Env binding
-      const env = this.env as any;
+      const env = this.env;
 
       if (!env.RoomDO) {
         console.error("[AIAgent] ✗ RoomDO binding not found in env");
@@ -248,14 +246,12 @@ Example: {shapes:[{type:"circle",x:100,y:200,radius:50,fill:"#FF0000"}]}`;
         systemPrompt = `Canvas 2000x2000px. Center: ${centerX},${centerY}. Shapes: rectangle, circle, text. Colors: hex format.`;
       }
 
-      // biome-ignore lint/suspicious/noExplicitAny: Type assertion for Env binding
-      const env = this.env as any;
+      const env = this.env;
       const ai = env.AI;
 
       // Call Workers AI through AI Gateway
       // Use llama-3.1-8b-instruct with proper message format
-      // biome-ignore lint/suspicious/noExplicitAny: Workers AI types don't include function calling yet
-      const response = await (ai as any).run(
+      const response = await ai.run(
         "@cf/meta/llama-3.1-8b-instruct",
         {
           messages: [
@@ -524,8 +520,7 @@ Example: {shapes:[{type:"circle",x:100,y:200,radius:50,fill:"#FF0000"}]}`;
   private async authorizeRequest(
     request: Request,
   ): Promise<"editor" | "viewer"> {
-    // biome-ignore lint/suspicious/noExplicitAny: Type assertion for Env binding
-    const env = this.env as any;
+    const env = this.env;
     const clerkSecretKey = env.CLERK_SECRET_KEY;
     if (!clerkSecretKey) {
       console.warn("[AIAgent] No CLERK_SECRET_KEY, treating as viewer");
@@ -574,8 +569,7 @@ Example: {shapes:[{type:"circle",x:100,y:200,radius:50,fill:"#FF0000"}]}`;
     request: Request,
   ): Promise<{ userId: string; userName: string }> {
     const token = this.extractToken(request);
-    // biome-ignore lint/suspicious/noExplicitAny: Type assertion for Env binding
-    const env = this.env as any;
+    const env = this.env;
     const clerkSecretKey = env.CLERK_SECRET_KEY;
 
     if (token && clerkSecretKey) {
@@ -634,9 +628,8 @@ Example: {shapes:[{type:"circle",x:100,y:200,radius:50,fill:"#FF0000"}]}`;
   private async getCachedCommand(
     commandId: string,
   ): Promise<Record<string, unknown> | null> {
-    // Use Durable Object storage via ctx
-    // biome-ignore lint/suspicious/noExplicitAny: Accessing DO storage
-    const storage = (this as any).ctx?.storage;
+    // Agent framework provides ctx.storage for state management
+    const storage = this.ctx?.storage;
     if (!storage) return null;
 
     const cache = (await storage.get(`command:${commandId}`)) as
@@ -652,9 +645,8 @@ Example: {shapes:[{type:"circle",x:100,y:200,radius:50,fill:"#FF0000"}]}`;
     commandId: string,
     result: Record<string, unknown>,
   ): Promise<void> {
-    // Store in Durable Object storage via ctx
-    // biome-ignore lint/suspicious/noExplicitAny: Accessing DO storage
-    const storage = (this as any).ctx?.storage;
+    // Agent framework provides ctx.storage for state management
+    const storage = this.ctx?.storage;
     if (!storage) return;
 
     await storage.put(`command:${commandId}`, result);
