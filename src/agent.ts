@@ -26,6 +26,7 @@ import {
 import {
   type AICommandMetadata,
   type AICommandResult,
+  type LangSmithEnv,
   type TracingContext,
   completeAICommandTrace,
   createLangSmithClient,
@@ -87,7 +88,7 @@ export class CanvasAgent {
 
   constructor(
     config: AgentConfig,
-    env: Env,
+    env: LangSmithEnv,
     initialState?: AgentState,
   ) {
     this.config = config;
@@ -172,18 +173,15 @@ export class CanvasAgent {
         traceContext,
       );
 
-      // Collect results
+      // Collect results (use indexed loop for better performance)
       const shapesCreated: string[] = [];
       const shapesAffected: string[] = [];
 
-      for (const result of toolResults) {
+      for (let i = 0; i < toolResults.length; i++) {
+        const result = toolResults[i];
         if (result.success && result.shapeIds) {
           shapesAffected.push(...result.shapeIds);
-          // Check if this was a create operation by tool name
-          const toolCall = toolCalls.find((tc) => {
-            const tcResult = toolResults[toolCalls.indexOf(tc)];
-            return tcResult === result;
-          });
+          const toolCall = toolCalls[i];
           if (toolCall?.name === "createShape") {
             shapesCreated.push(...result.shapeIds);
           }
@@ -492,9 +490,10 @@ Positions: center=${centerX},${centerY}, left=${centerX - 300}, right=${centerX 
     });
 
     // Trim to max length
-    const maxOps = this.config.maxHistoryLength || 10;
-    if (this.state.recentOperations.length > maxOps) {
-      this.state.recentOperations = this.state.recentOperations.slice(-maxOps);
+    if (this.state.recentOperations.length > this.config.maxHistoryLength) {
+      this.state.recentOperations = this.state.recentOperations.slice(
+        -this.config.maxHistoryLength,
+      );
     }
 
     // Add to conversation history
@@ -504,7 +503,7 @@ Positions: center=${centerX},${centerY}, left=${centerX - 300}, right=${centerX 
     );
 
     // Trim conversation history
-    const maxConversation = (this.config.maxHistoryLength || 10) * 2;
+    const maxConversation = this.config.maxHistoryLength * 2;
     if (this.state.conversationHistory.length > maxConversation) {
       this.state.conversationHistory = this.state.conversationHistory.slice(
         -maxConversation,

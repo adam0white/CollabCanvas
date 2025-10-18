@@ -36,17 +36,15 @@ import {
 export const ROOM_PERSIST_IDLE_MS = 500;
 export const ROOM_PERSIST_MAX_MS = 2000;
 
-// Extend Env interface with LangSmith configuration
-declare global {
-  interface Env {
-    LANGSMITH_API_KEY?: string;
-    LANGSMITH_PROJECT?: string;
-    LANGSMITH_ENDPOINT?: string;
-  }
+// App-specific environment with LangSmith configuration
+export interface AppEnv extends Env {
+  LANGSMITH_API_KEY?: string;
+  LANGSMITH_PROJECT?: string;
+  LANGSMITH_ENDPOINT?: string;
 }
 
 type DurableBindings = {
-  Bindings: Env;
+  Bindings: AppEnv;
 };
 
 // Idempotency tracking for AI commands
@@ -74,9 +72,9 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
   private readonly pendingConnections: ConnectionContext[] = [];
   private readonly commandCache = new Map<string, CommandResult>();
   private readonly agent: CanvasAgent;
-  private readonly workerEnv: Env;
+  private readonly workerEnv: AppEnv;
 
-  constructor(state: DurableObjectState, env: Env) {
+  constructor(state: DurableObjectState, env: AppEnv) {
     super(state, env);
     this.workerEnv = env;
 
@@ -227,23 +225,25 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
         // Get room ID from DO name (assumes format like "room:main")
         const roomId = this.state.id.name || "unknown";
         
-        // Execute command via Agent (atomic transaction happens inside)
-        result = await this.doc.transact(async () => {
-          const agentResult = await this.agent.executeCommand(
-            this.doc,
-            this.workerEnv.AI,
-            commandId,
-            prompt,
-            {
-              userId,
-              userName,
-              selectedShapeIds,
-              viewportCenter,
-            },
-            roomId,
-          );
+        // CRITICAL FIX: Execute async AI call OUTSIDE transaction
+        // Then wrap only synchronous Yjs mutations in a transaction
+        const agentResult = await this.agent.executeCommand(
+          this.doc,
+          this.workerEnv.AI,
+          commandId,
+          prompt,
+          {
+            userId,
+            userName,
+            selectedShapeIds,
+            viewportCenter,
+          },
+          roomId,
+        );
 
-          // Append to AI history within same transaction
+        // Now wrap synchronous mutations in a single atomic transaction
+        this.doc.transact(() => {
+          // Append to AI history
           const aiHistory = this.doc.getArray("aiHistory");
           const historyEntry = {
             id: commandId,
@@ -263,9 +263,9 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
           if (aiHistory.length > 100) {
             aiHistory.delete(0, aiHistory.length - 100);
           }
-
-          return agentResult;
         });
+
+        result = agentResult;
       }
 
       // Cache result for idempotency

@@ -14,9 +14,18 @@ import { Client } from "langsmith";
 import type { RunCreate } from "langsmith/schemas";
 
 /**
+ * Environment interface for LangSmith configuration
+ */
+export interface LangSmithEnv {
+  LANGSMITH_API_KEY?: string;
+  LANGSMITH_PROJECT?: string;
+  LANGSMITH_ENDPOINT?: string;
+}
+
+/**
  * LangSmith client configuration for Cloudflare Workers
  */
-export function createLangSmithClient(env: Env): Client | null {
+export function createLangSmithClient(env: LangSmithEnv): Client | null {
   // Check if LangSmith is configured
   if (!env.LANGSMITH_API_KEY) {
     console.warn("[LangSmith] API key not configured. Tracing disabled.");
