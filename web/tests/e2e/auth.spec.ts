@@ -22,13 +22,10 @@ test.describe("Authentication & Authorization", () => {
   });
 
   test("guest user cannot create shapes (toolbar buttons disabled)", async ({
-    page,
+    guestPage,
   }) => {
-    await page.goto("/c/main", { waitUntil: "domcontentloaded" });
-    await waitForSync(page, 500);
-
     // Rectangle button should be disabled
-    const rectangleButton = page.getByRole("button", { name: /rectangle/i });
+    const rectangleButton = guestPage.getByRole("button", { name: /rectangle/i });
     await expect(rectangleButton).toBeDisabled();
     await expect(rectangleButton).toHaveAttribute(
       "title",
@@ -36,29 +33,26 @@ test.describe("Authentication & Authorization", () => {
     );
 
     // Circle button should be disabled
-    const circleButton = page.getByRole("button", { name: /circle/i });
+    const circleButton = guestPage.getByRole("button", { name: /circle/i });
     await expect(circleButton).toBeDisabled();
 
     // Text button should be disabled
-    const textButton = page.getByRole("button", { name: /text/i });
+    const textButton = guestPage.getByRole("button", { name: /text/i });
     await expect(textButton).toBeDisabled();
 
     // Select button should be enabled (guests can pan/zoom)
-    const selectButton = page.getByRole("button", { name: /select/i });
+    const selectButton = guestPage.getByRole("button", { name: /select/i });
     await expect(selectButton).toBeEnabled();
   });
 
-  test("guest user cannot use AI assistant", async ({ page }) => {
-    await page.goto("/c/main", { waitUntil: "domcontentloaded" });
-    await waitForSync(page, 500);
-
+  test("guest user cannot use AI assistant", async ({ guestPage }) => {
     // AI textarea should be disabled
-    const aiTextarea = page.getByPlaceholder(/sign in to use AI/i);
+    const aiTextarea = guestPage.getByPlaceholder(/sign in to use AI/i);
     await expect(aiTextarea).toBeVisible();
     await expect(aiTextarea).toBeDisabled();
 
     // Submit button should be disabled
-    const submitButton = page.getByRole("button", { name: /send/i });
+    const submitButton = guestPage.getByRole("button", { name: /send/i });
     await expect(submitButton).toBeDisabled();
   });
 

@@ -30,13 +30,10 @@ test.describe("Edge Cases & Error Handling", () => {
       await expect(canvas).toBeVisible();
     });
 
-    test("AI history empty state message", async ({ page }) => {
-      await page.goto("/c/main", { waitUntil: "domcontentloaded" });
-      await waitForSync(page, 500);
-
-      // Should show empty state message
+    test("AI history empty state message", async ({ guestPage }) => {
+      // Should show empty state message (guests can see AI history)
       await expect(
-        page.locator("text=/no ai commands|try asking/i"),
+        guestPage.locator("text=/no ai commands|try asking/i"),
       ).toBeVisible();
     });
 
