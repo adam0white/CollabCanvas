@@ -220,14 +220,20 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
           if (result.success) {
             // Prefer shapeIds array over single shapeId to avoid duplicates
             if (result.shapeIds && result.shapeIds.length > 0) {
-              // Use shapeIds array (handles multiple shapes and single shape)
-              if (toolCall.name === "createShape") {
+              // Track created shapes for createShape and createMultipleShapes
+              if (
+                toolCall.name === "createShape" ||
+                toolCall.name === "createMultipleShapes"
+              ) {
                 shapesCreated.push(...result.shapeIds);
               }
               shapesAffected.push(...result.shapeIds);
             } else if (result.shapeId) {
               // Fallback to single shapeId (for tools that don't return shapeIds array)
-              if (toolCall.name === "createShape") {
+              if (
+                toolCall.name === "createShape" ||
+                toolCall.name === "createMultipleShapes"
+              ) {
                 shapesCreated.push(result.shapeId);
               }
               shapesAffected.push(result.shapeId);
@@ -283,14 +289,15 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
         timestamp: Date.now(),
       });
 
-      // Clean old cache entries (keep last 50)
+      // Clean old cache entries (keep last 50) - O(1) using Map iteration order
       if (this.commandCache.size > 50) {
-        const entries = Array.from(this.commandCache.entries());
-        entries.sort((a, b) => b[1].timestamp - a[1].timestamp);
-        const toKeep = entries.slice(0, 50);
-        this.commandCache.clear();
-        for (const [key, value] of toKeep) {
-          this.commandCache.set(key, value);
+        // Maps maintain insertion order, so delete oldest entries
+        const entriesToDelete = this.commandCache.size - 50;
+        let deleted = 0;
+        for (const [key] of this.commandCache) {
+          if (deleted >= entriesToDelete) break;
+          this.commandCache.delete(key);
+          deleted++;
         }
       }
 

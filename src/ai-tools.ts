@@ -309,7 +309,7 @@ export function createShape(
         fill,
         stroke,
         strokeWidth: shapeSpec.strokeWidth,
-        createdBy: "ai-assistant",
+        createdBy: `ai-${_userId}`,
         createdAt: now,
         aiGenerated: true,
       };
