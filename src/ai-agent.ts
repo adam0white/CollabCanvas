@@ -147,9 +147,20 @@ export class AIAgent extends Agent<any> {
 
       // Get RoomDO stub and execute via RPC
       const roomId = this.getRoomId();
+      console.log(`[AIAgent] Executing commands for room: ${roomId}`);
+
       // biome-ignore lint/suspicious/noExplicitAny: Type assertion for Env binding
       const env = this.env as any;
+
+      if (!env.RoomDO) {
+        console.error("[AIAgent] ✗ RoomDO binding not found in env");
+        throw new Error("RoomDO binding not available");
+      }
+
       const roomStub = env.RoomDO.get(env.RoomDO.idFromName(roomId));
+      console.log(
+        `[AIAgent] Calling RoomDO.executeAICommand with ${toolCalls.length} tool calls`,
+      );
 
       const result = await roomStub.executeAICommand({
         commandId,
@@ -159,6 +170,12 @@ export class AIAgent extends Agent<any> {
         prompt,
       });
 
+      console.log(`[AIAgent] ✓ RoomDO execution result:`, {
+        success: result.success,
+        shapesCreated: result.shapesCreated?.length || 0,
+        message: result.message,
+      });
+
       // Cache result in Agent state
       await this.cacheCommandResult(commandId, result);
 
@@ -166,7 +183,11 @@ export class AIAgent extends Agent<any> {
         status: result.success ? 200 : 500,
       });
     } catch (error) {
-      console.error("[AIAgent] Error:", error);
+      console.error("[AIAgent] ✗ Error in onRequest:", error);
+      console.error(
+        "[AIAgent] Error stack:",
+        error instanceof Error ? error.stack : "No stack",
+      );
       return Response.json(
         {
           success: false,
@@ -294,11 +315,47 @@ Positions: center=${centerX},${centerY}, left=${centerX - 300}, right=${centerX 
         const textResponse = (response as { response?: string }).response;
         console.log("[AIAgent] Text response (no tool calls):", textResponse);
 
-        // Try to extract JSON from text
+        // Try to extract and fix the response - AI sometimes returns it as a string
         try {
+          // The response might be: {"name": "createShape", "arguments": {"shapes": "[...]"}}
           const jsonMatch = textResponse?.match(/\{[\s\S]*\}/);
           if (jsonMatch) {
             const parsed = JSON.parse(jsonMatch[0]);
+
+            // If it looks like a tool call structure
+            if (parsed.name && parsed.arguments) {
+              console.log(
+                "[AIAgent] Detected tool call in text response, extracting...",
+              );
+
+              // Fix stringified shapes parameter if present
+              if (
+                parsed.arguments.shapes &&
+                typeof parsed.arguments.shapes === "string"
+              ) {
+                console.log(
+                  "[AIAgent] Fixing stringified shapes in text response",
+                );
+                try {
+                  parsed.arguments.shapes = JSON.parse(parsed.arguments.shapes);
+                } catch {
+                  // Try fixing quotes
+                  const normalized = (parsed.arguments.shapes as string)
+                    .replace(/'/g, '"')
+                    .replace(/(\w+):/g, '"$1":');
+                  parsed.arguments.shapes = JSON.parse(normalized);
+                }
+              }
+
+              return [
+                {
+                  name: parsed.name,
+                  parameters: parsed.arguments,
+                },
+              ];
+            }
+
+            // Legacy format check
             if (parsed.shapes && Array.isArray(parsed.shapes)) {
               return [
                 {
