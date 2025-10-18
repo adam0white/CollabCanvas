@@ -197,7 +197,8 @@ describe("AI Tools - createShape", () => {
     expect(shapeId).toBeDefined();
     if (!shapeId) throw new Error("shapeId should be defined");
     const shape = shapesMap.get(shapeId);
-    expect((shape as { createdBy: string }).createdBy).toBe("ai-assistant");
+    // createdBy format is now ai-{userId}
+    expect((shape as { createdBy: string }).createdBy).toBe("ai-test-user");
     expect((shape as { aiGenerated: boolean }).aiGenerated).toBe(true);
   });
 });
