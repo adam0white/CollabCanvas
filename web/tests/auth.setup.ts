@@ -8,7 +8,7 @@ import { test as setup } from "@playwright/test";
 
 const authFile = path.join(__dirname, "../playwright/.auth/user.json");
 
-setup("authenticate", async ({ page, context }) => {
+setup("authenticate", async ({ page }) => {
   const testEmail = process.env.TEST_USER_EMAIL;
   const testPassword = process.env.TEST_USER_PASSWORD;
 

@@ -14,10 +14,7 @@ directory = "web/dist"
 
 [ai]
 binding = "AI"
-# AI Gateway configuration
-# Gateway proxies all AI requests for observability, caching, and cost tracking
-# Gateway "aw-cf-ai" should already exist in Cloudflare dashboard
-gateway_id = "aw-cf-ai"
+remote = true
 
 [durable_objects]
 bindings = [

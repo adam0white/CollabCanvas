@@ -293,8 +293,19 @@ async function handleAICommandViaAgent(
     // This sets up the required namespace and room headers
     const agent = await getAgentByName(env.AIAgent, roomId);
 
+    // Add room ID to the request headers so Agent can retrieve it
+    const headers = new Headers(request.headers);
+    headers.set("x-room-id", roomId);
+
+    const agentRequest = new Request(request.url, {
+      method: request.method,
+      headers,
+      body: request.body,
+      duplex: "half",
+    } as RequestInit);
+
     // Call the Agent's fetch method to process the request
-    return agent.fetch(request);
+    return agent.fetch(agentRequest);
   } catch (error) {
     console.error("[Worker] AIAgent routing error:", error);
     return Response.json(

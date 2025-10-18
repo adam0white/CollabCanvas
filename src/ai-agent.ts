@@ -146,7 +146,7 @@ export class AIAgent extends Agent<any> {
       }
 
       // Get RoomDO stub and execute via RPC
-      const roomId = this.getRoomId();
+      const roomId = this.getRoomId(request);
       console.log(`[AIAgent] Executing commands for room: ${roomId}`);
 
       // biome-ignore lint/suspicious/noExplicitAny: Type assertion for Env binding
@@ -240,31 +240,31 @@ Positions: center=${centerX},${centerY}, left=${centerX - 300}, right=${centerX 
     }
 
     try {
-      console.log(
-        "[AIAgent] Calling AI via Gateway (configured in wrangler.toml)",
-      );
+      console.log("[AIAgent] Calling AI via AI Gateway");
       console.log("[AIAgent] System prompt length:", systemPrompt.length);
       console.log("[AIAgent] User prompt length:", prompt.length);
 
-      // Call Workers AI through AI Gateway
-      // Gateway is configured in wrangler.toml [ai] section
-      // All AI requests automatically flow through gateway for:
-      // - Observability (request logs, latency tracking)
-      // - Caching (common prompts cached at gateway)
-      // - Cost tracking (monitor AI usage)
-      // - Failover (gateway handles retries)
       // biome-ignore lint/suspicious/noExplicitAny: Type assertion for Env binding
       const env = this.env as any;
       const ai = env.AI;
 
+      // Call Workers AI through AI Gateway
       // biome-ignore lint/suspicious/noExplicitAny: Workers AI types don't include function calling yet
-      const response = await (ai as any).run("@cf/meta/llama-3.1-8b-instruct", {
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: prompt },
-        ],
-        tools: AI_TOOLS,
-      });
+      const response = await (ai as any).run(
+        "@cf/meta/llama-3.1-8b-instruct",
+        {
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: prompt },
+          ],
+          tools: AI_TOOLS,
+        },
+        {
+          gateway: {
+            id: "aw-cf-ai",
+          },
+        },
+      );
 
       console.log("[AIAgent] ✓ AI response received");
 
@@ -446,17 +446,20 @@ Positions: center=${centerX},${centerY}, left=${centerX - 300}, right=${centerX 
   }
 
   /**
-   * Get room ID from Agent instance ID
-   * Agent instances are mapped 1:1 with rooms using idFromName
+   * Get room ID from request headers
+   * The Worker passes the room ID via x-room-id header
    */
-  private getRoomId(): string {
-    // The Agent ID is the room ID (passed via idFromName in Worker)
-    // Use the context id property (from Durable Object State)
-    // biome-ignore lint/suspicious/noExplicitAny: Accessing DO state id
-    const stateId = (this as any).ctx?.id;
-    if (stateId) {
-      return stateId.toString().split(":").pop() || "main";
+  private getRoomId(request: Request): string {
+    // Get room ID from header (set by Worker)
+    const roomId = request.headers.get("x-room-id");
+
+    if (roomId) {
+      console.log(`[AIAgent] ✓ Room ID from header: ${roomId}`);
+      return roomId;
     }
+
+    // Fallback to "main" if header not present
+    console.warn("[AIAgent] ⚠ No x-room-id header found, using default 'main'");
     return "main";
   }
 

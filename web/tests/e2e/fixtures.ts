@@ -40,7 +40,7 @@ export const test = base.extend<TestFixtures>({
   /**
    * Unique room ID for each test
    */
-  roomId: async ({ page }, use) => {
+  roomId: async (_fixtures, use) => {
     const roomId = generateRoomId();
     await use(roomId);
   },
