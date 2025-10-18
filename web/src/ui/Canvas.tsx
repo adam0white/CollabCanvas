@@ -743,10 +743,13 @@ export function Canvas({
 
   // Handle text input submission
   const handleTextSubmit = () => {
-    if (textInput.trim()) {
+    const trimmedText = textInput.trim();
+    
+    if (trimmedText) {
+      // Only create/update if there's actual text
       if (editingTextShapeId) {
         // Update existing text shape
-        updateShape(editingTextShapeId, { text: textInput });
+        updateShape(editingTextShapeId, { text: trimmedText });
         // Keep the edited shape selected
         setSelectedShapeIds([editingTextShapeId]);
       } else if (textPosition) {
@@ -754,7 +757,7 @@ export function Canvas({
         const text = createText(
           textPosition.x,
           textPosition.y,
-          textInput,
+          trimmedText,
           "user",
         );
         text.fill = defaultFillColor;
@@ -764,6 +767,7 @@ export function Canvas({
         setSelectedShapeIds([text.id]);
       }
     }
+    // Always close the input, even if empty (don't create empty text shapes)
     setIsCreatingText(false);
     setTextInput("");
     setTextPosition(null);
