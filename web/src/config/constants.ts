@@ -14,6 +14,8 @@ export const THROTTLE = {
   PRESENCE_MS: 50,
   /** Transform operations (drag/resize/rotate) in milliseconds */
   TRANSFORM_MS: 50,
+  /** Aggressive throttling for large selections (30+ shapes) */
+  TRANSFORM_MS_LARGE_SELECTION: 150,
   /** Color/style changes in milliseconds */
   COLOR_CHANGE_MS: 100,
 } as const;
