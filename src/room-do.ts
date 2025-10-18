@@ -22,16 +22,16 @@ import { createDecoder, readVarUint, readVarUint8Array } from "lib0/decoding";
 import { YDurableObjects } from "y-durableobjects";
 import type { Awareness } from "y-protocols/awareness";
 import { applyAwarenessUpdate } from "y-protocols/awareness";
+import {
+  type AgentState,
+  CanvasAgent,
+  createDefaultAgentConfig,
+} from "./agent";
 import { dispatchTool, type ToolCall, type ToolResult } from "./ai-tools";
 import {
   createDebouncedCommit,
   type DebouncedCommitController,
 } from "./utils/debounced-storage";
-import {
-  CanvasAgent,
-  createDefaultAgentConfig,
-  type AgentState,
-} from "./agent";
 
 export const ROOM_PERSIST_IDLE_MS = 500;
 export const ROOM_PERSIST_MAX_MS = 2000;
@@ -101,8 +101,10 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
     // Initialize AI Agent with default config
     // Agent state could be loaded from storage for persistence
     this.agent = new CanvasAgent(createDefaultAgentConfig(), env);
-    
-    console.log("[RoomDO] Initialized with Agent architecture and LangSmith tracing");
+
+    console.log(
+      "[RoomDO] Initialized with Agent architecture and LangSmith tracing",
+    );
   }
 
   override async fetch(request: Request): Promise<Response> {
@@ -196,7 +198,14 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
     selectedShapeIds?: string[];
     viewportCenter?: { x: number; y: number };
   }): Promise<AICommandResult> {
-    const { commandId, userId, userName, prompt, selectedShapeIds, viewportCenter } = params;
+    const {
+      commandId,
+      userId,
+      userName,
+      prompt,
+      selectedShapeIds,
+      viewportCenter,
+    } = params;
 
     // Idempotency check: return cached result if command already executed
     const cached = this.commandCache.get(commandId);
@@ -221,10 +230,10 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
       } else {
         // NEW: Use Agent architecture
         console.log("[RoomDO] Using Agent architecture with LangSmith tracing");
-        
+
         // Get room ID from DO name (assumes format like "room:main")
         const roomId = this.state.id.name || "unknown";
-        
+
         // CRITICAL FIX: Execute async AI call OUTSIDE transaction
         // Then wrap only synchronous Yjs mutations in a transaction
         const agentResult = await this.agent.executeCommand(

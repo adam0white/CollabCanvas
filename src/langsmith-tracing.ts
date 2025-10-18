@@ -1,9 +1,9 @@
 /**
  * LangSmith Tracing Module
- * 
+ *
  * Provides observability and tracing for AI operations in CollabCanvas.
  * Tracks: prompts, completions, tokens, latency, tool calls, success/failure.
- * 
+ *
  * Integration with Cloudflare Workers:
  * - Uses fetch-based HTTP client (no Node.js dependencies)
  * - Async tracing (non-blocking)
@@ -80,7 +80,7 @@ export type TracingContext = {
 
 /**
  * Start tracing an AI command
- * 
+ *
  * Creates a run in LangSmith with initial metadata.
  * Returns context for updating the run later.
  */
@@ -123,7 +123,9 @@ export async function startAICommandTrace(
       // project_name: projectName, // Note: project name set on client, not on individual runs
     });
 
-    console.log(`[LangSmith] Started trace for command ${metadata.commandId}: ${runId}`);
+    console.log(
+      `[LangSmith] Started trace for command ${metadata.commandId}: ${runId}`,
+    );
 
     return {
       runId,
@@ -138,7 +140,7 @@ export async function startAICommandTrace(
 
 /**
  * Log AI model inference within a trace
- * 
+ *
  * Creates a child run for the LLM call with token counts and latency.
  */
 export async function traceAIInference(
@@ -207,7 +209,7 @@ export async function traceAIInference(
 
 /**
  * Log tool execution within a trace
- * 
+ *
  * Creates a child run for each tool call.
  */
 export async function traceToolExecution(
@@ -267,7 +269,7 @@ export async function traceToolExecution(
 
 /**
  * Complete an AI command trace
- * 
+ *
  * Updates the run with final outputs and success status.
  */
 export async function completeAICommandTrace(
@@ -311,7 +313,7 @@ export async function completeAICommandTrace(
 
 /**
  * Wrapper for tracing an async operation
- * 
+ *
  * Handles errors gracefully and ensures tracing doesn't block execution.
  */
 export async function withTracing<T>(

@@ -1,13 +1,13 @@
 /**
  * AI Agent Architecture for CollabCanvas
- * 
+ *
  * Implements a stateful AI agent that:
  * - Maintains canvas context (shapes, state)
  * - Has memory of recent operations
  * - Executes tools on the canvas
  * - Tracks conversation history
  * - Integrates with LangSmith for observability
- * 
+ *
  * Design Decision: Stateful agent per room (lives in Durable Object)
  * - Each room has its own agent instance
  * - Agent state persists with the room
@@ -15,8 +15,8 @@
  * - Conversation history stored in agent memory
  */
 
-import type { Doc } from "yjs";
 import type { Client } from "langsmith";
+import type { Doc } from "yjs";
 import {
   AI_TOOLS,
   dispatchTool,
@@ -26,11 +26,11 @@ import {
 import {
   type AICommandMetadata,
   type AICommandResult,
-  type LangSmithEnv,
-  type TracingContext,
   completeAICommandTrace,
   createLangSmithClient,
+  type LangSmithEnv,
   startAICommandTrace,
+  type TracingContext,
   traceAIInference,
   traceToolExecution,
 } from "./langsmith-tracing";
@@ -73,7 +73,7 @@ export type AgentContext = {
 
 /**
  * AI Agent for Canvas Manipulation
- * 
+ *
  * Stateful agent that lives in the Durable Object and maintains:
  * - Canvas context (via Yjs doc)
  * - Recent operations history
@@ -113,7 +113,7 @@ export class CanvasAgent {
 
   /**
    * Execute an AI command
-   * 
+   *
    * Main entry point for AI operations:
    * 1. Start LangSmith trace
    * 2. Generate tool calls from prompt using AI
@@ -234,7 +234,7 @@ export class CanvasAgent {
 
   /**
    * Generate tool calls from natural language prompt
-   * 
+   *
    * Uses Workers AI with function calling to convert prompt to structured tool calls.
    * Includes canvas context and conversation history for better results.
    */
@@ -285,7 +285,11 @@ export class CanvasAgent {
       // Extract tool calls from response
       let toolCalls: ToolCall[] = [];
 
-      if (response && typeof response === "object" && "tool_calls" in response) {
+      if (
+        response &&
+        typeof response === "object" &&
+        "tool_calls" in response
+      ) {
         const rawToolCalls = response.tool_calls as Array<{
           name: string;
           arguments: Record<string, unknown>;
@@ -319,7 +323,10 @@ export class CanvasAgent {
             }
           }
         } catch (parseError) {
-          console.error("[Agent] Failed to parse fallback response:", parseError);
+          console.error(
+            "[Agent] Failed to parse fallback response:",
+            parseError,
+          );
         }
       }
 
@@ -339,7 +346,11 @@ export class CanvasAgent {
         error: error instanceof Error ? error.message : "Unknown error",
       });
 
-      return { toolCalls: [], inferenceTime: Date.now() - startTime, systemPrompt };
+      return {
+        toolCalls: [],
+        inferenceTime: Date.now() - startTime,
+        systemPrompt,
+      };
     }
   }
 
@@ -347,8 +358,10 @@ export class CanvasAgent {
    * Build system prompt with canvas context and agent state
    */
   private buildSystemPrompt(context: AgentContext, doc: Doc): string {
-    const centerX = context.viewportCenter?.x ?? this.config.canvasSize.width / 2;
-    const centerY = context.viewportCenter?.y ?? this.config.canvasSize.height / 2;
+    const centerX =
+      context.viewportCenter?.x ?? this.config.canvasSize.width / 2;
+    const centerY =
+      context.viewportCenter?.y ?? this.config.canvasSize.height / 2;
 
     // Get current canvas state
     const shapesMap = doc.getMap("shapes");
@@ -388,7 +401,7 @@ Positions: center=${centerX},${centerY}, left=${centerX - 300}, right=${centerX 
 
   /**
    * Execute tool calls atomically
-   * 
+   *
    * All tools execute within the same Yjs transaction (handled by caller).
    * Traces each tool execution in LangSmith.
    */
@@ -471,7 +484,7 @@ Positions: center=${centerX},${centerY}, left=${centerX - 300}, right=${centerX 
 
   /**
    * Update agent memory with recent operation
-   * 
+   *
    * Maintains a sliding window of recent operations for context.
    */
   private updateMemory(

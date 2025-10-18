@@ -371,41 +371,41 @@ async function handleAICommand(
     }
   }
 
-    try {
-      // NEW: Use Agent architecture - DO handles everything
-      // No longer generate tool calls in Worker, Agent handles it with LangSmith tracing
-      
-      // Get Durable Object stub and execute command via RPC
-      const id = env.RoomDO.idFromName(roomId);
-      const stub = env.RoomDO.get(id);
+  try {
+    // NEW: Use Agent architecture - DO handles everything
+    // No longer generate tool calls in Worker, Agent handles it with LangSmith tracing
 
-      const result = await stub.executeAICommand({
-        commandId,
-        userId,
-        userName,
-        prompt,
-        selectedShapeIds: body.context?.selectedShapeIds,
-        viewportCenter: body.context?.viewportCenter,
-      });
+    // Get Durable Object stub and execute command via RPC
+    const id = env.RoomDO.idFromName(roomId);
+    const stub = env.RoomDO.get(id);
 
-      return new Response(JSON.stringify(result), {
-        status: result.success ? 200 : 500,
+    const result = await stub.executeAICommand({
+      commandId,
+      userId,
+      userName,
+      prompt,
+      selectedShapeIds: body.context?.selectedShapeIds,
+      viewportCenter: body.context?.viewportCenter,
+    });
+
+    return new Response(JSON.stringify(result), {
+      status: result.success ? 200 : 500,
+      headers: { "content-type": "application/json" },
+    });
+  } catch (error) {
+    console.error("[AI Command] Error:", error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: "Failed to execute AI command",
+        message: error instanceof Error ? error.message : "Unknown error",
+      }),
+      {
+        status: 500,
         headers: { "content-type": "application/json" },
-      });
-    } catch (error) {
-      console.error("[AI Command] Error:", error);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "Failed to execute AI command",
-          message: error instanceof Error ? error.message : "Unknown error",
-        }),
-        {
-          status: 500,
-          headers: { "content-type": "application/json" },
-        },
-      );
-    }
+      },
+    );
+  }
 }
 
 /**
