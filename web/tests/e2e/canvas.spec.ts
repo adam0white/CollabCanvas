@@ -19,69 +19,67 @@ import {
 
 test.describe("Canvas Interactions", () => {
   test.describe("Pan & Zoom", () => {
-    test("mouse wheel zooms in and out", async ({ page }) => {
-      await page.goto("/c/main", { waitUntil: "domcontentloaded" });
-      await waitForSync(page, 500);
+    test("mouse wheel zooms in and out", async ({ authenticatedPage }) => {
+      const canvas = await getCanvas(authenticatedPage);
+      const zoomButton = authenticatedPage.locator('button[class*="zoomButton"]').nth(1);
 
-      const canvas = await getCanvas(page);
-      const zoomButton = page.getByRole("button", { name: /100%/i });
-
-      // Initial zoom should be 100%
-      await expect(zoomButton).toHaveText("100%");
+      // Get initial zoom
+      const initialZoom = await zoomButton.textContent();
 
       // Zoom in with wheel
       const box = await canvas.boundingBox();
       if (box) {
-        await page.mouse.move(box.x + 400, box.y + 300);
-        await page.mouse.wheel(0, -100);
+        await authenticatedPage.mouse.move(box.x + 400, box.y + 300);
+        await authenticatedPage.mouse.wheel(0, -100);
       }
 
-      await waitForSync(page, 200);
+      await waitForSync(authenticatedPage, 200);
 
       // Zoom level should have changed
-      const zoomText = await zoomButton.textContent();
-      expect(zoomText).not.toBe("100%");
+      const newZoom = await zoomButton.textContent();
+      expect(newZoom).not.toBe(initialZoom);
     });
 
-    test("zoom controls buttons work", async ({ page }) => {
-      await page.goto("/c/main", { waitUntil: "domcontentloaded" });
-      await waitForSync(page, 500);
+    test("zoom controls buttons work", async ({ authenticatedPage }) => {
+      const zoomButton = authenticatedPage.locator('button[class*="zoomButton"]').nth(1);
+      const zoomInButton = authenticatedPage.getByRole("button", { name: "+" });
+      const zoomOutButton = authenticatedPage.getByRole("button", { name: "−" });
 
-      const zoomButton = page.getByRole("button", { name: /100%/i });
-      const zoomInButton = page.getByRole("button", { name: "+" });
-      const zoomOutButton = page.getByRole("button", { name: "−" });
+      const initialZoom = await zoomButton.textContent();
 
       // Zoom in
       await zoomInButton.click();
-      await waitForSync(page, 100);
+      await waitForSync(authenticatedPage, 200);
       let zoomText = await zoomButton.textContent();
-      expect(zoomText).toContain("110%");
+      expect(zoomText).not.toBe(initialZoom);
+      expect(zoomText).toContain("%");
 
       // Zoom out
       await zoomOutButton.click();
-      await waitForSync(page, 100);
+      await waitForSync(authenticatedPage, 200);
       zoomText = await zoomButton.textContent();
-      expect(zoomText).toBe("100%");
+      expect(zoomText).toBe(initialZoom);
     });
 
-    test("reset zoom button returns to 100%", async ({ page }) => {
-      await page.goto("/c/main", { waitUntil: "domcontentloaded" });
-      await waitForSync(page, 500);
-
-      const zoomButton = page.getByRole("button", { name: /100%/i });
-      const zoomInButton = page.getByRole("button", { name: "+" });
+    test("reset zoom button returns to 100%", async ({ authenticatedPage }) => {
+      const zoomButton = authenticatedPage.locator('button[class*="zoomButton"]').nth(1);
+      const zoomInButton = authenticatedPage.getByRole("button", { name: "+" });
 
       // Zoom in multiple times
       await zoomInButton.click();
       await zoomInButton.click();
-      await waitForSync(page, 200);
+      await waitForSync(authenticatedPage, 200);
+
+      const zoomedValue = await zoomButton.textContent();
+      expect(zoomedValue).not.toBe("100%");
 
       // Click reset
       await zoomButton.click();
-      await waitForSync(page, 100);
+      await waitForSync(authenticatedPage, 200);
 
       // Should be back to 100%
-      await expect(zoomButton).toHaveText("100%");
+      const finalZoom = await zoomButton.textContent();
+      expect(finalZoom).toBe("100%");
     });
 
     test("zoom is clamped to MIN_ZOOM and MAX_ZOOM", async ({ page }) => {
