@@ -12,5 +12,9 @@ export default defineConfig(({ mode }) => {
     define: {
       "window.__CLERK_PUBLISHABLE_KEY__": JSON.stringify(publishableKey),
     },
+    // Exclude test files from Vite processing
+    test: {
+      exclude: ["**/node_modules/**", "**/tests/**", "**/*.spec.ts", "**/*.test.ts"],
+    },
   };
 });
