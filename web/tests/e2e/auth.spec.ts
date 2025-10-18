@@ -114,9 +114,11 @@ test.describe("Authentication & Authorization", () => {
     const emailInput = page.getByPlaceholder(/enter your email address/i);
     await emailInput.waitFor({ state: "visible", timeout: 20000 });
     await emailInput.click();
-    await emailInput.fill(testEmail!);
+    if (testEmail) {
+      await emailInput.fill(testEmail);
+    }
     // confirm fill
-    const emailVal = await emailInput.inputValue();
+    const _emailVal = await emailInput.inputValue();
 
     // Continue to password step (click the form's primary button to be explicit)
     await page.locator("button.cl-formButtonPrimary").first().click();
@@ -125,8 +127,10 @@ test.describe("Authentication & Authorization", () => {
     const passwordInput = page.getByPlaceholder(/enter your password/i);
     await passwordInput.waitFor({ state: "visible", timeout: 10000 });
     await passwordInput.click();
-    await passwordInput.fill(testPassword!);
-    const pwdVal = await passwordInput.inputValue();
+    if (testPassword) {
+      await passwordInput.fill(testPassword);
+    }
+    const _pwdVal = await passwordInput.inputValue();
 
     // Final continue / submit (use form primary button)
     await page.locator("button.cl-formButtonPrimary").first().click();

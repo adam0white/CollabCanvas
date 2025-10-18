@@ -22,7 +22,10 @@ export const AIPanel = React.forwardRef<HTMLTextAreaElement>(
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     // Merge external ref with internal ref
-    React.useImperativeHandle(ref, () => textareaRef.current!);
+    React.useImperativeHandle(
+      ref,
+      () => textareaRef.current as HTMLTextAreaElement,
+    );
 
     // Get current user ID for highlighting their commands
     const currentUserId = user?.id ?? null;

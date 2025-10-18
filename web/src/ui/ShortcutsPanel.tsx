@@ -32,8 +32,19 @@ export function ShortcutsPanel({
   if (!isOpen) return null;
 
   return (
-    <div className={styles.overlay} onClick={onClose}>
-      <div className={styles.panel} onClick={(e) => e.stopPropagation()}>
+    <button
+      type="button"
+      className={styles.overlay}
+      onClick={onClose}
+      aria-label="Close shortcuts panel"
+    >
+      <div
+        className={styles.panel}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+      >
         <div className={styles.header}>
           <h2>Keyboard Shortcuts</h2>
           <button
@@ -162,6 +173,6 @@ export function ShortcutsPanel({
           </section>
         </div>
       </div>
-    </div>
+    </button>
   );
 }

@@ -18,12 +18,17 @@ remote = true
 
 [durable_objects]
 bindings = [
-  { name = "RoomDO", class_name = "RoomDO" }
+  { name = "RoomDO", class_name = "RoomDO" },
+  { name = "AIAgent", class_name = "AIAgent" }
 ]
 
 [[migrations]]
 tag = "v1"
 new_classes = ["RoomDO"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["AIAgent"]
 
 [vars]
 CLERK_PUBLISHABLE_KEY = "pk_live_Y2xlcmsuYWRhbXdoaXRlLndvcmsk"
