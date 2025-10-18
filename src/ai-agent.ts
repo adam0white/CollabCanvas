@@ -218,25 +218,19 @@ export class AIAgent extends Agent<any> {
     const centerX = context.viewportCenter?.x ?? 1000;
     const centerY = context.viewportCenter?.y ?? 1000;
 
-    // Build system prompt
-    let systemPrompt = `Canvas 2000x2000. Center: ${centerX},${centerY}
+    // Build concise system prompt to avoid token limits
+    // Keep it short to prevent response truncation
+    let systemPrompt = `Canvas: 2000x2000px. Viewport center: ${centerX},${centerY}.
 
-CRITICAL: Use proper JSON arrays, NOT stringified arrays!
-✓ CORRECT: {shapes:[{type:"circle",x:100,y:200,radius:50}]}
-✗ WRONG: {shapes:"[{type:'circle'...}]"}
+Available shapes: rectangle (width,height), circle (radius), text (text,fontSize).
+Colors: hex format (#FF0000=red, #0000FF=blue, #00FF00=green, #FFFF00=yellow, #800080=purple).
+Sizes: small=80, normal=150, large=250.
 
-Format examples:
-- Circle: {shapes:[{type:"circle",x:100,y:200,radius:50,fill:"#FF0000"}]}
-- Rectangle: {shapes:[{type:"rectangle",x:100,y:200,width:150,height:100,fill:"#0000FF"}]}
-- Text: {shapes:[{type:"text",x:100,y:200,text:"Hello",fontSize:16,fill:"#000000"}]}
-- Multiple: {shapes:[{type:"circle",...},{type:"rectangle",...}]}
-
-Colors (hex): red=#FF0000, blue=#0000FF, yellow=#FFFF00, green=#00FF00, purple=#800080, pink=#FFC0CB, orange=#FFA500
-Sizes: tiny=40, small=80, normal=150, large=250, huge=400
-Positions: center=${centerX},${centerY}, left=${centerX - 300}, right=${centerX + 300}`;
+CRITICAL: Return proper JSON arrays in shapes parameter.
+Example: {shapes:[{type:"circle",x:100,y:200,radius:50,fill:"#FF0000"}]}`;
 
     if (context.selectedShapeIds && context.selectedShapeIds.length > 0) {
-      systemPrompt += `\nSelected:${context.selectedShapeIds.slice(0, 2).join(",")}`;
+      systemPrompt += `\nSelected shapes: ${context.selectedShapeIds.slice(0, 3).join(",")}`;
     }
 
     try {
@@ -244,11 +238,22 @@ Positions: center=${centerX},${centerY}, left=${centerX - 300}, right=${centerX 
       console.log("[AIAgent] System prompt length:", systemPrompt.length);
       console.log("[AIAgent] User prompt length:", prompt.length);
 
+      // Check total prompt length to avoid truncation
+      const totalPromptLength = systemPrompt.length + prompt.length;
+      const MAX_SAFE_PROMPT_LENGTH = 1500; // Leave room for response
+      
+      if (totalPromptLength > MAX_SAFE_PROMPT_LENGTH) {
+        console.warn(`[AIAgent] Prompt too long (${totalPromptLength} chars), truncating context`);
+        // Reduce system prompt to essentials
+        systemPrompt = `Canvas 2000x2000px. Center: ${centerX},${centerY}. Shapes: rectangle, circle, text. Colors: hex format.`;
+      }
+
       // biome-ignore lint/suspicious/noExplicitAny: Type assertion for Env binding
       const env = this.env as any;
       const ai = env.AI;
 
       // Call Workers AI through AI Gateway
+      // Use llama-3.1-8b-instruct with proper message format
       // biome-ignore lint/suspicious/noExplicitAny: Workers AI types don't include function calling yet
       const response = await (ai as any).run(
         "@cf/meta/llama-3.1-8b-instruct",
@@ -258,6 +263,8 @@ Positions: center=${centerX},${centerY}, left=${centerX - 300}, right=${centerX 
             { role: "user", content: prompt },
           ],
           tools: AI_TOOLS,
+          // Add max tokens to prevent truncation
+          max_tokens: 2048,
         },
         {
           gateway: {
@@ -267,6 +274,12 @@ Positions: center=${centerX},${centerY}, left=${centerX - 300}, right=${centerX 
       );
 
       console.log("[AIAgent] ✓ AI response received");
+      console.log("[AIAgent] Response type:", typeof response);
+      
+      // Log response structure for debugging
+      if (response && typeof response === "object") {
+        console.log("[AIAgent] Response keys:", Object.keys(response));
+      }
 
       // Extract tool calls from response
       if (
@@ -317,10 +330,36 @@ Positions: center=${centerX},${centerY}, left=${centerX - 300}, right=${centerX 
 
         // Try to extract and fix the response - AI sometimes returns it as a string
         try {
+          if (!textResponse) {
+            throw new Error("Empty text response from AI");
+          }
+
+          // Try to extract JSON from the response
           // The response might be: {"name": "createShape", "arguments": {"shapes": "[...]"}}
-          const jsonMatch = textResponse?.match(/\{[\s\S]*\}/);
+          // Or it might be truncated, so we need to handle that
+          const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
           if (jsonMatch) {
-            const parsed = JSON.parse(jsonMatch[0]);
+            let jsonStr = jsonMatch[0];
+            
+            // Check if JSON is truncated (unterminated string/array/object)
+            const openBraces = (jsonStr.match(/\{/g) || []).length;
+            const closeBraces = (jsonStr.match(/\}/g) || []).length;
+            const openBrackets = (jsonStr.match(/\[/g) || []).length;
+            const closeBrackets = (jsonStr.match(/\]/g) || []).length;
+            const openQuotes = (jsonStr.match(/"/g) || []).length;
+            
+            if (openBraces !== closeBraces || openBrackets !== closeBrackets || openQuotes % 2 !== 0) {
+              console.error("[AIAgent] ✗ Response appears truncated:", {
+                openBraces,
+                closeBraces,
+                openBrackets,
+                closeBrackets,
+                openQuotes,
+              });
+              throw new Error("AI response was truncated. Try a simpler prompt.");
+            }
+
+            const parsed = JSON.parse(jsonStr);
 
             // If it looks like a tool call structure
             if (parsed.name && parsed.arguments) {
@@ -370,19 +409,35 @@ Positions: center=${centerX},${centerY}, left=${centerX - 300}, right=${centerX 
             "[AIAgent] Failed to parse JSON from text:",
             parseError,
           );
+          console.error("[AIAgent] Partial response:", textResponse?.substring(0, 200));
+          
+          // Provide helpful error message
+          if (parseError instanceof SyntaxError && parseError.message.includes("Unterminated")) {
+            throw new Error(
+              "AI response was incomplete (truncated). Please try a simpler command with fewer shapes.",
+            );
+          }
         }
 
         throw new Error(
-          `AI responded but didn't call any tools: ${textResponse || "unknown reason"}`,
+          `AI responded but didn't call any tools. Response: ${textResponse?.substring(0, 100) || "unknown"}`,
         );
       }
 
+      console.warn("[AIAgent] No tool_calls or text response in AI output");
       return [];
     } catch (error) {
       console.error("[AIAgent] AI call failed:", error);
-      throw new Error(
-        `AI inference failed: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      
+      // Provide user-friendly error messages
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes("truncated") || errorMessage.includes("Unterminated")) {
+        throw new Error(
+          "AI response was incomplete. Try a simpler command with fewer shapes (max 20 shapes per command recommended).",
+        );
+      }
+      
+      throw new Error(`AI inference failed: ${errorMessage}`);
     }
   }
 
