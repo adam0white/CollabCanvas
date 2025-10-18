@@ -27,3 +27,8 @@ new_classes = ["RoomDO"]
 
 [vars]
 CLERK_PUBLISHABLE_KEY = "pk_live_Y2xlcmsuYWRhbXdoaXRlLndvcmsk"
+
+# LangSmith Configuration (for AI observability)
+# Set LANGSMITH_API_KEY via: wrangler secret put LANGSMITH_API_KEY
+# Set LANGSMITH_PROJECT via: wrangler secret put LANGSMITH_PROJECT
+# Optional: LANGSMITH_ENDPOINT (defaults to https://api.smith.langchain.com)

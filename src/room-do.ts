@@ -27,9 +27,23 @@ import {
   createDebouncedCommit,
   type DebouncedCommitController,
 } from "./utils/debounced-storage";
+import {
+  CanvasAgent,
+  createDefaultAgentConfig,
+  type AgentState,
+} from "./agent";
 
 export const ROOM_PERSIST_IDLE_MS = 500;
 export const ROOM_PERSIST_MAX_MS = 2000;
+
+// Extend Env interface with LangSmith configuration
+declare global {
+  interface Env {
+    LANGSMITH_API_KEY?: string;
+    LANGSMITH_PROJECT?: string;
+    LANGSMITH_ENDPOINT?: string;
+  }
+}
 
 type DurableBindings = {
   Bindings: Env;
@@ -47,6 +61,7 @@ export type AICommandResult = {
   message: string;
   shapesCreated?: string[];
   shapesAffected?: string[];
+  toolCallsCount: number;
   error?: string;
   commandId: string;
 };
@@ -58,9 +73,12 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
   private readonly connectionRoles = new Map<WebSocket, ClientRole>();
   private readonly pendingConnections: ConnectionContext[] = [];
   private readonly commandCache = new Map<string, CommandResult>();
+  private readonly agent: CanvasAgent;
+  private readonly workerEnv: Env;
 
   constructor(state: DurableObjectState, env: Env) {
     super(state, env);
+    this.workerEnv = env;
 
     this.commitScheduler = createDebouncedCommit({
       commit: () => this.storage.commit(),
@@ -81,6 +99,12 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
     this.doc.on("update", () => {
       this.commitScheduler.schedule();
     });
+
+    // Initialize AI Agent with default config
+    // Agent state could be loaded from storage for persistence
+    this.agent = new CanvasAgent(createDefaultAgentConfig(), env);
+    
+    console.log("[RoomDO] Initialized with Agent architecture and LangSmith tracing");
   }
 
   override async fetch(request: Request): Promise<Response> {
@@ -155,117 +179,94 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
   /**
    * RPC Method: Execute AI Command
    *
-   * Executes AI tool calls within a single atomic Yjs transaction.
-   * Implements idempotency checking to prevent duplicate execution.
+   * NEW: Uses Agent architecture with LangSmith tracing.
+   * The Agent handles:
+   * - Prompt → tool call generation (via Workers AI)
+   * - Tool execution (atomic Yjs transaction)
+   * - Memory and context management
+   * - LangSmith observability
    *
-   * @param params - Command parameters including toolCalls, userId, userName
+   * @param params - Command parameters including prompt, context, userId
    * @returns Result object with success status and affected shape IDs
    */
   async executeAICommand(params: {
     commandId: string;
-    toolCalls: ToolCall[];
+    toolCalls?: ToolCall[]; // Optional: for backward compatibility
     userId: string;
     userName: string;
     prompt: string;
+    selectedShapeIds?: string[];
+    viewportCenter?: { x: number; y: number };
   }): Promise<AICommandResult> {
-    const { commandId, toolCalls, userId, userName, prompt } = params;
+    const { commandId, userId, userName, prompt, selectedShapeIds, viewportCenter } = params;
 
     // Idempotency check: return cached result if command already executed
     const cached = this.commandCache.get(commandId);
     if (cached) {
-      console.log(`[AI] Returning cached result for command ${commandId}`);
+      console.log(`[RoomDO] Returning cached result for command ${commandId}`);
       return cached.result;
     }
 
-    // Validate bounds: limit shapes per command
-    const MAX_SHAPES = 50;
-    const createToolCount = toolCalls.filter(
-      (t) => t.name === "createShape",
-    ).length;
-    if (createToolCount > MAX_SHAPES) {
-      const result: AICommandResult = {
-        success: false,
-        message: `Too many shapes requested: ${createToolCount}. Maximum is ${MAX_SHAPES}.`,
-        error: "Exceeded shape limit",
-        commandId,
-      };
-      this.commandCache.set(commandId, {
-        commandId,
-        result,
-        timestamp: Date.now(),
-      });
-      return result;
-    }
-
     try {
-      const shapesCreated: string[] = [];
-      const shapesAffected: string[] = [];
-      const toolResults: ToolResult[] = [];
+      let result: AICommandResult;
 
-      // Execute all tools within a single Yjs transaction (atomic)
-      this.doc.transact(() => {
-        for (const toolCall of toolCalls) {
-          const result = dispatchTool(this.doc, toolCall, userId);
-          toolResults.push(result);
-
-          if (result.success) {
-            // Prefer shapeIds array over single shapeId to avoid duplicates
-            if (result.shapeIds && result.shapeIds.length > 0) {
-              // Use shapeIds array (handles multiple shapes and single shape)
-              if (toolCall.name === "createShape") {
-                shapesCreated.push(...result.shapeIds);
-              }
-              shapesAffected.push(...result.shapeIds);
-            } else if (result.shapeId) {
-              // Fallback to single shapeId (for tools that don't return shapeIds array)
-              if (toolCall.name === "createShape") {
-                shapesCreated.push(result.shapeId);
-              }
-              shapesAffected.push(result.shapeId);
-            }
-          }
-        }
-
-        // Append to AI history within same transaction
-        const aiHistory = this.doc.getArray("aiHistory");
-
-        // Build a better response message
-        let responseMessage = "";
-        if (shapesCreated.length > 0) {
-          responseMessage = `Created ${shapesCreated.length} shape${shapesCreated.length > 1 ? "s" : ""}`;
-        } else if (toolResults.length > 0) {
-          responseMessage = toolResults.map((r) => r.message).join("; ");
-        } else {
-          responseMessage = "No operations performed";
-        }
-
-        const historyEntry = {
-          id: commandId,
+      // If toolCalls provided (backward compatibility), use legacy path
+      if (params.toolCalls && params.toolCalls.length > 0) {
+        console.log("[RoomDO] Using legacy tool execution path");
+        result = await this.executeLegacyToolCalls({
+          commandId,
+          toolCalls: params.toolCalls,
           userId,
           userName,
           prompt,
-          response: responseMessage,
-          timestamp: Date.now(),
-          shapesAffected,
-          success: toolResults.every((r) => r.success),
-          error: toolResults.find((r) => !r.success)?.error,
-        };
+        });
+      } else {
+        // NEW: Use Agent architecture
+        console.log("[RoomDO] Using Agent architecture with LangSmith tracing");
+        
+        // Get room ID from DO name (assumes format like "room:main")
+        const roomId = this.state.id.name || "unknown";
+        
+        // Execute command via Agent (atomic transaction happens inside)
+        result = await this.doc.transact(async () => {
+          const agentResult = await this.agent.executeCommand(
+            this.doc,
+            this.workerEnv.AI,
+            commandId,
+            prompt,
+            {
+              userId,
+              userName,
+              selectedShapeIds,
+              viewportCenter,
+            },
+            roomId,
+          );
 
-        aiHistory.push([historyEntry]);
+          // Append to AI history within same transaction
+          const aiHistory = this.doc.getArray("aiHistory");
+          const historyEntry = {
+            id: commandId,
+            userId,
+            userName,
+            prompt,
+            response: agentResult.message,
+            timestamp: Date.now(),
+            shapesAffected: agentResult.shapesAffected || [],
+            success: agentResult.success,
+            error: agentResult.error,
+          };
 
-        // Prune history to last 100 entries
-        if (aiHistory.length > 100) {
-          aiHistory.delete(0, aiHistory.length - 100);
-        }
-      });
+          aiHistory.push([historyEntry]);
 
-      const result: AICommandResult = {
-        success: true,
-        message: `Executed ${toolCalls.length} AI tools successfully`,
-        shapesCreated,
-        shapesAffected,
-        commandId,
-      };
+          // Prune history to last 100 entries
+          if (aiHistory.length > 100) {
+            aiHistory.delete(0, aiHistory.length - 100);
+          }
+
+          return agentResult;
+        });
+      }
 
       // Cache result for idempotency
       this.commandCache.set(commandId, {
@@ -287,12 +288,13 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
 
       return result;
     } catch (error) {
-      console.error("[AI] executeAICommand error:", error);
+      console.error("[RoomDO] executeAICommand error:", error);
       const result: AICommandResult = {
         success: false,
         message: "Failed to execute AI command",
         error: error instanceof Error ? error.message : "Unknown error",
         commandId,
+        toolCallsCount: 0,
       };
       this.commandCache.set(commandId, {
         commandId,
@@ -301,6 +303,99 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
       });
       return result;
     }
+  }
+
+  /**
+   * Legacy tool execution path (for backward compatibility)
+   * Used when toolCalls are provided directly (old API)
+   */
+  private async executeLegacyToolCalls(params: {
+    commandId: string;
+    toolCalls: ToolCall[];
+    userId: string;
+    userName: string;
+    prompt: string;
+  }): Promise<AICommandResult> {
+    const { commandId, toolCalls, userId, userName, prompt } = params;
+
+    // Validate bounds: limit shapes per command
+    const MAX_SHAPES = 50;
+    const createToolCount = toolCalls.filter(
+      (t) => t.name === "createShape",
+    ).length;
+    if (createToolCount > MAX_SHAPES) {
+      return {
+        success: false,
+        message: `Too many shapes requested: ${createToolCount}. Maximum is ${MAX_SHAPES}.`,
+        error: "Exceeded shape limit",
+        commandId,
+        toolCallsCount: toolCalls.length,
+      };
+    }
+
+    const shapesCreated: string[] = [];
+    const shapesAffected: string[] = [];
+    const toolResults: ToolResult[] = [];
+
+    // Execute all tools within a single Yjs transaction (atomic)
+    this.doc.transact(() => {
+      for (const toolCall of toolCalls) {
+        const result = dispatchTool(this.doc, toolCall, userId);
+        toolResults.push(result);
+
+        if (result.success) {
+          if (result.shapeIds && result.shapeIds.length > 0) {
+            if (toolCall.name === "createShape") {
+              shapesCreated.push(...result.shapeIds);
+            }
+            shapesAffected.push(...result.shapeIds);
+          } else if (result.shapeId) {
+            if (toolCall.name === "createShape") {
+              shapesCreated.push(result.shapeId);
+            }
+            shapesAffected.push(result.shapeId);
+          }
+        }
+      }
+
+      // Append to AI history within same transaction
+      const aiHistory = this.doc.getArray("aiHistory");
+      let responseMessage = "";
+      if (shapesCreated.length > 0) {
+        responseMessage = `Created ${shapesCreated.length} shape${shapesCreated.length > 1 ? "s" : ""}`;
+      } else if (toolResults.length > 0) {
+        responseMessage = toolResults.map((r) => r.message).join("; ");
+      } else {
+        responseMessage = "No operations performed";
+      }
+
+      const historyEntry = {
+        id: commandId,
+        userId,
+        userName,
+        prompt,
+        response: responseMessage,
+        timestamp: Date.now(),
+        shapesAffected,
+        success: toolResults.every((r) => r.success),
+        error: toolResults.find((r) => !r.success)?.error,
+      };
+
+      aiHistory.push([historyEntry]);
+
+      if (aiHistory.length > 100) {
+        aiHistory.delete(0, aiHistory.length - 100);
+      }
+    });
+
+    return {
+      success: toolResults.every((r) => r.success),
+      message: `Executed ${toolCalls.length} AI tools successfully`,
+      shapesCreated,
+      shapesAffected,
+      commandId,
+      toolCallsCount: toolCalls.length,
+    };
   }
 }
 

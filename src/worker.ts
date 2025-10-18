@@ -371,83 +371,41 @@ async function handleAICommand(
     }
   }
 
-  try {
-    // Call Workers AI to generate tool calls from natural language
-    const toolCalls = await generateToolCallsWithAI(
-      env.AI,
-      prompt,
-      body.context ?? {},
-    );
+    try {
+      // NEW: Use Agent architecture - DO handles everything
+      // No longer generate tool calls in Worker, Agent handles it with LangSmith tracing
+      
+      // Get Durable Object stub and execute command via RPC
+      const id = env.RoomDO.idFromName(roomId);
+      const stub = env.RoomDO.get(id);
 
-    if (toolCalls.length === 0) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error:
-            "Could not understand command. Try something like 'create a red rectangle at 100, 200'",
-        }),
-        {
-          status: 400,
-          headers: { "content-type": "application/json" },
-        },
-      );
-    }
+      const result = await stub.executeAICommand({
+        commandId,
+        userId,
+        userName,
+        prompt,
+        selectedShapeIds: body.context?.selectedShapeIds,
+        viewportCenter: body.context?.viewportCenter,
+      });
 
-    // Log tool calls for debugging
-    console.log(
-      `[AI] Generated ${toolCalls.length} tool calls:`,
-      toolCalls.map(
-        (t) => `${t.name}(${JSON.stringify(t.parameters).slice(0, 100)})`,
-      ),
-    );
-
-    // Validate tool calls BEFORE execution
-    const validation = validateToolCalls(toolCalls);
-    if (!validation.valid) {
-      console.warn("[AI] Validation failed:", validation.errors);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: validation.errors.join("; "),
-          message: "AI generated invalid commands",
-        }),
-        {
-          status: 400,
-          headers: { "content-type": "application/json" },
-        },
-      );
-    }
-
-    // Get Durable Object stub and execute command via RPC
-    const id = env.RoomDO.idFromName(roomId);
-    const stub = env.RoomDO.get(id);
-
-    const result = await stub.executeAICommand({
-      commandId,
-      toolCalls,
-      userId,
-      userName,
-      prompt,
-    });
-
-    return new Response(JSON.stringify(result), {
-      status: result.success ? 200 : 500,
-      headers: { "content-type": "application/json" },
-    });
-  } catch (error) {
-    console.error("[AI Command] Error:", error);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: "Failed to execute AI command",
-        message: error instanceof Error ? error.message : "Unknown error",
-      }),
-      {
-        status: 500,
+      return new Response(JSON.stringify(result), {
+        status: result.success ? 200 : 500,
         headers: { "content-type": "application/json" },
-      },
-    );
-  }
+      });
+    } catch (error) {
+      console.error("[AI Command] Error:", error);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Failed to execute AI command",
+          message: error instanceof Error ? error.message : "Unknown error",
+        }),
+        {
+          status: 500,
+          headers: { "content-type": "application/json" },
+        },
+      );
+    }
 }
 
 /**
