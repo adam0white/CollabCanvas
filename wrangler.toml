@@ -35,8 +35,3 @@ new_sqlite_classes = ["AIAgent"]
 
 [vars]
 CLERK_PUBLISHABLE_KEY = "pk_live_Y2xlcmsuYWRhbXdoaXRlLndvcmsk"
-# AI Gateway Configuration
-# Gateway ID: "aw-cf-ai" (existing gateway)
-# Note: CF_ACCOUNT_ID should be set via wrangler secret or env var
-# AI_GATEWAY_ID will default to "aw-cf-ai" if not set
-AI_GATEWAY_ID = "aw-cf-ai"

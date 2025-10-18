@@ -516,12 +516,5 @@ Positions: center=${centerX},${centerY}, left=${centerX - 300}, right=${centerX 
     if (!storage) return;
 
     await storage.put(`command:${commandId}`, result);
-
-    // Clean up old cache entries (keep last 50)
-    const keys = await storage.list({ prefix: "command:" });
-    if (keys.size > 50) {
-      const keysToDelete = Array.from(keys.keys()).slice(0, keys.size - 50);
-      await storage.delete(keysToDelete);
-    }
   }
 }
