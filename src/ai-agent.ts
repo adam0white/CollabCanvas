@@ -18,6 +18,9 @@ import { Agent } from "agents";
 import type { ToolCall } from "./ai-tools";
 import { AI_TOOLS } from "./ai-tools";
 
+// Import Env type from generated worker configuration
+/// <reference path="../worker-configuration.d.ts" />
+
 /**
  * AIAgent - Handles AI commands for canvas manipulation
  *
@@ -153,7 +156,7 @@ export class AIAgent extends Agent {
       console.log(`[AIAgent] Executing commands for room: ${roomId}`);
 
       // Type assertion needed because Agent base class env type is unknown
-      const env = this.env as Env;
+      const env = this.env as Cloudflare.Env;
 
       if (!env.RoomDO) {
         console.error("[AIAgent] ✗ RoomDO binding not found in env");
@@ -253,7 +256,7 @@ Example: {shapes:[{type:"circle",x:100,y:200,radius:50,fill:"#FF0000"}]}`;
         systemPrompt = `Canvas 2000x2000px. Center: ${centerX},${centerY}. Shapes: rectangle, circle, text. Colors: hex format.`;
       }
 
-      const env = this.env as Env;
+      const env = this.env as Cloudflare.Env;
       const ai = env.AI;
 
       // Call Workers AI through AI Gateway
