@@ -46,6 +46,7 @@
   },
   "dependencies": {
     "@clerk/backend": "^2.18.0",
+    "agents": "^0.2.14",
     "y-durableobjects": "^1.0.5",
     "y-protocols": "^1.0.6",
     "y-websocket": "^3.0.0",

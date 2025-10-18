@@ -1097,7 +1097,7 @@ export function getCanvasState(
 
 export type ToolCall = {
   name: string;
-  parameters: unknown;
+  parameters: Record<string, unknown>;
 };
 
 export function dispatchTool(
