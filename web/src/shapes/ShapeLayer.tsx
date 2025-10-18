@@ -201,10 +201,11 @@ export function ShapeLayer({
 
     const now = performance.now();
     // Use aggressive throttling for large selections (30+ shapes)
-    const throttleMs = selectedShapeIds.length >= 30 
-      ? THROTTLE.TRANSFORM_MS_LARGE_SELECTION 
-      : THROTTLE.TRANSFORM_MS;
-    
+    const throttleMs =
+      selectedShapeIds.length >= 30
+        ? THROTTLE.TRANSFORM_MS_LARGE_SELECTION
+        : THROTTLE.TRANSFORM_MS;
+
     if (now - lastTransformUpdateRef.current < throttleMs) {
       return;
     }

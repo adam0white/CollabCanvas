@@ -21,7 +21,9 @@ test.describe("Canvas Interactions", () => {
   test.describe("Pan & Zoom", () => {
     test("mouse wheel zooms in and out", async ({ authenticatedPage }) => {
       const canvas = await getCanvas(authenticatedPage);
-      const zoomButton = authenticatedPage.locator('button[class*="zoomButton"]').nth(1);
+      const zoomButton = authenticatedPage
+        .locator('button[class*="zoomButton"]')
+        .nth(1);
 
       // Get initial zoom
       const initialZoom = await zoomButton.textContent();
@@ -41,9 +43,13 @@ test.describe("Canvas Interactions", () => {
     });
 
     test("zoom controls buttons work", async ({ authenticatedPage }) => {
-      const zoomButton = authenticatedPage.locator('button[class*="zoomButton"]').nth(1);
+      const zoomButton = authenticatedPage
+        .locator('button[class*="zoomButton"]')
+        .nth(1);
       const zoomInButton = authenticatedPage.getByRole("button", { name: "+" });
-      const zoomOutButton = authenticatedPage.getByRole("button", { name: "−" });
+      const zoomOutButton = authenticatedPage.getByRole("button", {
+        name: "−",
+      });
 
       const initialZoom = await zoomButton.textContent();
 
@@ -62,7 +68,9 @@ test.describe("Canvas Interactions", () => {
     });
 
     test("reset zoom button returns to 100%", async ({ authenticatedPage }) => {
-      const zoomButton = authenticatedPage.locator('button[class*="zoomButton"]').nth(1);
+      const zoomButton = authenticatedPage
+        .locator('button[class*="zoomButton"]')
+        .nth(1);
       const zoomInButton = authenticatedPage.getByRole("button", { name: "+" });
 
       // Zoom in multiple times

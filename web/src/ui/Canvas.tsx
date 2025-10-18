@@ -654,7 +654,7 @@ export function Canvas({
         // Override default color with selected color
         rect.fill = defaultFillColor;
         createShape(rect);
-        
+
         // Auto-select the newly created shape
         setSelectedShapeIds([rect.id]);
       }
@@ -677,7 +677,7 @@ export function Canvas({
         // Override default color with selected color
         circle.fill = defaultFillColor;
         createShape(circle);
-        
+
         // Auto-select the newly created shape
         setSelectedShapeIds([circle.id]);
       }
@@ -744,7 +744,7 @@ export function Canvas({
   // Handle text input submission
   const handleTextSubmit = () => {
     const trimmedText = textInput.trim();
-    
+
     if (trimmedText) {
       // Only create/update if there's actual text
       if (editingTextShapeId) {
@@ -762,7 +762,7 @@ export function Canvas({
         );
         text.fill = defaultFillColor;
         createShape(text);
-        
+
         // Auto-select the newly created text shape
         setSelectedShapeIds([text.id]);
       }

@@ -171,7 +171,9 @@ test.describe("Edge Cases & Error Handling", () => {
       await waitForSync(guestPage, 1000);
 
       // Try multiple selectors - Clerk modal may render differently
-      const emailInput = guestPage.getByPlaceholder(/enter your email address/i);
+      const emailInput = guestPage.getByPlaceholder(
+        /enter your email address/i,
+      );
       await expect(emailInput).toBeVisible({ timeout: 10000 });
 
       // Close modal

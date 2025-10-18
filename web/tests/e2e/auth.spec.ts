@@ -25,7 +25,9 @@ test.describe("Authentication & Authorization", () => {
     guestPage,
   }) => {
     // Rectangle button should be disabled
-    const rectangleButton = guestPage.getByRole("button", { name: /rectangle/i });
+    const rectangleButton = guestPage.getByRole("button", {
+      name: /rectangle/i,
+    });
     await expect(rectangleButton).toBeDisabled();
     await expect(rectangleButton).toHaveAttribute(
       "title",

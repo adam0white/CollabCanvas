@@ -239,9 +239,11 @@ Example: {shapes:[{type:"circle",x:100,y:200,radius:50,fill:"#FF0000"}]}`;
       // Check total prompt length to avoid truncation
       const totalPromptLength = systemPrompt.length + prompt.length;
       const MAX_SAFE_PROMPT_LENGTH = 1500; // Leave room for response
-      
+
       if (totalPromptLength > MAX_SAFE_PROMPT_LENGTH) {
-        console.warn(`[AIAgent] Prompt too long (${totalPromptLength} chars), truncating context`);
+        console.warn(
+          `[AIAgent] Prompt too long (${totalPromptLength} chars), truncating context`,
+        );
         // Reduce system prompt to essentials
         systemPrompt = `Canvas 2000x2000px. Center: ${centerX},${centerY}. Shapes: rectangle, circle, text. Colors: hex format.`;
       }
@@ -271,7 +273,7 @@ Example: {shapes:[{type:"circle",x:100,y:200,radius:50,fill:"#FF0000"}]}`;
 
       console.log("[AIAgent] ✓ AI response received");
       console.log("[AIAgent] Response type:", typeof response);
-      
+
       // Log response structure for debugging
       if (response && typeof response === "object") {
         console.log("[AIAgent] Response keys:", Object.keys(response));
@@ -335,16 +337,20 @@ Example: {shapes:[{type:"circle",x:100,y:200,radius:50,fill:"#FF0000"}]}`;
           // Or it might be truncated, so we need to handle that
           const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
           if (jsonMatch) {
-            let jsonStr = jsonMatch[0];
-            
+            const jsonStr = jsonMatch[0];
+
             // Check if JSON is truncated (unterminated string/array/object)
             const openBraces = (jsonStr.match(/\{/g) || []).length;
             const closeBraces = (jsonStr.match(/\}/g) || []).length;
             const openBrackets = (jsonStr.match(/\[/g) || []).length;
             const closeBrackets = (jsonStr.match(/\]/g) || []).length;
             const openQuotes = (jsonStr.match(/"/g) || []).length;
-            
-            if (openBraces !== closeBraces || openBrackets !== closeBrackets || openQuotes % 2 !== 0) {
+
+            if (
+              openBraces !== closeBraces ||
+              openBrackets !== closeBrackets ||
+              openQuotes % 2 !== 0
+            ) {
               console.error("[AIAgent] ✗ Response appears truncated:", {
                 openBraces,
                 closeBraces,
@@ -352,7 +358,9 @@ Example: {shapes:[{type:"circle",x:100,y:200,radius:50,fill:"#FF0000"}]}`;
                 closeBrackets,
                 openQuotes,
               });
-              throw new Error("AI response was truncated. Try a simpler prompt.");
+              throw new Error(
+                "AI response was truncated. Try a simpler prompt.",
+              );
             }
 
             const parsed = JSON.parse(jsonStr);
@@ -405,10 +413,16 @@ Example: {shapes:[{type:"circle",x:100,y:200,radius:50,fill:"#FF0000"}]}`;
             "[AIAgent] Failed to parse JSON from text:",
             parseError,
           );
-          console.error("[AIAgent] Partial response:", textResponse?.substring(0, 200));
-          
+          console.error(
+            "[AIAgent] Partial response:",
+            textResponse?.substring(0, 200),
+          );
+
           // Provide helpful error message
-          if (parseError instanceof SyntaxError && parseError.message.includes("Unterminated")) {
+          if (
+            parseError instanceof SyntaxError &&
+            parseError.message.includes("Unterminated")
+          ) {
             throw new Error(
               "AI response was incomplete (truncated). Please try a simpler command with fewer shapes.",
             );
@@ -424,15 +438,19 @@ Example: {shapes:[{type:"circle",x:100,y:200,radius:50,fill:"#FF0000"}]}`;
       return [];
     } catch (error) {
       console.error("[AIAgent] AI call failed:", error);
-      
+
       // Provide user-friendly error messages
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes("truncated") || errorMessage.includes("Unterminated")) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      if (
+        errorMessage.includes("truncated") ||
+        errorMessage.includes("Unterminated")
+      ) {
         throw new Error(
           "AI response was incomplete. Try a simpler command with fewer shapes (max 20 shapes per command recommended).",
         );
       }
-      
+
       throw new Error(`AI inference failed: ${errorMessage}`);
     }
   }
@@ -587,7 +605,7 @@ Example: {shapes:[{type:"circle",x:100,y:200,radius:50,fill:"#FF0000"}]}`;
             lastName?: string;
             email?: string;
           };
-          
+
           let userName = "";
           if (payload.firstName || payload.lastName) {
             userName = [payload.firstName, payload.lastName]
@@ -599,19 +617,22 @@ Example: {shapes:[{type:"circle",x:100,y:200,radius:50,fill:"#FF0000"}]}`;
             // Use part before @ from email
             userName = payload.email.split("@")[0];
           }
-          
+
           // Fallback to truncated userId if no name found
           if (!userName) {
             userName = `User ${payload.sub.slice(0, 8)}`;
           }
-          
+
           return {
             userId: payload.sub,
             userName,
           };
         }
       } catch (error) {
-        console.warn("[AIAgent] Failed to extract user info from token:", error);
+        console.warn(
+          "[AIAgent] Failed to extract user info from token:",
+          error,
+        );
         // Continue with anonymous
       }
     }

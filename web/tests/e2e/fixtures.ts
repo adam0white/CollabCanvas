@@ -40,6 +40,7 @@ export const test = base.extend<TestFixtures>({
   /**
    * Unique room ID for each test
    */
+  // biome-ignore lint/correctness/noEmptyPattern: Playwright fixture pattern requires empty object
   roomId: async ({}, use) => {
     const roomId = generateRoomId();
     await use(roomId);

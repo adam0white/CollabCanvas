@@ -105,7 +105,9 @@ test.describe("Bug Fix Regression Tests", () => {
       await waitForSync(guestPage, 100);
 
       // Get initial zoom button text
-      const zoomButton = guestPage.locator('button[class*="zoomButton"]').nth(1);
+      const zoomButton = guestPage
+        .locator('button[class*="zoomButton"]')
+        .nth(1);
       const initialZoom = await zoomButton.textContent();
 
       // Try to pan by clicking and dragging (left mouse for guests)
@@ -312,9 +314,7 @@ test.describe("Bug Fix Regression Tests", () => {
       await waitForSync(authenticatedPage, 500);
 
       // Focus AI input
-      const aiInput = authenticatedPage.getByPlaceholder(
-        /ask ai to create/i,
-      );
+      const aiInput = authenticatedPage.getByPlaceholder(/ask ai to create/i);
       await aiInput.click();
       await waitForSync(authenticatedPage, 100);
 

@@ -14,20 +14,23 @@ type ToolbarProps = {
   onDefaultColorChange?: (color: string) => void;
 };
 
-export function Toolbar({ 
-  className, 
+export function Toolbar({
+  className,
   defaultColor = "#38bdf8",
-  onDefaultColorChange 
+  onDefaultColorChange,
 }: ToolbarProps): React.JSX.Element {
   const { activeTool, setActiveTool } = useToolbar();
   const { isSignedIn } = useAuth();
   const { canUndo, canRedo, undo, redo } = useUndoRedo();
   const { shapes, updateShape, canEdit } = useShapes();
   const { selectedShapeIds } = useSelection();
-  const [internalDefaultColor, setInternalDefaultColor] = useState(defaultColor);
+  const [internalDefaultColor, setInternalDefaultColor] =
+    useState(defaultColor);
 
   // Use controlled or uncontrolled mode for default color
-  const currentDefaultColor = onDefaultColorChange ? defaultColor : internalDefaultColor;
+  const currentDefaultColor = onDefaultColorChange
+    ? defaultColor
+    : internalDefaultColor;
 
   // Get current color of selected shapes, default color, or "mixed"
   const getCurrentColor = (): string | "mixed" => {
