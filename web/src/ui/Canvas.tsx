@@ -26,11 +26,13 @@ const ZOOM_SPEED = 1.1;
 type CanvasProps = {
   presence: Map<number, PresenceState>;
   setPresence: (state: Partial<PresenceState>) => void;
+  defaultFillColor?: string;
 };
 
 export function Canvas({
   presence,
   setPresence,
+  defaultFillColor: propDefaultFillColor = "#38bdf8",
 }: CanvasProps): React.JSX.Element {
   const stageRef = useRef<Konva.Stage | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -91,8 +93,8 @@ export function Canvas({
   const [clipboard, setClipboard] = useState<Shape[]>([]);
   const [pasteCount, setPasteCount] = useState(0);
 
-  // State for default fill color (used when creating new shapes)
-  const [defaultFillColor] = useState("#38bdf8");
+  // Use prop for default fill color (controlled by App.tsx via Toolbar)
+  const defaultFillColor = propDefaultFillColor;
 
   // Update locks when selection changes
   useEffect(() => {

@@ -8,7 +8,7 @@
  * - Real-time updates for all users
  */
 
-import { useAuth } from "@clerk/clerk-react";
+import { useAuth, useUser } from "@clerk/clerk-react";
 import { useCallback, useEffect, useState } from "react";
 import { AI } from "../config/constants";
 import { useYDoc } from "../yjs/client";
@@ -50,6 +50,7 @@ type AIContext = {
 export function useAI(): UseAIReturn {
   const doc = useYDoc();
   const { isSignedIn, getToken } = useAuth();
+  const { user } = useUser();
   const [history, setHistory] = useState<AIHistoryEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -108,6 +109,9 @@ export function useAI(): UseAIReturn {
         const roomId =
           new URL(window.location.href).searchParams.get("roomId") ?? "main";
 
+        // Get user's display name (same logic as usePresence)
+        const userName = user?.fullName || user?.username || user?.primaryEmailAddress?.emailAddress || "User";
+
         // Send command to backend
         const response = await fetch(`/c/${roomId}/ai-command`, {
           method: "POST",
@@ -118,6 +122,7 @@ export function useAI(): UseAIReturn {
           body: JSON.stringify({
             prompt,
             context,
+            userName,
           }),
           signal: AbortSignal.timeout(AI.COMMAND_TIMEOUT_MS),
         });

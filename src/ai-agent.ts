@@ -63,6 +63,7 @@ export class AIAgent extends Agent {
     // Parse and validate request body
     let body: {
       prompt?: string;
+      userName?: string;
       context?: {
         selectedShapeIds?: string[];
         viewportCenter?: { x: number; y: number };
@@ -102,8 +103,10 @@ export class AIAgent extends Agent {
     // Generate unique command ID
     const commandId = crypto.randomUUID();
 
-    // Get user info from JWT
-    const { userId, userName } = await this.getUserInfo(request);
+    // Get user info - prefer userName from request body (set by frontend with full user data)
+    // Fall back to JWT extraction if not provided
+    const { userId, userName: jwtUserName } = await this.getUserInfo(request);
+    const userName = body.userName || jwtUserName;
 
     try {
       // Check idempotency in Agent state

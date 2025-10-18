@@ -157,6 +157,20 @@ export function Toolbar({
         onColorChange={handleColorChange}
         disabled={!canEdit && !isSignedIn}
       />
+
+      <div className={styles.toolDivider} />
+      <button
+        type="button"
+        className={styles.toolButton}
+        onClick={() => {
+          // Trigger keyboard shortcut to open help panel
+          window.dispatchEvent(new KeyboardEvent("keydown", { key: "?" }));
+        }}
+        title="Keyboard shortcuts (press ?)"
+      >
+        <span aria-hidden>❓</span>
+        Help
+      </button>
     </nav>
   );
 }
