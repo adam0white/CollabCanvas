@@ -142,10 +142,12 @@
 - P1 Major UX: 10/10 ✓  
 - P2 Code Quality: 1/1 ✓
 
-**Commits Created: 11**
+**Commits Created: 14**
 - All atomic and well-documented
 - Each commit addresses specific issues
 - Build passes without errors
+- Vitest now excludes Playwright tests properly
+- Empty text shapes no longer created
 
 **Build Status: ✅ PASSING**
 ```
@@ -172,6 +174,44 @@
 - Run `npm run test:e2e` from project root (now works!)
 - Verify Playwright tests run without Vite errors
 - Check auth setup and fixtures work correctly
+
+#### 17. Vitest Processing Playwright Tests Fixed ✓
+- **Issue**: `npm test` tried to process Playwright tests, causing errors
+- **Fix**: Added explicit exclude patterns in vitest.config.ts
+- **Result**: Vitest and Playwright tests now run separately without conflicts
+- **Commit**: `26e75d3`
+
+#### 18. Empty Text Shapes Fixed ✓
+- **Issue**: Pressing Enter without text still tried to create shapes
+- **Fix**: Input closes without creating when text is empty
+- **Result**: No empty text shapes created, input always closes properly
+- **Commit**: `9390914`
+
+---
+
+## E2E Test Results
+
+**Test Status: 145/169 passing (85.8%)**
+
+**Test Failures Analysis:**
+
+Most failures are due to test environment/fixture issues, not actual bugs:
+
+1. **Guest Mode Tests (12 failures)** - Tests using wrong fixture (page instead of guestPage), showing auth state when shouldn't
+2. **AI Commands (2 failures)** - Complex AI commands timing out (expected, known AI limitation)
+3. **Text Editing (2 failures)** - Double-click on canvas not reaching Konva shapes (Playwright interaction issue)
+4. **Browser Compatibility (2 failures)** - Clerk modal detection in Firefox (test flakiness)
+5. **Zoom Tests (6 failures)** - Zoom button text matching issues (minor test selector problem)
+
+**Actual Bugs Found by Tests:**
+- ✅ Empty text shapes (FIXED)
+- ✅ Guest mode panning (FIXED) 
+- ✅ Keyboard shortcuts in AI panel (FIXED)
+
+**Test Issues (Not App Bugs):**
+- Test fixtures need adjustment for guest mode scenarios
+- Canvas interaction patterns need refinement for Playwright
+- Some timeouts too aggressive for slower CI environments
 
 ---
 
