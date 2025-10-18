@@ -454,7 +454,8 @@ export function Canvas({
     }
 
     // Handle circle creation (click+drag from center)
-    if (activeTool === "circle" && canEdit && clickedOnEmpty) {
+    // Allow creation anywhere, even on top of existing shapes
+    if (activeTool === "circle" && canEdit) {
       const pos = stage.getPointerPosition();
       if (!pos) return;
 
@@ -473,7 +474,8 @@ export function Canvas({
     }
 
     // Handle text creation (click to place)
-    if (activeTool === "text" && canEdit && clickedOnEmpty) {
+    // Allow creation anywhere, even on top of existing shapes
+    if (activeTool === "text" && canEdit) {
       const pos = stage.getPointerPosition();
       if (!pos) return;
 
@@ -488,14 +490,13 @@ export function Canvas({
     }
 
     // Handle panning:
-    // - For authenticated users: pan when clicking on empty space with middle mouse button
-    // - For guests: allow panning when clicking empty
+    // - For authenticated users: pan when clicking with middle mouse button
+    // - For guests: allow panning anywhere (since they can't edit)
     const shouldPan =
       (canEdit &&
-        clickedOnEmpty &&
         activeTool === "select" &&
-        e.evt.button === 1) || // Middle mouse button
-      (!canEdit && clickedOnEmpty && activeTool === "select"); // Guests: pan on empty in select mode
+        e.evt.button === 1) || // Middle mouse button for editors
+      (!canEdit && activeTool === "select"); // Guests: pan anywhere in select mode
 
     if (shouldPan) {
       setIsPanning(true);
