@@ -14,16 +14,29 @@ directory = "web/dist"
 
 [ai]
 binding = "AI"
-remote = true
+# AI Gateway configuration
+# Gateway proxies all AI requests for observability, caching, and cost tracking
+# Gateway "aw-cf-ai" should already exist in Cloudflare dashboard
+gateway_id = "aw-cf-ai"
 
 [durable_objects]
 bindings = [
-  { name = "RoomDO", class_name = "RoomDO" }
+  { name = "RoomDO", class_name = "RoomDO" },
+  { name = "AIAgent", class_name = "AIAgent" }
 ]
 
 [[migrations]]
 tag = "v1"
 new_classes = ["RoomDO"]
 
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["AIAgent"]
+
 [vars]
 CLERK_PUBLISHABLE_KEY = "pk_live_Y2xlcmsuYWRhbXdoaXRlLndvcmsk"
+# AI Gateway Configuration
+# Gateway ID: "aw-cf-ai" (existing gateway)
+# Note: CF_ACCOUNT_ID should be set via wrangler secret or env var
+# AI_GATEWAY_ID will default to "aw-cf-ai" if not set
+AI_GATEWAY_ID = "aw-cf-ai"

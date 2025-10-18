@@ -8,6 +8,7 @@
  * - Security headers (CSP, X-Frame-Options, etc.)
  */
 
+export { AIAgent } from "./ai-agent";
 export { RoomDO } from "./room-do";
 
 import { verifyToken } from "@clerk/backend";
@@ -53,7 +54,8 @@ function addSecurityHeaders(response: Response): Response {
 export default {
   async fetch(
     request: Request,
-    env: Env,
+    // biome-ignore lint/suspicious/noExplicitAny: Env type from worker-configuration.d.ts - TypeScript has issues with Worker type generation
+    env: Env | any,
     ctx: ExecutionContext,
   ): Promise<Response> {
     const url = new URL(request.url);
@@ -77,10 +79,10 @@ export default {
       );
     }
 
-    // Handle AI command route: POST /c/:roomId/ai-command
+    // Handle AI command route via AIAgent: POST /c/:roomId/ai-command
     const aiCommandRoute = parseAICommandRoute(url);
     if (aiCommandRoute && request.method === "POST") {
-      return handleAICommand(request, env, ctx, aiCommandRoute.roomId);
+      return handleAICommandViaAgent(request, env, ctx, aiCommandRoute.roomId);
     }
 
     // Handle WebSocket routes
@@ -152,7 +154,8 @@ export default {
  */
 async function authorizeRequest(
   request: Request,
-  env: Env,
+  // biome-ignore lint/suspicious/noExplicitAny: Env type from worker-configuration.d.ts
+  env: Env | any,
   _ctx: ExecutionContext,
 ): Promise<"editor" | "viewer"> {
   const clerkSecretKey = env.CLERK_SECRET_KEY;
@@ -271,15 +274,67 @@ function parseAICommandRoute(url: URL): { roomId: string } | null {
 }
 
 /**
- * Handles AI command execution
- * 1. Verify JWT (editors only)
- * 2. Validate and sanitize input
- * 3. Call Workers AI for tool generation
- * 4. Execute tools via RPC to Durable Object
+ * Routes AI command to AIAgent (Cloudflare Agents architecture)
+ *
+ * This replaces the direct handleAICommand implementation with
+ * Agent-based routing for better state management and observability.
+ *
+ * Benefits of Agent architecture:
+ * - Built-in state management for idempotency
+ * - AI Gateway integration for observability and caching
+ * - Better separation of concerns
+ * - Automatic hibernation when idle
  */
-async function handleAICommand(
+async function handleAICommandViaAgent(
   request: Request,
-  env: Env,
+  // biome-ignore lint/suspicious/noExplicitAny: Env type from worker-configuration.d.ts
+  env: Env | any,
+  _ctx: ExecutionContext,
+  roomId: string,
+): Promise<Response> {
+  try {
+    // Get or create AIAgent instance for this room
+    // Using idFromName ensures each room gets its own Agent instance
+    const agentId = env.AIAgent.idFromName(roomId);
+    const agent = env.AIAgent.get(agentId);
+
+    // Forward request to Agent's onRequest handler
+    // The Agent will handle auth, validation, AI calls, and RoomDO integration
+    const agentUrl = new URL(request.url);
+    agentUrl.pathname = "/ai-command";
+
+    const agentRequest = new Request(agentUrl.toString(), {
+      method: request.method,
+      headers: request.headers,
+      body: request.body,
+    });
+
+    return agent.fetch(agentRequest);
+  } catch (error) {
+    console.error("[Worker] AIAgent routing error:", error);
+    return Response.json(
+      {
+        success: false,
+        error: "Failed to route to AI Agent",
+        message: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 },
+    );
+  }
+}
+
+/**
+ * Legacy AI command handler - DEPRECATED
+ *
+ * Kept for reference. New implementation uses handleAICommandViaAgent.
+ * This function handles AI command execution directly without Agent architecture.
+ *
+ * @deprecated Use handleAICommandViaAgent instead
+ */
+async function _handleAICommandLegacy(
+  request: Request,
+  // biome-ignore lint/suspicious/noExplicitAny: Env type from worker-configuration.d.ts
+  env: Env | any,
   ctx: ExecutionContext,
   roomId: string,
 ): Promise<Response> {
