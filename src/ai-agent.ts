@@ -568,6 +568,7 @@ Example: {shapes:[{type:"circle",x:100,y:200,radius:50,fill:"#FF0000"}]}`;
 
   /**
    * Get user info from JWT
+   * Extracts userId and userName from Clerk JWT payload
    */
   private async getUserInfo(
     request: Request,
@@ -583,14 +584,40 @@ Example: {shapes:[{type:"circle",x:100,y:200,radius:50,fill:"#FF0000"}]}`;
           secretKey: clerkSecretKey,
         });
         if (jwtPayload?.sub) {
+          // Clerk JWT may contain: firstName, lastName, email, username
+          // Try multiple fields to get a good display name
+          const payload = jwtPayload as {
+            sub: string;
+            username?: string;
+            firstName?: string;
+            lastName?: string;
+            email?: string;
+          };
+          
+          let userName = "";
+          if (payload.firstName || payload.lastName) {
+            userName = [payload.firstName, payload.lastName]
+              .filter(Boolean)
+              .join(" ");
+          } else if (payload.username) {
+            userName = payload.username;
+          } else if (payload.email) {
+            // Use part before @ from email
+            userName = payload.email.split("@")[0];
+          }
+          
+          // Fallback to truncated userId if no name found
+          if (!userName) {
+            userName = `User ${payload.sub.slice(0, 8)}`;
+          }
+          
           return {
-            userId: jwtPayload.sub,
-            userName:
-              (jwtPayload as { username?: string }).username ??
-              `User ${jwtPayload.sub.slice(0, 8)}`,
+            userId: payload.sub,
+            userName,
           };
         }
-      } catch {
+      } catch (error) {
+        console.warn("[AIAgent] Failed to extract user info from token:", error);
         // Continue with anonymous
       }
     }
