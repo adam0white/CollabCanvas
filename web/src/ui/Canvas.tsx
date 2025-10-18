@@ -91,6 +91,9 @@ export function Canvas({
   const [clipboard, setClipboard] = useState<Shape[]>([]);
   const [pasteCount, setPasteCount] = useState(0);
 
+  // State for default fill color (used when creating new shapes)
+  const [defaultFillColor, setDefaultFillColor] = useState("#38bdf8");
+
   // Update locks when selection changes
   useEffect(() => {
     if (canEdit) {
@@ -638,7 +641,7 @@ export function Canvas({
         const normalizedWidth = Math.abs(width);
         const normalizedHeight = Math.abs(height);
 
-        // Create the rectangle shape
+        // Create the rectangle shape with current default color
         const rect = createRectangle(
           x,
           y,
@@ -646,7 +649,12 @@ export function Canvas({
           normalizedHeight,
           "user",
         );
+        // Override default color with selected color
+        rect.fill = defaultFillColor;
         createShape(rect);
+        
+        // Auto-select the newly created shape
+        setSelectedShapeIds([rect.id]);
       }
 
       // Reset drawing state
@@ -664,7 +672,12 @@ export function Canvas({
           newCircle.radius,
           "user",
         );
+        // Override default color with selected color
+        circle.fill = defaultFillColor;
         createShape(circle);
+        
+        // Auto-select the newly created shape
+        setSelectedShapeIds([circle.id]);
       }
 
       // Reset drawing state
@@ -732,15 +745,21 @@ export function Canvas({
       if (editingTextShapeId) {
         // Update existing text shape
         updateShape(editingTextShapeId, { text: textInput });
+        // Keep the edited shape selected
+        setSelectedShapeIds([editingTextShapeId]);
       } else if (textPosition) {
-        // Create new text shape
+        // Create new text shape with default color
         const text = createText(
           textPosition.x,
           textPosition.y,
           textInput,
           "user",
         );
+        text.fill = defaultFillColor;
         createShape(text);
+        
+        // Auto-select the newly created text shape
+        setSelectedShapeIds([text.id]);
       }
     }
     setIsCreatingText(false);
