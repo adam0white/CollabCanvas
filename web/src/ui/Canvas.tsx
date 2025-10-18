@@ -162,14 +162,16 @@ export function Canvas({
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Check if user is typing in an input field or text area
+      // Check if user is typing in an input field, text area, or AI panel
       const target = e.target as HTMLElement;
       const isTyping =
         target instanceof HTMLInputElement ||
         target instanceof HTMLTextAreaElement ||
-        target.isContentEditable;
+        target.isContentEditable ||
+        target.closest('[class*="AIPanel"]') !== null; // Also check if inside AI panel
 
-      // Skip keyboard shortcuts when user is typing in text inputs
+      // Skip keyboard shortcuts when user is typing in text inputs or AI panel
+      // Allow native copy/paste in text fields
       if (isTyping) {
         return;
       }
