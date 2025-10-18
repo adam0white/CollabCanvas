@@ -155,8 +155,10 @@ export class AIAgent extends Agent {
       const roomId = this.getRoomId(request);
       console.log(`[AIAgent] Executing commands for room: ${roomId}`);
 
-      // Type assertion needed because Agent base class env type is unknown
-      const env = this.env as Cloudflare.Env;
+      // Type assertion: Agent base class doesn't provide typed env
+      // Env interface defined in worker-configuration.d.ts has all bindings
+      // biome-ignore lint/suspicious/noExplicitAny: Agent framework limitation - env property not typed
+      const env = this.env as any;
 
       if (!env.RoomDO) {
         console.error("[AIAgent] ✗ RoomDO binding not found in env");
@@ -256,7 +258,8 @@ Example: {shapes:[{type:"circle",x:100,y:200,radius:50,fill:"#FF0000"}]}`;
         systemPrompt = `Canvas 2000x2000px. Center: ${centerX},${centerY}. Shapes: rectangle, circle, text. Colors: hex format.`;
       }
 
-      const env = this.env as Cloudflare.Env;
+      // biome-ignore lint/suspicious/noExplicitAny: Agent framework limitation - env property not typed
+      const env = this.env as any;
       const ai = env.AI;
 
       // Call Workers AI through AI Gateway
