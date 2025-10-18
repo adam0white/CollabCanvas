@@ -27,7 +27,9 @@ import { AI_TOOLS } from "./ai-tools";
  * - Conversation context
  * - Command execution history
  */
-export class AIAgent extends Agent<Env> {
+export class AIAgent extends Agent {
+  // Override env property with proper type
+  declare env: Env;
   /**
    * Handle HTTP requests for AI commands
    * Route: POST /ai-command
