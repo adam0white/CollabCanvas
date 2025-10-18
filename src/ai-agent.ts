@@ -549,7 +549,8 @@ Example: {shapes:[{type:"circle",x:100,y:200,radius:50,fill:"#FF0000"}]}`;
   private async authorizeRequest(
     request: Request,
   ): Promise<"editor" | "viewer"> {
-    const env = this.env as Env;
+    // biome-ignore lint/suspicious/noExplicitAny: Agent framework limitation - env property not typed
+    const env = this.env as any;
     const clerkSecretKey = env.CLERK_SECRET_KEY;
     if (!clerkSecretKey) {
       console.warn("[AIAgent] No CLERK_SECRET_KEY, treating as viewer");
@@ -598,7 +599,8 @@ Example: {shapes:[{type:"circle",x:100,y:200,radius:50,fill:"#FF0000"}]}`;
     request: Request,
   ): Promise<{ userId: string; userName: string }> {
     const token = this.extractToken(request);
-    const env = this.env as Env;
+    // biome-ignore lint/suspicious/noExplicitAny: Agent framework limitation - env property not typed
+    const env = this.env as any;
     const clerkSecretKey = env.CLERK_SECRET_KEY;
 
     if (token && clerkSecretKey) {
