@@ -110,7 +110,11 @@ export function useAI(): UseAIReturn {
           new URL(window.location.href).searchParams.get("roomId") ?? "main";
 
         // Get user's display name (same logic as usePresence)
-        const userName = user?.fullName || user?.username || user?.primaryEmailAddress?.emailAddress || "User";
+        const userName =
+          user?.fullName ||
+          user?.username ||
+          user?.primaryEmailAddress?.emailAddress ||
+          "User";
 
         // Send command to backend
         const response = await fetch(`/c/${roomId}/ai-command`, {
@@ -152,7 +156,7 @@ export function useAI(): UseAIReturn {
         setIsLoading(false);
       }
     },
-    [isSignedIn, getToken],
+    [isSignedIn, getToken, user],
   );
 
   return {

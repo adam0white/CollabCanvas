@@ -10,7 +10,7 @@
 
 import { useAuth, useUser } from "@clerk/clerk-react";
 import { useEffect, useState } from "react";
-import { useYDoc } from "../yjs/client";
+import { useConnectionStatus, useYDoc } from "../yjs/client";
 import type { Rectangle, Shape } from "./types";
 import { createRectangle } from "./types";
 

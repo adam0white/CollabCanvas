@@ -116,10 +116,15 @@ export function usePresence(): PresenceHook {
     };
   }, [awareness]);
 
-  const setPresence = (state: Partial<PresenceState>, forceThrottle = false) => {
+  const setPresence = (
+    state: Partial<PresenceState>,
+    forceThrottle = false,
+  ) => {
     const now = performance.now();
-    const throttleInterval = forceThrottle ? UPDATE_INTERVAL_MS_THROTTLED : UPDATE_INTERVAL_MS;
-    
+    const throttleInterval = forceThrottle
+      ? UPDATE_INTERVAL_MS_THROTTLED
+      : UPDATE_INTERVAL_MS;
+
     if (now - lastUpdateRef.current < throttleInterval) {
       return;
     }

@@ -498,16 +498,17 @@ export function Canvas({
 
     // Handle panning:
     // - Middle mouse button: pan for everyone
-    // - For guests: also allow left-click panning (since they can't edit)
+    // - For guests: also allow left-click panning anywhere (since they can't edit)
     const isMiddleClick = e.evt.button === 1;
     const shouldPan =
       (isMiddleClick && activeTool === "select") || // Middle mouse for everyone
-      (!canEdit && activeTool === "select" && clickedOnEmpty); // Guests: left-click on empty
+      (!canEdit && activeTool === "select"); // Guests: left-click anywhere
 
     if (shouldPan) {
       e.evt.preventDefault(); // Prevent default middle-click behavior
       setIsPanning(true);
       stage.container().style.cursor = "grabbing";
+      return;
     }
   };
 
