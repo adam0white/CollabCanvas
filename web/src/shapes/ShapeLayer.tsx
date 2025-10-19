@@ -104,10 +104,16 @@ export const ShapeLayer = memo(function ShapeLayer({
   }, [selectedShapeIds]);
 
   // Memoize event handlers to prevent re-creating functions on every render
+  // Create Set for O(1) selectedShapeIds.includes() checks (critical for large selections)
+  const selectedShapeSet = useMemo(
+    () => new Set(selectedShapeIds),
+    [selectedShapeIds],
+  );
+
   const handleDragStart = useCallback(
     (_e: KonvaEventObject<DragEvent>, shape: Shape) => {
       // Store initial positions of all selected shapes for group dragging
-      if (selectedShapeIds.includes(shape.id) && selectedShapeIds.length > 1) {
+      if (selectedShapeSet.has(shape.id) && selectedShapeIds.length > 1) {
         dragStartPositionsRef.current = {};
         for (const shapeId of selectedShapeIds) {
           const targetShape = shapesById[shapeId];
@@ -120,7 +126,7 @@ export const ShapeLayer = memo(function ShapeLayer({
         }
       }
     },
-    [selectedShapeIds, shapesById],
+    [selectedShapeIds, selectedShapeSet, shapesById],
   );
 
   const handleDragMove = useCallback(
@@ -153,10 +159,8 @@ export const ShapeLayer = memo(function ShapeLayer({
       const draggedShapeId = shape.id;
 
       // If multiple shapes are selected and this is one of them, move all selected shapes
-      if (
-        selectedShapeIds.includes(draggedShapeId) &&
-        selectedShapeIds.length > 1
-      ) {
+      // Performance: Use Set.has() for O(1) membership check
+      if (selectedShapeSet.has(draggedShapeId) && selectedShapeIds.length > 1) {
         const startPos = dragStartPositionsRef.current[draggedShapeId];
         if (startPos) {
           // Calculate the offset from the original position
@@ -208,6 +212,7 @@ export const ShapeLayer = memo(function ShapeLayer({
       canEdit,
       selectedTool,
       selectedShapeIds,
+      selectedShapeSet,
       onShapeUpdate,
       onBatchShapeUpdate,
       onDragMove,
@@ -222,10 +227,8 @@ export const ShapeLayer = memo(function ShapeLayer({
       const draggedShapeId = shape.id;
 
       // If multiple shapes are selected and this is one of them, finalize positions for all
-      if (
-        selectedShapeIds.includes(draggedShapeId) &&
-        selectedShapeIds.length > 1
-      ) {
+      // Performance: Use Set.has() for O(1) membership check
+      if (selectedShapeSet.has(draggedShapeId) && selectedShapeIds.length > 1) {
         const startPos = dragStartPositionsRef.current[draggedShapeId];
         if (startPos) {
           // Calculate the final offset
@@ -283,6 +286,7 @@ export const ShapeLayer = memo(function ShapeLayer({
       canEdit,
       selectedTool,
       selectedShapeIds,
+      selectedShapeSet,
       onShapeUpdate,
       onBatchShapeUpdate,
     ],
@@ -519,7 +523,8 @@ export const ShapeLayer = memo(function ShapeLayer({
     <>
       {shapes.map((shape) => {
         const isHovered = hoveredShapeId === shape.id;
-        const isSelected = selectedShapeIds.includes(shape.id);
+        // Performance: Use Set.has() for O(1) selection check (critical with many shapes)
+        const isSelected = selectedShapeSet.has(shape.id);
         const isTransforming = transformingShapeId === shape.id;
         const lockOwner = locking.getLockOwner(shape.id);
         const isLockedByOther =
