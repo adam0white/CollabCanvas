@@ -16,7 +16,6 @@ export type ExportScope = "canvas" | "selection";
 export type ExportQuality = 1 | 2 | 4;
 
 type ExportModalProps = {
-  isOpen: boolean;
   hasSelection: boolean;
   onClose: () => void;
   onExport: (options: {
@@ -28,7 +27,6 @@ type ExportModalProps = {
 };
 
 export function ExportModal({
-  isOpen,
   hasSelection,
   onClose,
   onExport,
@@ -56,8 +54,6 @@ export function ExportModal({
 
   // Close on Escape key
   useEffect(() => {
-    if (!isOpen) return;
-
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         onClose();
@@ -66,14 +62,12 @@ export function ExportModal({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [onClose]);
 
   const handleExport = () => {
     onExport({ format, scope, quality, filename });
     onClose();
   };
-
-  if (!isOpen) return null;
 
   return (
     // biome-ignore lint/a11y/useSemanticElements: Modal overlay pattern requires clickable div

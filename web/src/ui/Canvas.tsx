@@ -386,11 +386,7 @@ export function Canvas({
       }
 
       // Z-Index shortcuts (Cmd+] / Cmd+[ / Cmd+Shift+] / Cmd+Shift+[)
-      if (
-        (e.metaKey || e.ctrlKey) &&
-        selectedShapeIds.length > 0 &&
-        canEdit
-      ) {
+      if ((e.metaKey || e.ctrlKey) && selectedShapeIds.length > 0 && canEdit) {
         // Bring to Front: Cmd+]
         if (e.key === "]" && !e.shiftKey) {
           e.preventDefault();
@@ -536,12 +532,13 @@ export function Canvas({
   ]);
 
   // Export handler
-  const handleExport = (
-    format: ExportFormat,
-    scope: ExportScope,
-    quality: ExportQuality,
-    filename: string,
-  ) => {
+  const handleExport = (options: {
+    format: ExportFormat;
+    scope: ExportScope;
+    quality: ExportQuality;
+    filename: string;
+  }) => {
+    const { format, scope, quality, filename } = options;
     const stage = stageRef.current;
     if (!stage) return;
 
@@ -561,10 +558,10 @@ export function Canvas({
 
       for (const shape of selectedShapes) {
         const bounds = getShapeBounds(shape);
-        minX = Math.min(minX, bounds.x);
-        minY = Math.min(minY, bounds.y);
-        maxX = Math.max(maxX, bounds.x + bounds.width);
-        maxY = Math.max(maxY, bounds.y + bounds.height);
+        minX = Math.min(minX, bounds.left);
+        minY = Math.min(minY, bounds.top);
+        maxX = Math.max(maxX, bounds.right);
+        maxY = Math.max(maxY, bounds.bottom);
       }
 
       const width = maxX - minX;
@@ -576,12 +573,12 @@ export function Canvas({
         y: minY,
         width,
         height,
-        pixelRatio: quality === "1x" ? 1 : quality === "2x" ? 2 : 4,
+        pixelRatio: quality === 1 ? 1 : quality === 2 ? 2 : 4,
       });
     } else {
       // Export entire canvas
       dataURL = stage.toDataURL({
-        pixelRatio: quality === "1x" ? 1 : quality === "2x" ? 2 : 4,
+        pixelRatio: quality === 1 ? 1 : quality === 2 ? 2 : 4,
       });
     }
 
