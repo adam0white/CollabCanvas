@@ -252,7 +252,7 @@ export async function selectShape(
   x: number,
   y: number,
 ): Promise<void> {
-  await page.getByRole("button", { name: /select/i }).click();
+  await switchToSelectMode(page);
   await canvasClick(page, x, y);
 }
 
