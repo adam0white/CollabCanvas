@@ -280,7 +280,7 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
 
       // Manually inject AI agent state into awareness and broadcast
       // We can't use setLocalState because that only affects the DO's own client ID
-      this.setAwarenessState(agentClientId, { presence: agentPresence });
+      await this.setAwarenessState(agentClientId, { presence: agentPresence });
 
       const shapesCreated: string[] = [];
       const shapesAffected: string[] = [];
@@ -303,7 +303,7 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
         // Update AI agent status to "working" and move cursor
         agentPresence.aiAgentStatus = "working";
         agentPresence.cursor = cursorPos;
-        this.setAwarenessState(agentClientId, { presence: agentPresence });
+        await this.setAwarenessState(agentClientId, { presence: agentPresence });
 
         // Delay before executing (simulate "thinking" time)
         const delay = this.getDelayForTool(toolCall);
@@ -359,7 +359,7 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
 
       console.log("[RoomDO] All operations complete, removing AI cursor");
       // Remove AI agent cursor by setting state to null
-      this.setAwarenessState(agentClientId, null);
+      await this.setAwarenessState(agentClientId, null);
 
       // Append to AI history
       this.doc.transact(() => {
@@ -430,7 +430,7 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
     } catch (error) {
       // Make sure to remove AI agent cursor on error
       // agentClientId is now defined outside try block so we can use it here
-      this.setAwarenessState(agentClientId, null);
+      await this.setAwarenessState(agentClientId, null);
 
       console.error("[RoomDO] ✗ executeAICommand error:", error);
       console.error(

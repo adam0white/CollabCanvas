@@ -111,6 +111,12 @@ export function usePresence(): PresenceHook {
         const presenceState = state?.presence as PresenceState | undefined;
         if (presenceState) {
           next.set(clientId, presenceState);
+          // Debug: Log AI agent updates
+          if (presenceState.isAIAgent) {
+            console.log(
+              `[Frontend] AI Agent update: ${presenceState.displayName} at (${presenceState.cursor?.x}, ${presenceState.cursor?.y}) - ${presenceState.aiAgentStatus}`,
+            );
+          }
         }
       }
       setPresenceMap(next);
