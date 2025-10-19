@@ -67,7 +67,12 @@ export class AIAgent extends Agent {
       context?: {
         selectedShapeIds?: string[];
         viewportCenter?: { x: number; y: number };
-        viewportBounds?: { x: number; y: number; width: number; height: number };
+        viewportBounds?: {
+          x: number;
+          y: number;
+          width: number;
+          height: number;
+        };
         canvasScale?: number;
         selectedShapes?: Array<{
           id: string;

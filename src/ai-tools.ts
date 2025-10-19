@@ -101,8 +101,7 @@ export const AI_TOOLS = [
   },
   {
     name: "deleteShape",
-    description:
-      "Delete an existing shape. Use shape IDs from context.",
+    description: "Delete an existing shape. Use shape IDs from context.",
     parameters: {
       type: "object",
       properties: {

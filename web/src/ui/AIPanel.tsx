@@ -24,7 +24,10 @@ type AIContextProps = {
 };
 
 export const AIPanel = React.forwardRef<HTMLTextAreaElement, AIContextProps>(
-  function AIPanel({ viewportCenter, viewportBounds, canvasScale }, ref): React.JSX.Element {
+  function AIPanel(
+    { viewportCenter, viewportBounds, canvasScale },
+    ref,
+  ): React.JSX.Element {
     const { history, isLoading, error, sendCommand, canUseAI } = useAI();
     const { user } = useUser();
     const [prompt, setPrompt] = useState("");
@@ -113,7 +116,15 @@ export const AIPanel = React.forwardRef<HTMLTextAreaElement, AIContextProps>(
           // Error is already handled by useAI hook
         }
       },
-      [prompt, sendCommand, selectedShapeIds, shapes, viewportCenter, viewportBounds, canvasScale],
+      [
+        prompt,
+        sendCommand,
+        selectedShapeIds,
+        shapes,
+        viewportCenter,
+        viewportBounds,
+        canvasScale,
+      ],
     );
 
     const handleKeyDown = useCallback(

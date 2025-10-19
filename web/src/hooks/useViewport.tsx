@@ -6,6 +6,7 @@
 import {
   createContext,
   type ReactNode,
+  useCallback,
   useContext,
   useMemo,
   useState,
@@ -37,11 +38,14 @@ export function ViewportProvider({
     bounds: { x: 0, y: 0, width: 2000, height: 2000 },
   });
 
-  const setViewport = (update: Partial<ViewportState>) => {
+  const setViewport = useCallback((update: Partial<ViewportState>) => {
     setViewportState((prev) => ({ ...prev, ...update }));
-  };
+  }, []);
 
-  const value = useMemo(() => ({ viewport, setViewport }), [viewport]);
+  const value = useMemo(
+    () => ({ viewport, setViewport }),
+    [viewport, setViewport],
+  );
 
   return (
     <ViewportContext.Provider value={value}>

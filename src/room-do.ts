@@ -249,10 +249,11 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
       return result;
     }
 
-    console.log("[RoomDO] Starting fast tool execution (client will simulate cursor)");
+    console.log(
+      "[RoomDO] Starting fast tool execution (client will simulate cursor)",
+    );
 
     try {
-
       const shapesCreated: string[] = [];
       const shapesAffected: string[] = [];
       const toolResults: ToolResult[] = [];
@@ -301,7 +302,6 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
             shapesAffected.push(result.shapeId);
           }
         }
-
       }
 
       console.log("[RoomDO] All operations complete");
@@ -378,7 +378,6 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
 
       return result;
     } catch (error) {
-
       console.error("[RoomDO] ✗ executeAICommand error:", error);
       console.error(
         "[RoomDO] Error stack:",
@@ -398,142 +397,6 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
       return result;
     }
   }
-
-  /**
-   * Calculate cursor position based on tool operation
-   * Moves cursor to relevant location for visual feedback
-   */
-  private calculateCursorPosition(
-    toolCall: ToolCall,
-    // biome-ignore lint/suspicious/noExplicitAny: Yjs types are complex
-    doc: any,
-  ): { x: number; y: number } {
-    const params = toolCall.parameters;
-
-    // For shape creation, move to the first shape's position
-    if (toolCall.name === "createShape" && "shapes" in params) {
-      const shapes = params.shapes as Array<{ x?: number; y?: number }>;
-      if (shapes.length > 0 && shapes[0].x != null && shapes[0].y != null) {
-        return { x: shapes[0].x, y: shapes[0].y };
-      }
-    }
-
-    // For pattern creation, move to start position
-    if (toolCall.name === "createPattern") {
-      const startX = params.startX as number | undefined;
-      const startY = params.startY as number | undefined;
-      if (startX !== undefined && startY !== undefined) {
-        return { x: startX, y: startY };
-      }
-    }
-
-    // For move/update/delete operations, move to shape's position
-    if (
-      (toolCall.name === "moveShape" ||
-        toolCall.name === "updateShapeStyle" ||
-        toolCall.name === "deleteShape") &&
-      "shapeId" in params
-    ) {
-      const shapesMap = doc.getMap("shapes");
-      const shape = shapesMap.get(params.shapeId as string);
-      if (shape && typeof shape === "object" && "x" in shape && "y" in shape) {
-        return { x: shape.x as number, y: shape.y as number };
-      }
-    }
-
-    // For arrange operations, move to first shape
-    if (toolCall.name === "arrangeShapes" && "shapeIds" in params) {
-      const shapeIds = params.shapeIds as string[];
-      if (shapeIds.length > 0) {
-        const shapesMap = doc.getMap("shapes");
-        const shape = shapesMap.get(shapeIds[0]);
-        if (
-          shape &&
-          typeof shape === "object" &&
-          "x" in shape &&
-          "y" in shape
-        ) {
-          return { x: shape.x as number, y: shape.y as number };
-        }
-      }
-    }
-
-    // Default: canvas center
-    return { x: 1000, y: 1000 };
-  }
-
-  /**
-   * Calculate delay for a tool operation
-   * More complex operations get longer delays for better visual feedback
-   * 
-   * Note: Delay constants are also defined in web/src/config/constants.ts (AI_AGENT)
-   * They are duplicated here to avoid circular dependencies
-   */
-  private getDelayForTool(toolCall: ToolCall): number {
-    const params = toolCall.parameters;
-
-    // Delay constants (also in web/src/config/constants.ts)
-    const DELAYS = {
-      PATTERN_BASE: 200,
-      PATTERN_PER_SHAPE: 10,
-      PATTERN_MAX: 1000,
-      SHAPE_BASE: 150,
-      SHAPE_PER_SHAPE: 20,
-      SHAPE_MAX: 800,
-      ARRANGE_BASE: 150,
-      ARRANGE_PER_SHAPE: 15,
-      ARRANGE_MAX: 600,
-      STYLE_UPDATE: 100,
-      MOVE: 150,
-      DELETE: 120,
-      ROTATE: 120,
-      RESIZE: 150,
-      DEFAULT: 150,
-    } as const;
-
-    // Pattern creation: longer delay for many shapes
-    if (toolCall.name === "createPattern") {
-      const count =
-        (params.count as number) ??
-        ((params.rows as number) ?? 1) * ((params.columns as number) ?? 1);
-      return Math.min(
-        DELAYS.PATTERN_BASE + count * DELAYS.PATTERN_PER_SHAPE,
-        DELAYS.PATTERN_MAX,
-      );
-    }
-
-    // Shape creation: delay based on number of shapes
-    if (toolCall.name === "createShape" && "shapes" in params) {
-      const count = Array.isArray(params.shapes) ? params.shapes.length : 1;
-      return Math.min(
-        DELAYS.SHAPE_BASE + count * DELAYS.SHAPE_PER_SHAPE,
-        DELAYS.SHAPE_MAX,
-      );
-    }
-
-    // Arrange operations: longer delay for many shapes
-    if (toolCall.name === "arrangeShapes" && "shapeIds" in params) {
-      const count = Array.isArray(params.shapeIds) ? params.shapeIds.length : 0;
-      return Math.min(
-        DELAYS.ARRANGE_BASE + count * DELAYS.ARRANGE_PER_SHAPE,
-        DELAYS.ARRANGE_MAX,
-      );
-    }
-
-    // Style updates: short delay
-    if (toolCall.name === "updateShapeStyle") {
-      return DELAYS.STYLE_UPDATE;
-    }
-
-    // Default delays for other operations
-    return {
-      moveShape: DELAYS.MOVE,
-      deleteShape: DELAYS.DELETE,
-      rotateShape: DELAYS.ROTATE,
-      resizeShape: DELAYS.RESIZE,
-    }[toolCall.name] ?? DELAYS.DEFAULT;
-  }
-
 }
 
 type ClientRole = "editor" | "viewer";
