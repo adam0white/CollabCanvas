@@ -111,6 +111,8 @@ export function useShapes(): UseShapesReturn {
       createdAt: shape.createdAt,
       rotation: shape.rotation,
       zIndex: shape.zIndex ?? 0,
+      visible: shape.visible ?? true,
+      locked: shape.locked ?? false,
       aiGenerated: shape.aiGenerated,
     };
 

@@ -374,14 +374,21 @@ export function ShapeLayer({
   return (
     <>
       {sortedShapes.map((shape) => {
+        // Skip rendering if shape is hidden
+        if (shape.visible === false) return null;
+
         const isHovered = hoveredShapeId === shape.id;
         const isSelected = selectedShapeIds.includes(shape.id);
         const isTransforming = transformingShapeId === shape.id;
         const lockOwner = locking.getLockOwner(shape.id);
         const isLockedByOther =
           lockOwner !== null && lockOwner.userId !== userId;
+        const isShapeLocked = shape.locked === true;
         const isDraggable =
-          canEdit && selectedTool === "select" && !isLockedByOther;
+          canEdit &&
+          selectedTool === "select" &&
+          !isLockedByOther &&
+          !isShapeLocked;
 
         if (isRectangle(shape)) {
           return (
