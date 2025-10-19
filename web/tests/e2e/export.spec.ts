@@ -9,6 +9,11 @@ test.describe("Export Canvas", () => {
   test("should open export modal with Cmd+E", async ({ authenticatedPage }) => {
     await navigateToMainCanvas(authenticatedPage);
 
+    // Focus on the canvas to ensure keyboard shortcuts work
+    const canvas = authenticatedPage.locator("canvas").first();
+    await canvas.click();
+    await waitForSync(authenticatedPage, 100);
+
     // Press Cmd+E to open export modal
     await authenticatedPage.keyboard.press("Meta+E");
 
@@ -93,6 +98,11 @@ test.describe("Export Canvas", () => {
 
   test("should close modal on cancel", async ({ authenticatedPage }) => {
     await navigateToMainCanvas(authenticatedPage);
+
+    // Focus on the canvas to ensure keyboard shortcuts work
+    const canvas = authenticatedPage.locator("canvas").first();
+    await canvas.click();
+    await waitForSync(authenticatedPage, 100);
 
     // Open modal
     await authenticatedPage.keyboard.press("Meta+E");

@@ -156,7 +156,11 @@ export async function createRectangle(
   width: number,
   height: number,
 ): Promise<void> {
-  await page.getByRole("button", { name: /rectangle/i }).click();
+  // Use exact match for toolbar button to avoid collision with layers panel
+  await page
+    .getByRole("button", { name: "Rectangle", exact: true })
+    .first()
+    .click();
   await canvasDrag(page, x, y, x + width, y + height);
 }
 
