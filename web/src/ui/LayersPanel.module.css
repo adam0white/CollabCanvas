@@ -1,6 +1,6 @@
 .panel {
   position: fixed;
-  right: 1rem;
+  left: 1rem;
   top: 5rem;
   width: 250px;
   max-height: calc(100vh - 7rem);
@@ -14,6 +14,24 @@
   display: flex;
   flex-direction: column;
   z-index: 10;
+  transition: width 0.3s ease;
+}
+
+.panelCollapsed {
+  width: 50px;
+}
+
+.toggleButton {
+  all: unset;
+  cursor: pointer;
+  padding: 0.5rem;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+  border-radius: 6px;
+}
+
+.toggleButton:hover {
+  background: rgba(0, 0, 0, 0.05);
 }
 
 .header {

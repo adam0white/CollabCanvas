@@ -387,7 +387,6 @@ export function Toolbar({
         title="Align Left (Cmd+Shift+L)"
       >
         <span aria-hidden>⬅️</span>
-        Left
       </button>
 
       <button
@@ -401,7 +400,6 @@ export function Toolbar({
         title="Align Center (Cmd+Shift+H)"
       >
         <span aria-hidden>↔️</span>
-        Center
       </button>
 
       <button
@@ -415,7 +413,6 @@ export function Toolbar({
         title="Align Right (Cmd+Shift+R)"
       >
         <span aria-hidden>➡️</span>
-        Right
       </button>
 
       <button
@@ -429,7 +426,6 @@ export function Toolbar({
         title="Align Top (Cmd+Shift+T)"
       >
         <span aria-hidden>⬆️</span>
-        Top
       </button>
 
       <button
@@ -443,7 +439,6 @@ export function Toolbar({
         title="Align Middle (Cmd+Shift+M)"
       >
         <span aria-hidden>↕️</span>
-        Middle
       </button>
 
       <button
@@ -457,7 +452,6 @@ export function Toolbar({
         title="Align Bottom (Cmd+Shift+B)"
       >
         <span aria-hidden>⬇️</span>
-        Bottom
       </button>
 
       <button
@@ -471,7 +465,6 @@ export function Toolbar({
         title="Distribute Horizontally (Cmd+Shift+D)"
       >
         <span aria-hidden>⬌</span>
-        H-Dist
       </button>
 
       <button
@@ -485,7 +478,6 @@ export function Toolbar({
         title="Distribute Vertically (Cmd+Shift+V)"
       >
         <span aria-hidden>⬍</span>
-        V-Dist
       </button>
 
       <div className={styles.toolDivider} />

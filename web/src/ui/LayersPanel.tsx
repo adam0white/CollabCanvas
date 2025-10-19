@@ -36,6 +36,16 @@ export function LayersPanel({
 }: LayersPanelProps): React.JSX.Element {
   const [draggedShapeId, setDraggedShapeId] = useState<string | null>(null);
   const [dragOverShapeId, setDragOverShapeId] = useState<string | null>(null);
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    const stored = localStorage.getItem("layersPanelCollapsed");
+    return stored ? JSON.parse(stored) : false;
+  });
+
+  const toggleCollapse = () => {
+    const newState = !isCollapsed;
+    setIsCollapsed(newState);
+    localStorage.setItem("layersPanelCollapsed", JSON.stringify(newState));
+  };
 
   // Sort shapes by zIndex (top to bottom in list = high to low zIndex)
   const sortedShapes = sortShapesByZIndex(shapes).reverse();
@@ -98,87 +108,113 @@ export function LayersPanel({
   };
 
   return (
-    <div className={styles.panel}>
+    <div
+      className={`${styles.panel} ${isCollapsed ? styles.panelCollapsed : ""}`}
+    >
       <div className={styles.header}>
-        <h3>Layers</h3>
-        <span className={styles.count}>{shapes.length}</span>
-      </div>
-
-      {/* biome-ignore lint/a11y/useSemanticElements: Layers list needs custom styling and drag-drop behavior */}
-      <div className={styles.list} role="list">
-        {sortedShapes.length === 0 ? (
-          <div className={styles.empty}>No shapes on canvas</div>
-        ) : (
-          sortedShapes.map((shape) => {
-            const isSelected = selectedShapeIds.includes(shape.id);
-            const isVisible = shape.visible !== false;
-            const isLocked = shape.locked === true;
-            const isDragging = draggedShapeId === shape.id;
-            const isDragOver = dragOverShapeId === shape.id;
-
-            return (
-              <div
-                key={shape.id}
-                className={`${styles.layer} ${isSelected ? styles.layerSelected : ""} ${isDragging ? styles.layerDragging : ""} ${isDragOver ? styles.layerDragOver : ""}`}
-              >
-                <button
-                  type="button"
-                  className={styles.layerMain}
-                  onClick={() => onShapeSelect(shape.id)}
-                  draggable={canEdit}
-                  onDragStart={(e) =>
-                    handleDragStart(e as unknown as React.DragEvent, shape.id)
-                  }
-                  onDragOver={(e) =>
-                    handleDragOver(e as unknown as React.DragEvent, shape.id)
-                  }
-                  onDrop={(e) =>
-                    handleDrop(e as unknown as React.DragEvent, shape.id)
-                  }
-                  onDragEnd={handleDragEnd}
-                >
-                  <span className={styles.icon}>{getShapeIcon(shape)}</span>
-                  <span className={styles.label}>{getShapeLabel(shape)}</span>
-                </button>
-
-                <div className={styles.controls}>
-                  {/* Visibility toggle */}
-                  <button
-                    type="button"
-                    className={styles.controlButton}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (canEdit) {
-                        onVisibilityToggle(shape.id, !isVisible);
-                      }
-                    }}
-                    title={isVisible ? "Hide" : "Show"}
-                    disabled={!canEdit}
-                  >
-                    {isVisible ? "👁️" : "👁️‍🗨️"}
-                  </button>
-
-                  {/* Lock toggle */}
-                  <button
-                    type="button"
-                    className={styles.controlButton}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (canEdit) {
-                        onLockToggle(shape.id, !isLocked);
-                      }
-                    }}
-                    title={isLocked ? "Unlock" : "Lock"}
-                    disabled={!canEdit}
-                  >
-                    {isLocked ? "🔒" : "🔓"}
-                  </button>
-                </div>
-              </div>
-            );
-          })
+        <button
+          type="button"
+          className={styles.toggleButton}
+          onClick={toggleCollapse}
+          title={isCollapsed ? "Expand layers" : "Collapse layers"}
+        >
+          {isCollapsed ? "▶" : "◀"}
+        </button>
+        {!isCollapsed && (
+          <>
+            <h3>Layers</h3>
+            <span className={styles.count}>{shapes.length}</span>
+          </>
         )}
       </div>
+
+      {!isCollapsed && (
+        <>
+          {/* biome-ignore lint/a11y/useSemanticElements: Layers list needs custom styling and drag-drop behavior */}
+          <div className={styles.list} role="list">
+            {sortedShapes.length === 0 ? (
+              <div className={styles.empty}>No shapes on canvas</div>
+            ) : (
+              sortedShapes.map((shape) => {
+                const isSelected = selectedShapeIds.includes(shape.id);
+                const isVisible = shape.visible !== false;
+                const isLocked = shape.locked === true;
+                const isDragging = draggedShapeId === shape.id;
+                const isDragOver = dragOverShapeId === shape.id;
+
+                return (
+                  <div
+                    key={shape.id}
+                    className={`${styles.layer} ${isSelected ? styles.layerSelected : ""} ${isDragging ? styles.layerDragging : ""} ${isDragOver ? styles.layerDragOver : ""}`}
+                  >
+                    <button
+                      type="button"
+                      className={styles.layerMain}
+                      onClick={() => onShapeSelect(shape.id)}
+                      draggable={canEdit}
+                      onDragStart={(e) =>
+                        handleDragStart(
+                          e as unknown as React.DragEvent,
+                          shape.id,
+                        )
+                      }
+                      onDragOver={(e) =>
+                        handleDragOver(
+                          e as unknown as React.DragEvent,
+                          shape.id,
+                        )
+                      }
+                      onDrop={(e) =>
+                        handleDrop(e as unknown as React.DragEvent, shape.id)
+                      }
+                      onDragEnd={handleDragEnd}
+                    >
+                      <span className={styles.icon}>{getShapeIcon(shape)}</span>
+                      <span className={styles.label}>
+                        {getShapeLabel(shape)}
+                      </span>
+                    </button>
+
+                    <div className={styles.controls}>
+                      {/* Visibility toggle */}
+                      <button
+                        type="button"
+                        className={styles.controlButton}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (canEdit) {
+                            onVisibilityToggle(shape.id, !isVisible);
+                          }
+                        }}
+                        title={isVisible ? "Hide" : "Show"}
+                        disabled={!canEdit}
+                      >
+                        {isVisible ? "👁️" : "👁️‍🗨️"}
+                      </button>
+
+                      {/* Lock toggle */}
+                      <button
+                        type="button"
+                        className={styles.controlButton}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (canEdit) {
+                            onLockToggle(shape.id, !isLocked);
+                          }
+                        }}
+                        title={isLocked ? "Unlock" : "Lock"}
+                        disabled={!canEdit}
+                      >
+                        {isLocked ? "🔒" : "🔓"}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
