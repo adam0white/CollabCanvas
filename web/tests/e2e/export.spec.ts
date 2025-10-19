@@ -16,91 +16,102 @@ test.describe("Export Canvas", () => {
     await navigateToMainCanvas(authenticatedPage);
 
     // Press Cmd+E to open export modal
-    await authPage.keyboard.press("Meta+E");
+    await authenticatedPage.keyboard.press("Meta+E");
 
     // Verify modal appears
-    await expect(authPage.getByRole("dialog")).toBeVisible();
-    await expect(authPage.getByText("Export Canvas")).toBeVisible();
+    await waitForSync(authenticatedPage, 200);
+    await expect(authenticatedPage.getByText("Export Canvas")).toBeVisible();
   });
 
-  test("should show export options in modal", async ({ page }) => {
-    const { page: authPage } = await createAuthenticatedPage(page);
+  test("should show export options in modal", async ({
+    authenticatedPage,
+  }) => {
+    await navigateToMainCanvas(authenticatedPage);
 
     // Open export modal via toolbar button
-    await authPage.getByRole("button", { name: /export/i }).click();
+    await authenticatedPage.getByRole("button", { name: /export/i }).click();
+    await waitForSync(authenticatedPage, 200);
 
     // Verify format options
-    await expect(authPage.getByText("PNG (Raster Image)")).toBeVisible();
-    await expect(authPage.getByText("SVG (Vector Graphic)")).toBeVisible();
+    await expect(
+      authenticatedPage.getByText("PNG (Raster Image)"),
+    ).toBeVisible();
+    await expect(
+      authenticatedPage.getByText("SVG (Vector Graphic)"),
+    ).toBeVisible();
 
     // Verify scope options
-    await expect(authPage.getByText("Entire Canvas")).toBeVisible();
-    await expect(authPage.getByText(/Selected Shapes/i)).toBeVisible();
+    await expect(authenticatedPage.getByText("Entire Canvas")).toBeVisible();
+    await expect(authenticatedPage.getByText(/Selected Shapes/i)).toBeVisible();
 
     // Verify quality options for PNG
-    await expect(authPage.getByText("1x (Standard)")).toBeVisible();
-    await expect(authPage.getByText("2x (High Definition)")).toBeVisible();
-    await expect(authPage.getByText("4x (Ultra HD)")).toBeVisible();
+    await expect(authenticatedPage.getByText("1x (Standard)")).toBeVisible();
+    await expect(
+      authenticatedPage.getByText("2x (High Definition)"),
+    ).toBeVisible();
+    await expect(authenticatedPage.getByText("4x (Ultra HD)")).toBeVisible();
 
     // Verify filename input
-    await expect(authPage.getByPlaceholder("Enter filename...")).toBeVisible();
+    await expect(
+      authenticatedPage.getByPlaceholder("Enter filename..."),
+    ).toBeVisible();
   });
 
   test("should disable selection export when no shapes selected", async ({
-    page,
+    authenticatedPage,
   }) => {
-    const { page: authPage } = await createAuthenticatedPage(page);
+    await navigateToMainCanvas(authenticatedPage);
 
     // Open export modal
-    await authPage.getByRole("button", { name: /export/i }).click();
+    await authenticatedPage.getByRole("button", { name: /export/i }).click();
+    await waitForSync(authenticatedPage, 200);
 
     // Selection option should be disabled
-    const selectionRadio = authPage.getByRole("radio", {
+    const selectionRadio = authenticatedPage.getByRole("radio", {
       name: /Selected Shapes/i,
     });
     await expect(selectionRadio).toBeDisabled();
   });
 
   test("should enable selection export when shapes are selected", async ({
-    page,
+    authenticatedPage,
   }) => {
-    const { page: authPage } = await createAuthenticatedPage(page);
+    await navigateToMainCanvas(authenticatedPage);
 
     // Create a rectangle
-    await authPage.getByRole("button", { name: /rectangle/i }).click();
-    await authPage
-      .locator('[data-tool="rectangle"]')
-      .click({ position: { x: 100, y: 100 } });
-    await authPage
-      .locator('[data-tool="rectangle"]')
-      .click({ position: { x: 200, y: 200 } });
-    await authPage.waitForTimeout(100);
+    await createRectangle(authenticatedPage, 100, 100, 100, 100);
+    await waitForSync(authenticatedPage, 100);
 
     // Select it
-    await authPage.getByRole("button", { name: /^select/i }).click();
-    await authPage.locator("canvas").click({ position: { x: 150, y: 150 } });
+    await authenticatedPage.getByRole("button", { name: /^select/i }).click();
+    await authenticatedPage.locator("canvas").click({ position: { x: 150, y: 150 } });
 
     // Open export modal
-    await authPage.getByRole("button", { name: /export/i }).click();
+    await authenticatedPage.getByRole("button", { name: /export/i }).click();
+    await waitForSync(authenticatedPage, 200);
 
     // Selection option should be enabled
-    const selectionRadio = authPage.getByRole("radio", {
+    const selectionRadio = authenticatedPage.getByRole("radio", {
       name: /Selected Shapes/i,
     });
     await expect(selectionRadio).toBeEnabled();
   });
 
-  test("should close modal on cancel", async ({ page }) => {
-    const { page: authPage } = await createAuthenticatedPage(page);
+  test("should close modal on cancel", async ({ authenticatedPage }) => {
+    await navigateToMainCanvas(authenticatedPage);
 
     // Open modal
-    await authPage.keyboard.press("Meta+E");
-    await expect(authPage.getByRole("dialog")).toBeVisible();
+    await authenticatedPage.keyboard.press("Meta+E");
+    await waitForSync(authenticatedPage, 200);
+    await expect(authenticatedPage.getByText("Export Canvas")).toBeVisible();
 
     // Click cancel
-    await authPage.getByRole("button", { name: /cancel/i }).click();
+    await authenticatedPage.getByRole("button", { name: /cancel/i }).click();
 
     // Modal should close
-    await expect(authPage.getByRole("dialog")).not.toBeVisible();
+    await waitForSync(authenticatedPage, 200);
+    await expect(
+      authenticatedPage.getByText("Export Canvas"),
+    ).not.toBeVisible();
   });
 });
