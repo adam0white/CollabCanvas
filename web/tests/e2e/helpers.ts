@@ -178,7 +178,8 @@ export async function createCircle(
   y: number,
   radius: number,
 ): Promise<void> {
-  await page.getByRole("button", { name: /circle/i }).click();
+  // Use exact match for toolbar button to avoid collision with layers panel
+  await page.getByRole("button", { name: "Circle", exact: true }).first().click();
 
   // Calculate end position for desired radius
   const endX = x + radius * Math.cos(Math.PI / 4);
