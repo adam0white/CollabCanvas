@@ -6,8 +6,7 @@ import {
 } from "@clerk/clerk-react";
 import { useEffect, useRef, useState } from "react";
 import { usePresence } from "../hooks/usePresence";
-import { useSelection } from "../hooks/useSelection";
-import { SelectionProvider } from "../hooks/useSelection";
+import { SelectionProvider, useSelection } from "../hooks/useSelection";
 import { ToolbarProvider } from "../hooks/useToolbar";
 import { useShapes } from "../shapes/useShapes";
 import { useConnectionStatus } from "../yjs/client";
@@ -29,7 +28,12 @@ export function App(): React.JSX.Element {
     new URL(window.location.href).searchParams.get("roomId") ?? "main";
   const presenceState = usePresence();
   const connectionStatus = useConnectionStatus();
-  const { shapes, updateShape, canEdit, isLoading: shapesLoading } = useShapes();
+  const {
+    shapes,
+    updateShape,
+    canEdit,
+    isLoading: shapesLoading,
+  } = useShapes();
   const { selectedShapeIds, setSelectedShapeIds } = useSelection();
   const [isShortcutsPanelOpen, setIsShortcutsPanelOpen] = useState(false);
   const aiPanelRef = useRef<HTMLTextAreaElement>(null);
@@ -147,9 +151,7 @@ export function App(): React.JSX.Element {
               selectedShapeIds={selectedShapeIds}
               canEdit={canEdit}
               onShapeSelect={(id) => setSelectedShapeIds([id])}
-              onVisibilityToggle={(id, visible) =>
-                updateShape(id, { visible })
-              }
+              onVisibilityToggle={(id, visible) => updateShape(id, { visible })}
               onLockToggle={(id, locked) => updateShape(id, { locked })}
               onReorder={(shapeId, newZIndex) =>
                 updateShape(shapeId, { zIndex: newZIndex })

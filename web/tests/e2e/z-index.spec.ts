@@ -13,18 +13,30 @@ test.describe("Z-Index Management", () => {
     await authPage.getByRole("button", { name: /rectangle/i }).click();
 
     // Create first rectangle (will be at bottom)
-    await authPage.locator('[data-tool="rectangle"]').click({ position: { x: 100, y: 100 } });
-    await authPage.locator('[data-tool="rectangle"]').click({ position: { x: 200, y: 200 } });
+    await authPage
+      .locator('[data-tool="rectangle"]')
+      .click({ position: { x: 100, y: 100 } });
+    await authPage
+      .locator('[data-tool="rectangle"]')
+      .click({ position: { x: 200, y: 200 } });
     await authPage.waitForTimeout(100);
 
     // Create second rectangle
-    await authPage.locator('[data-tool="rectangle"]').click({ position: { x: 150, y: 150 } });
-    await authPage.locator('[data-tool="rectangle"]').click({ position: { x: 250, y: 250 } });
+    await authPage
+      .locator('[data-tool="rectangle"]')
+      .click({ position: { x: 150, y: 150 } });
+    await authPage
+      .locator('[data-tool="rectangle"]')
+      .click({ position: { x: 250, y: 250 } });
     await authPage.waitForTimeout(100);
 
-    // Create third rectangle  
-    await authPage.locator('[data-tool="rectangle"]').click({ position: { x: 200, y: 200 } });
-    await authPage.locator('[data-tool="rectangle"]').click({ position: { x: 300, y: 300 } });
+    // Create third rectangle
+    await authPage
+      .locator('[data-tool="rectangle"]')
+      .click({ position: { x: 200, y: 200 } });
+    await authPage
+      .locator('[data-tool="rectangle"]')
+      .click({ position: { x: 300, y: 300 } });
     await authPage.waitForTimeout(100);
 
     // Switch to select tool
@@ -46,12 +58,20 @@ test.describe("Z-Index Management", () => {
     // Create 2 rectangles
     await authPage.getByRole("button", { name: /rectangle/i }).click();
 
-    await authPage.locator('[data-tool="rectangle"]').click({ position: { x: 100, y: 100 } });
-    await authPage.locator('[data-tool="rectangle"]').click({ position: { x: 200, y: 200 } });
+    await authPage
+      .locator('[data-tool="rectangle"]')
+      .click({ position: { x: 100, y: 100 } });
+    await authPage
+      .locator('[data-tool="rectangle"]')
+      .click({ position: { x: 200, y: 200 } });
     await authPage.waitForTimeout(100);
 
-    await authPage.locator('[data-tool="rectangle"]').click({ position: { x: 150, y: 150 } });
-    await authPage.locator('[data-tool="rectangle"]').click({ position: { x: 250, y: 250 } });
+    await authPage
+      .locator('[data-tool="rectangle"]')
+      .click({ position: { x: 150, y: 150 } });
+    await authPage
+      .locator('[data-tool="rectangle"]')
+      .click({ position: { x: 250, y: 250 } });
     await authPage.waitForTimeout(100);
 
     // Switch to select tool and select second rectangle
@@ -71,9 +91,17 @@ test.describe("Z-Index Management", () => {
     const { page: authPage } = await createAuthenticatedPage(page);
 
     // Check that z-index buttons are disabled with no selection
-    await expect(authPage.getByRole("button", { name: /to front/i })).toBeDisabled();
-    await expect(authPage.getByRole("button", { name: /to back/i })).toBeDisabled();
-    await expect(authPage.getByRole("button", { name: /^forward/i })).toBeDisabled();
-    await expect(authPage.getByRole("button", { name: /^backward/i })).toBeDisabled();
+    await expect(
+      authPage.getByRole("button", { name: /to front/i }),
+    ).toBeDisabled();
+    await expect(
+      authPage.getByRole("button", { name: /to back/i }),
+    ).toBeDisabled();
+    await expect(
+      authPage.getByRole("button", { name: /^forward/i }),
+    ).toBeDisabled();
+    await expect(
+      authPage.getByRole("button", { name: /^backward/i }),
+    ).toBeDisabled();
   });
 });

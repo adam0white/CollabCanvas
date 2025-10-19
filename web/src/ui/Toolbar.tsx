@@ -508,7 +508,7 @@ export function Toolbar({
         className={styles.gridSizeSelect}
         value={snap.gridSize}
         onChange={(e) =>
-          snap.updateGridSize(Number.parseInt(e.target.value) as GridSize)
+          snap.updateGridSize(Number.parseInt(e.target.value, 10) as GridSize)
         }
         title="Grid size"
       >

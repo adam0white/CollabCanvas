@@ -17,8 +17,12 @@ test.describe("Layers Panel", () => {
 
     // Create a rectangle
     await authPage.getByRole("button", { name: /rectangle/i }).click();
-    await authPage.locator('[data-tool="rectangle"]').click({ position: { x: 100, y: 100 } });
-    await authPage.locator('[data-tool="rectangle"]').click({ position: { x: 200, y: 200 } });
+    await authPage
+      .locator('[data-tool="rectangle"]')
+      .click({ position: { x: 100, y: 100 } });
+    await authPage
+      .locator('[data-tool="rectangle"]')
+      .click({ position: { x: 200, y: 200 } });
     await authPage.waitForTimeout(200);
 
     // Shape should appear in layers panel
@@ -31,8 +35,12 @@ test.describe("Layers Panel", () => {
 
     // Create a shape
     await authPage.getByRole("button", { name: /rectangle/i }).click();
-    await authPage.locator('[data-tool="rectangle"]').click({ position: { x: 100, y: 100 } });
-    await authPage.locator('[data-tool="rectangle"]').click({ position: { x: 200, y: 200 } });
+    await authPage
+      .locator('[data-tool="rectangle"]')
+      .click({ position: { x: 100, y: 100 } });
+    await authPage
+      .locator('[data-tool="rectangle"]')
+      .click({ position: { x: 200, y: 200 } });
     await authPage.waitForTimeout(200);
 
     // Switch to select tool
@@ -51,13 +59,17 @@ test.describe("Layers Panel", () => {
 
     // Create a rectangle
     await authPage.getByRole("button", { name: /rectangle/i }).click();
-    await authPage.locator('[data-tool="rectangle"]').click({ position: { x: 100, y: 100 } });
-    await authPage.locator('[data-tool="rectangle"]').click({ position: { x: 200, y: 200 } });
+    await authPage
+      .locator('[data-tool="rectangle"]')
+      .click({ position: { x: 100, y: 100 } });
+    await authPage
+      .locator('[data-tool="rectangle"]')
+      .click({ position: { x: 200, y: 200 } });
     await authPage.waitForTimeout(200);
 
     // Find visibility toggle button (eye icon)
     const visibilityButton = authPage.locator('button[title="Hide"]').first();
-    
+
     // Toggle visibility off
     await visibilityButton.click();
     await authPage.waitForTimeout(100);
@@ -74,8 +86,12 @@ test.describe("Layers Panel", () => {
 
     for (let i = 0; i < 3; i++) {
       const x = 100 + i * 100;
-      await authPage.locator('[data-tool="rectangle"]').click({ position: { x, y: 100 } });
-      await authPage.locator('[data-tool="rectangle"]').click({ position: { x: x + 50, y: 150 } });
+      await authPage
+        .locator('[data-tool="rectangle"]')
+        .click({ position: { x, y: 100 } });
+      await authPage
+        .locator('[data-tool="rectangle"]')
+        .click({ position: { x: x + 50, y: 150 } });
       await authPage.waitForTimeout(50);
     }
 

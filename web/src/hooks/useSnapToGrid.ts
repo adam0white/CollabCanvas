@@ -14,7 +14,7 @@ export function useSnapToGrid() {
 
   const [gridSize, setGridSize] = useState<GridSize>(() => {
     const stored = localStorage.getItem("gridSize");
-    return stored ? (Number.parseInt(stored) as GridSize) : 20;
+    return stored ? (Number.parseInt(stored, 10) as GridSize) : 20;
   });
 
   const toggleSnap = () => {

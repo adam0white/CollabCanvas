@@ -40,24 +40,34 @@ test.describe("Export Canvas", () => {
     await expect(authPage.getByPlaceholder("Enter filename...")).toBeVisible();
   });
 
-  test("should disable selection export when no shapes selected", async ({ page }) => {
+  test("should disable selection export when no shapes selected", async ({
+    page,
+  }) => {
     const { page: authPage } = await createAuthenticatedPage(page);
 
     // Open export modal
     await authPage.getByRole("button", { name: /export/i }).click();
 
     // Selection option should be disabled
-    const selectionRadio = authPage.getByRole("radio", { name: /Selected Shapes/i });
+    const selectionRadio = authPage.getByRole("radio", {
+      name: /Selected Shapes/i,
+    });
     await expect(selectionRadio).toBeDisabled();
   });
 
-  test("should enable selection export when shapes are selected", async ({ page }) => {
+  test("should enable selection export when shapes are selected", async ({
+    page,
+  }) => {
     const { page: authPage } = await createAuthenticatedPage(page);
 
     // Create a rectangle
     await authPage.getByRole("button", { name: /rectangle/i }).click();
-    await authPage.locator('[data-tool="rectangle"]').click({ position: { x: 100, y: 100 } });
-    await authPage.locator('[data-tool="rectangle"]').click({ position: { x: 200, y: 200 } });
+    await authPage
+      .locator('[data-tool="rectangle"]')
+      .click({ position: { x: 100, y: 100 } });
+    await authPage
+      .locator('[data-tool="rectangle"]')
+      .click({ position: { x: 200, y: 200 } });
     await authPage.waitForTimeout(100);
 
     // Select it
@@ -68,7 +78,9 @@ test.describe("Export Canvas", () => {
     await authPage.getByRole("button", { name: /export/i }).click();
 
     // Selection option should be enabled
-    const selectionRadio = authPage.getByRole("radio", { name: /Selected Shapes/i });
+    const selectionRadio = authPage.getByRole("radio", {
+      name: /Selected Shapes/i,
+    });
     await expect(selectionRadio).toBeEnabled();
   });
 

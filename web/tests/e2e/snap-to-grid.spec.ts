@@ -46,10 +46,14 @@ test.describe("Snap-to-Grid", () => {
 
     // Create a rectangle
     await authPage.getByRole("button", { name: /rectangle/i }).click();
-    
+
     // Click at non-grid position - should snap to nearest grid point
-    await authPage.locator('[data-tool="rectangle"]').click({ position: { x: 105, y: 115 } });
-    await authPage.locator('[data-tool="rectangle"]').click({ position: { x: 155, y: 165 } });
+    await authPage
+      .locator('[data-tool="rectangle"]')
+      .click({ position: { x: 105, y: 115 } });
+    await authPage
+      .locator('[data-tool="rectangle"]')
+      .click({ position: { x: 155, y: 165 } });
 
     // Shape should be created (snapped to grid)
     await authPage.waitForTimeout(200);

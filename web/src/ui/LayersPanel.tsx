@@ -50,7 +50,8 @@ export function LayersPanel({
   const getShapeLabel = (shape: Shape): string => {
     if (isRectangle(shape)) return `Rectangle`;
     if (isCircle(shape)) return `Circle`;
-    if (isText(shape)) return `Text: ${shape.text.substring(0, 20)}${shape.text.length > 20 ? "..." : ""}`;
+    if (isText(shape))
+      return `Text: ${shape.text.substring(0, 20)}${shape.text.length > 20 ? "..." : ""}`;
     return "Shape";
   };
 
@@ -103,7 +104,8 @@ export function LayersPanel({
         <span className={styles.count}>{shapes.length}</span>
       </div>
 
-      <div className={styles.list}>
+      {/* biome-ignore lint/a11y/useSemanticElements: Layers list needs custom styling and drag-drop behavior */}
+      <div className={styles.list} role="list">
         {sortedShapes.length === 0 ? (
           <div className={styles.empty}>No shapes on canvas</div>
         ) : (
@@ -118,16 +120,22 @@ export function LayersPanel({
               <div
                 key={shape.id}
                 className={`${styles.layer} ${isSelected ? styles.layerSelected : ""} ${isDragging ? styles.layerDragging : ""} ${isDragOver ? styles.layerDragOver : ""}`}
-                draggable={canEdit}
-                onDragStart={(e) => handleDragStart(e, shape.id)}
-                onDragOver={(e) => handleDragOver(e, shape.id)}
-                onDrop={(e) => handleDrop(e, shape.id)}
-                onDragEnd={handleDragEnd}
               >
                 <button
                   type="button"
                   className={styles.layerMain}
                   onClick={() => onShapeSelect(shape.id)}
+                  draggable={canEdit}
+                  onDragStart={(e) =>
+                    handleDragStart(e as unknown as React.DragEvent, shape.id)
+                  }
+                  onDragOver={(e) =>
+                    handleDragOver(e as unknown as React.DragEvent, shape.id)
+                  }
+                  onDrop={(e) =>
+                    handleDrop(e as unknown as React.DragEvent, shape.id)
+                  }
+                  onDragEnd={handleDragEnd}
                 >
                   <span className={styles.icon}>{getShapeIcon(shape)}</span>
                   <span className={styles.label}>{getShapeLabel(shape)}</span>

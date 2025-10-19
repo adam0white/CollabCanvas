@@ -45,7 +45,7 @@ export function ExportModal({
     } else if (!filename.includes(".")) {
       setFilename(`${filename}.${format}`);
     }
-  }, [format]);
+  }, [format, filename]);
 
   // Reset scope to canvas if selection is cleared
   useEffect(() => {
@@ -76,10 +76,15 @@ export function ExportModal({
   if (!isOpen) return null;
 
   return (
-    <button
-      type="button"
+    // biome-ignore lint/a11y/useSemanticElements: Modal overlay pattern requires clickable div
+    <div
       className={styles.overlay}
       onClick={onClose}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") onClose();
+      }}
+      role="button"
+      tabIndex={0}
       aria-label="Close export modal"
     >
       <div
@@ -88,10 +93,9 @@ export function ExportModal({
         onKeyDown={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="export-title"
       >
         <div className={styles.header}>
-          <h2 id="export-title">Export Canvas</h2>
+          <h2>Export Canvas</h2>
           <button
             type="button"
             onClick={onClose}
@@ -239,6 +243,6 @@ export function ExportModal({
           </button>
         </div>
       </div>
-    </button>
+    </div>
   );
 }
