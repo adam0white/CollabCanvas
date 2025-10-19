@@ -39,8 +39,13 @@ const COLORS = [
   "#ec4899", // pink
   "#f43f5e", // rose
 ];
+
+// Performance: Adaptive presence throttling
+// Normal updates: 50ms (20 updates/sec)
+// Large selections: 150ms (6.7 updates/sec)
+// Reduces network overhead during bulk operations
 const UPDATE_INTERVAL_MS = 50;
-const UPDATE_INTERVAL_MS_THROTTLED = 150; // More aggressive throttling for large selections
+const UPDATE_INTERVAL_MS_THROTTLED = 150;
 
 /**
  * Sanitize display name to prevent XSS attacks

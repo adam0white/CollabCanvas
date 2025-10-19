@@ -14,64 +14,97 @@ import type { Doc } from "yjs";
 // Tool Schema Definitions (OpenAI Function Calling Format)
 // ============================================================================
 
+// Performance: Concise tool definitions for faster AI inference
+// Pattern-based generation reduces payload size for bulk operations
 export const AI_TOOLS = [
   {
     name: "createShape",
     description:
-      "Create one or more shapes (rectangle/circle/text) on the canvas. IMPORTANT: Pass shapes as a JSON array, NOT a string.",
+      "Create shapes on canvas. Pass JSON array in shapes parameter.",
     parameters: {
       type: "object",
       properties: {
         shapes: {
           type: "array",
           description:
-            "Array of shape objects to create. MUST be a JSON array, NOT a stringified array. Example: [{type:'circle',x:100,y:200,radius:50}]",
+            "Array of shapes. Example: [{type:'circle',x:100,y:200,radius:50,fill:'#FF0000'}]",
           items: {
             type: "object",
             properties: {
               type: {
                 type: "string",
                 enum: ["rectangle", "circle", "text"],
-                description: "Shape type: rectangle, circle, or text",
+                description: "rectangle/circle/text",
               },
-              x: {
-                type: "number",
-                description: "X coordinate (0-2000)",
-              },
-              y: {
-                type: "number",
-                description: "Y coordinate (0-2000)",
-              },
-              width: {
-                type: "number",
-                description: "Width in pixels (for rectangle)",
-              },
-              height: {
-                type: "number",
-                description: "Height in pixels (for rectangle)",
-              },
-              radius: {
-                type: "number",
-                description: "Radius in pixels (for circle)",
-              },
-              text: {
-                type: "string",
-                description: "Text content (for text shape)",
-              },
+              x: { type: "number", description: "X (0-2000)" },
+              y: { type: "number", description: "Y (0-2000)" },
+              width: { type: "number", description: "Width (rectangle)" },
+              height: { type: "number", description: "Height (rectangle)" },
+              radius: { type: "number", description: "Radius (circle)" },
+              text: { type: "string", description: "Text content" },
               fontSize: {
                 type: "number",
-                description: "Font size in pixels (for text, default: 16)",
+                description: "Font size (default: 16)",
               },
-              fill: {
-                type: "string",
-                description: "Fill color as hex code (e.g., #FF0000 for red)",
-              },
+              fill: { type: "string", description: "Hex color (#FF0000)" },
             },
             required: ["type", "x", "y"],
           },
         },
       },
       required: ["shapes"],
+    },
+  },
+  {
+    name: "createPattern",
+    description:
+      "Create multiple shapes in a pattern. More efficient than creating shapes individually. Use for grids, rows, columns, or repeated shapes.",
+    parameters: {
+      type: "object",
+      properties: {
+        pattern: {
+          type: "string",
+          enum: ["grid", "row", "column", "circle_arrangement"],
+          description: "Pattern type: grid, row, column, or circle_arrangement",
+        },
+        shape: {
+          type: "object",
+          description: "Template shape to repeat",
+          properties: {
+            type: { type: "string", enum: ["rectangle", "circle", "text"] },
+            width: { type: "number", description: "Width (rectangle)" },
+            height: { type: "number", description: "Height (rectangle)" },
+            radius: { type: "number", description: "Radius (circle)" },
+            text: { type: "string", description: "Text content" },
+            fontSize: { type: "number", description: "Font size" },
+            fill: { type: "string", description: "Hex color" },
+          },
+          required: ["type"],
+        },
+        startX: { type: "number", description: "Starting X coordinate" },
+        startY: { type: "number", description: "Starting Y coordinate" },
+        count: {
+          type: "number",
+          description: "Number of shapes to create (max 1000)",
+        },
+        rows: {
+          type: "number",
+          description: "Number of rows (for grid pattern)",
+        },
+        columns: {
+          type: "number",
+          description: "Number of columns (for grid pattern)",
+        },
+        spacing: {
+          type: "number",
+          description: "Spacing between shapes (default: 20)",
+        },
+        radius: {
+          type: "number",
+          description: "Radius for circle_arrangement pattern",
+        },
+      },
+      required: ["pattern", "shape", "startX", "startY"],
     },
   },
 ] as const;
@@ -138,6 +171,18 @@ export type FindShapesParams = {
 };
 
 export type GetCanvasStateParams = Record<string, never>;
+
+export type CreatePatternParams = {
+  pattern: "grid" | "row" | "column" | "circle_arrangement";
+  shape: CreateShapeParams;
+  startX: number;
+  startY: number;
+  count?: number;
+  rows?: number;
+  columns?: number;
+  spacing?: number;
+  radius?: number;
+};
 
 export type CreateMultipleShapesParams = {
   shapes: CreateShapeParams[];
@@ -1091,6 +1136,112 @@ export function getCanvasState(
   }
 }
 
+/**
+ * Create multiple shapes in a pattern
+ * Performance: Generates shapes on server side, reducing AI payload from O(n) to O(1)
+ */
+export function createPattern(
+  doc: Doc,
+  params: CreatePatternParams,
+  userId: string,
+): ToolResult {
+  try {
+    const spacing = params.spacing ?? 20;
+    const shapes: CreateShapeParams[] = [];
+
+    // Calculate shape dimensions for spacing
+    const getShapeWidth = (): number => {
+      if (params.shape.type === "rectangle") return params.shape.width ?? 100;
+      if (params.shape.type === "circle")
+        return (params.shape.radius ?? 50) * 2;
+      return 100; // text default
+    };
+
+    const getShapeHeight = (): number => {
+      if (params.shape.type === "rectangle") return params.shape.height ?? 100;
+      if (params.shape.type === "circle")
+        return (params.shape.radius ?? 50) * 2;
+      return 50; // text default
+    };
+
+    const shapeWidth = getShapeWidth();
+    const shapeHeight = getShapeHeight();
+
+    switch (params.pattern) {
+      case "grid": {
+        const rows = params.rows ?? Math.ceil(Math.sqrt(params.count ?? 9));
+        const columns =
+          params.columns ?? Math.ceil(Math.sqrt(params.count ?? 9));
+        const totalShapes = Math.min(rows * columns, 50); // Cap at 50 shapes
+
+        for (let row = 0; row < rows; row++) {
+          for (let col = 0; col < columns; col++) {
+            if (shapes.length >= totalShapes) break;
+
+            shapes.push({
+              ...params.shape,
+              x: params.startX + col * (shapeWidth + spacing),
+              y: params.startY + row * (shapeHeight + spacing),
+            });
+          }
+          if (shapes.length >= totalShapes) break;
+        }
+        break;
+      }
+
+      case "row": {
+        const count = params.count ?? 5;
+        for (let i = 0; i < count; i++) {
+          shapes.push({
+            ...params.shape,
+            x: params.startX + i * (shapeWidth + spacing),
+            y: params.startY,
+          });
+        }
+        break;
+      }
+
+      case "column": {
+        const count = params.count ?? 5;
+        for (let i = 0; i < count; i++) {
+          shapes.push({
+            ...params.shape,
+            x: params.startX,
+            y: params.startY + i * (shapeHeight + spacing),
+          });
+        }
+        break;
+      }
+
+      case "circle_arrangement": {
+        const count = params.count ?? 8;
+        const radius = params.radius ?? 200;
+        const angleStep = (2 * Math.PI) / count;
+
+        for (let i = 0; i < count; i++) {
+          const angle = i * angleStep;
+          shapes.push({
+            ...params.shape,
+            x: params.startX + radius * Math.cos(angle),
+            y: params.startY + radius * Math.sin(angle),
+          });
+        }
+        break;
+      }
+    }
+
+    // Create all shapes using existing createShape function
+    return createShape(doc, { shapes }, userId);
+  } catch (error) {
+    console.error("[AI Tools] createPattern error:", error);
+    return {
+      success: false,
+      message: "Failed to create pattern",
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
 // ============================================================================
 // Tool Dispatcher
 // ============================================================================
@@ -1180,6 +1331,12 @@ export function dispatchTool(
         return getCanvasState(
           doc,
           toolCall.parameters as GetCanvasStateParams,
+          userId,
+        );
+      case "createPattern":
+        return createPattern(
+          doc,
+          toolCall.parameters as CreatePatternParams,
           userId,
         );
       default:

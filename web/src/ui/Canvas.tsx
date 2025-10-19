@@ -1,7 +1,7 @@
 import { useUser } from "@clerk/clerk-react";
 import type Konva from "konva";
 import type { KonvaEventObject } from "konva/lib/Node";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Circle, Group, Layer, Rect, Stage, Text } from "react-konva";
 import { useLocking } from "../hooks/useLocking";
 import type { PresenceState } from "../hooks/usePresence";
@@ -17,6 +17,11 @@ import {
   type Shape,
 } from "../shapes/types";
 import { useShapes } from "../shapes/useShapes";
+import {
+  calculateViewportBounds,
+  filterVisibleShapes,
+  getViewportStats,
+} from "../utils/viewport";
 import styles from "./Canvas.module.css";
 
 const MIN_ZOOM = 0.1;
@@ -37,8 +42,14 @@ export function Canvas({
   const stageRef = useRef<Konva.Stage | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { activeTool, setActiveTool } = useToolbar();
-  const { shapes, canEdit, createShape, updateShape, deleteShape } =
-    useShapes();
+  const {
+    shapes,
+    canEdit,
+    createShape,
+    updateShape,
+    batchDeleteShapes,
+    batchUpdateShapes,
+  } = useShapes();
   const { user } = useUser();
   const userId = user?.id ?? "guest";
   const locking = useLocking(userId);
@@ -185,10 +196,8 @@ export function Canvas({
         canEdit
       ) {
         e.preventDefault();
-        // Delete all selected shapes
-        for (const shapeId of selectedShapeIds) {
-          deleteShape(shapeId);
-        }
+        // Batch delete for performance (single Yjs transaction)
+        batchDeleteShapes(selectedShapeIds);
         setSelectedShapeIds([]);
       }
 
@@ -358,14 +367,14 @@ export function Canvas({
   }, [
     selectedShapeIds,
     canEdit,
-    deleteShape,
     shapes,
     createShape,
     undoRedo,
     setActiveTool,
     updateShape,
     clipboard,
-    pasteCount, // Select pasted shapes
+    pasteCount,
+    batchDeleteShapes,
     setSelectedShapeIds,
   ]);
 
@@ -691,6 +700,48 @@ export function Canvas({
     }
   };
 
+  // Viewport culling: Only render shapes visible in current viewport
+  // This dramatically improves performance with 500+ shapes
+  const viewportBounds = useMemo(
+    () =>
+      calculateViewportBounds(
+        canvasSize.width,
+        canvasSize.height,
+        scale,
+        position,
+      ),
+    [canvasSize.width, canvasSize.height, scale, position],
+  );
+
+  const visibleShapes = useMemo(() => {
+    // Always render selected shapes even if off-screen (for transformer)
+    const selectedShapes = shapes.filter((s) =>
+      selectedShapeIds.includes(s.id),
+    );
+    const unselectedShapes = shapes.filter(
+      (s) => !selectedShapeIds.includes(s.id),
+    );
+
+    // Filter unselected shapes by viewport
+    const visibleUnselected = filterVisibleShapes(
+      unselectedShapes,
+      viewportBounds,
+    );
+
+    // Combine selected and visible shapes
+    return [...selectedShapes, ...visibleUnselected];
+  }, [shapes, selectedShapeIds, viewportBounds]);
+
+  // Log viewport culling stats in development (helps with performance debugging)
+  useEffect(() => {
+    if (import.meta.env.DEV && shapes.length > 50) {
+      const stats = getViewportStats(shapes.length, visibleShapes.length);
+      console.debug(
+        `[Viewport Culling] ${stats.visibleShapes}/${stats.totalShapes} shapes visible (${stats.cullPercentage}% culled)`,
+      );
+    }
+  }, [shapes.length, visibleShapes.length]);
+
   const remoteCursors = Array.from(presence.values()).filter(
     (participant) => participant.cursor,
   );
@@ -845,7 +896,8 @@ export function Canvas({
         onWheel={handleWheel}
       >
         {/* Background grid layer */}
-        <Layer listening={false}>
+        {/* Performance: listening=false, perfectDrawEnabled=false for static grid */}
+        <Layer listening={false} perfectDrawEnabled={false}>
           {(() => {
             const gridSize = 20; // Grid cell size in canvas units
             const scaledGridSize = gridSize * scale;
@@ -873,6 +925,8 @@ export function Canvas({
                   width={1 / scale}
                   height={endY - startY}
                   fill="rgba(15, 23, 42, 0.05)"
+                  listening={false}
+                  perfectDrawEnabled={false}
                 />,
               );
             }
@@ -887,6 +941,8 @@ export function Canvas({
                   width={endX - startX}
                   height={1 / scale}
                   fill="rgba(15, 23, 42, 0.05)"
+                  listening={false}
+                  perfectDrawEnabled={false}
                 />,
               );
             }
@@ -897,14 +953,16 @@ export function Canvas({
 
         {/* Main content layer */}
         <Layer>
-          {/* Render persisted shapes from Yjs */}
+          {/* Render persisted shapes from Yjs (with viewport culling) */}
           <ShapeLayer
-            shapes={shapes}
+            shapes={visibleShapes}
             canEdit={canEdit}
             selectedTool={activeTool}
             selectedShapeIds={selectedShapeIds}
             userId={userId}
             locking={locking}
+            onShapeUpdate={updateShape}
+            onBatchShapeUpdate={batchUpdateShapes}
             onShapeSelect={(shapeId, addToSelection) => {
               // Check if shape is locked by another user
               if (locking.isShapeLocked(shapeId, userId)) {
@@ -926,7 +984,6 @@ export function Canvas({
                 setSelectedShapeIds([shapeId]);
               }
             }}
-            onShapeUpdate={updateShape}
             onTextEdit={handleTextEdit}
             onDragMove={(screenX, screenY) => {
               // Adjust screen coordinates to canvas space for presence

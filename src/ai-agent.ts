@@ -117,10 +117,11 @@ export class AIAgent extends Agent {
       }
 
       // Call AI via Gateway to generate tool calls
-      const toolCalls = await this.generateToolCallsWithAI(
-        prompt,
-        body.context ?? {},
-      );
+      const toolCalls = await this.generateToolCallsWithAI(prompt, {
+        ...body.context,
+        userId,
+        userName,
+      });
 
       if (toolCalls.length === 0) {
         return Response.json(
@@ -224,63 +225,56 @@ export class AIAgent extends Agent {
     context: {
       selectedShapeIds?: string[];
       viewportCenter?: { x: number; y: number };
+      userId?: string;
+      userName?: string;
     },
   ): Promise<ToolCall[]> {
     const centerX = context.viewportCenter?.x ?? 1000;
     const centerY = context.viewportCenter?.y ?? 1000;
 
-    // Build concise system prompt to avoid token limits
-    // Keep it short to prevent response truncation
-    let systemPrompt = `Canvas: 2000x2000px. Viewport center: ${centerX},${centerY}.
+    // Ultra-concise system prompt for faster inference
+    // Shorter prompts = faster generation, less truncation risk
+    let systemPrompt = `Canvas 2000x2000px. Center: ${centerX},${centerY}. Shapes: rectangle, circle, text. Colors: hex (#FF0000=red). Use createPattern for grids/rows (more efficient than arrays). Return JSON arrays in shapes parameter.`;
 
-Available shapes: rectangle (width,height), circle (radius), text (text,fontSize).
-Colors: hex format (#FF0000=red, #0000FF=blue, #00FF00=green, #FFFF00=yellow, #800080=purple).
-Sizes: small=80, normal=150, large=250.
-
-CRITICAL: Return proper JSON arrays in shapes parameter.
-Example: {shapes:[{type:"circle",x:100,y:200,radius:50,fill:"#FF0000"}]}`;
-
-    if (context.selectedShapeIds && context.selectedShapeIds.length > 0) {
-      systemPrompt += `\nSelected shapes: ${context.selectedShapeIds.slice(0, 3).join(",")}`;
+    // Only add selection context if it's actually useful (3+ shapes)
+    if (context.selectedShapeIds && context.selectedShapeIds.length >= 3) {
+      systemPrompt += ` Selected: ${context.selectedShapeIds.length} shapes`;
     }
 
     try {
-      console.log("[AIAgent] Calling AI via AI Gateway");
-      console.log("[AIAgent] System prompt length:", systemPrompt.length);
-      console.log("[AIAgent] User prompt length:", prompt.length);
-
-      // Check total prompt length to avoid truncation
-      const totalPromptLength = systemPrompt.length + prompt.length;
-      const MAX_SAFE_PROMPT_LENGTH = 1500; // Leave room for response
-
-      if (totalPromptLength > MAX_SAFE_PROMPT_LENGTH) {
-        console.warn(
-          `[AIAgent] Prompt too long (${totalPromptLength} chars), truncating context`,
-        );
-        // Reduce system prompt to essentials
-        systemPrompt = `Canvas 2000x2000px. Center: ${centerX},${centerY}. Shapes: rectangle, circle, text. Colors: hex format.`;
-      }
-
       // biome-ignore lint/suspicious/noExplicitAny: Agent framework limitation - env property not typed
       const env = this.env as any;
       const ai = env.AI;
 
-      // Call Workers AI through AI Gateway
-      // Use llama-3.1-8b-instruct with proper message format
+      // Performance: Call Workers AI through AI Gateway with optimized settings
+      // Use llama-3.3-70b-instruct-fp8-fast for better function calling accuracy and speed
       const response = await ai.run(
-        "@cf/meta/llama-3.1-8b-instruct",
+        "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
         {
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: prompt },
           ],
           tools: AI_TOOLS,
-          // Add max tokens to prevent truncation
-          max_tokens: 2048,
+          // Reduced max_tokens for faster generation (shapes rarely need 2048 tokens)
+          max_tokens: 1024,
+          // Lower temperature for more deterministic, faster responses
+          temperature: 0.7,
         },
         {
           gateway: {
             id: "aw-cf-ai",
+            // Performance: Skip LLM cache for dynamic prompts
+            // Viewport coordinates change frequently, making cache hits unlikely
+            // Saves Gateway overhead of cache lookup
+            skipCache: true,
+            // Metadata for observability in AI Gateway dashboard
+            metadata: {
+              userId: context.userId ?? "anonymous",
+              userName: context.userName ?? "Anonymous",
+              promptLength: prompt.length,
+              hasSelection: (context.selectedShapeIds?.length ?? 0) > 0,
+            },
           },
         },
       );
@@ -477,16 +471,20 @@ Example: {shapes:[{type:"circle",x:100,y:200,radius:50,fill:"#FF0000"}]}`;
   ): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
     let totalShapesToCreate = 0;
-    const MAX_SHAPES = 50;
+    const MAX_SHAPES = 1000;
     const MIN_RECTANGLE_SIZE = 10;
     const MIN_CIRCLE_RADIUS = 5;
 
     for (const call of toolCalls) {
-      if (call.name === "createShape") {
+      if (call.name === "createShape" || call.name === "createPattern") {
         const params = call.parameters;
 
-        // Handle array format
-        if ("shapes" in params && Array.isArray(params.shapes)) {
+        // Count shapes from createShape
+        if (
+          call.name === "createShape" &&
+          "shapes" in params &&
+          Array.isArray(params.shapes)
+        ) {
           const shapes = params.shapes as Array<Record<string, unknown>>;
           totalShapesToCreate += shapes.length;
 
@@ -512,6 +510,14 @@ Example: {shapes:[{type:"circle",x:100,y:200,radius:50,fill:"#FF0000"}]}`;
               }
             }
           }
+        }
+
+        // Count shapes from createPattern
+        if (call.name === "createPattern") {
+          const count =
+            (params.count as number) ??
+            ((params.rows as number) ?? 1) * ((params.columns as number) ?? 1);
+          totalShapesToCreate += count;
         }
       }
     }
