@@ -10,7 +10,7 @@
 
 import type Konva from "konva";
 import type { KonvaEventObject } from "konva/lib/Node";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Circle, Rect, Text, Transformer } from "react-konva";
 import { THROTTLE } from "../config/constants";
 import type { LockingHook } from "../hooks/useLocking";
@@ -35,7 +35,9 @@ type ShapeLayerProps = {
   ) => void;
 };
 
-export function ShapeLayer({
+// Memoize ShapeLayer to prevent re-renders when parent re-renders
+// Only re-render when shapes, selection, or tool changes
+export const ShapeLayer = memo(function ShapeLayer({
   shapes,
   canEdit,
   selectedTool,
@@ -85,7 +87,8 @@ export function ShapeLayer({
     }
   }, [selectedShapeIds]);
 
-  const handleDragStart = (_e: KonvaEventObject<DragEvent>, shape: Shape) => {
+  // Memoize event handlers to prevent re-creating functions on every render
+  const handleDragStart = useCallback((_e: KonvaEventObject<DragEvent>, shape: Shape) => {
     // Store initial positions of all selected shapes for group dragging
     if (selectedShapeIds.includes(shape.id) && selectedShapeIds.length > 1) {
       dragStartPositionsRef.current = {};
@@ -99,9 +102,9 @@ export function ShapeLayer({
         }
       }
     }
-  };
+  }, [selectedShapeIds, shapes]);
 
-  const handleDragMove = (e: KonvaEventObject<DragEvent>, shape: Shape) => {
+  const handleDragMove = useCallback((e: KonvaEventObject<DragEvent>, shape: Shape) => {
     // Update cursor position for presence
     if (onDragMove) {
       const stage = e.target.getStage();
@@ -176,9 +179,9 @@ export function ShapeLayer({
         y: node.y(),
       });
     }
-  };
+  }, [canEdit, selectedTool, selectedShapeIds, onShapeUpdate, onBatchShapeUpdate, onDragMove]);
 
-  const handleDragEnd = (e: KonvaEventObject<DragEvent>, shape: Shape) => {
+  const handleDragEnd = useCallback((e: KonvaEventObject<DragEvent>, shape: Shape) => {
     if (!canEdit || selectedTool !== "select") return;
 
     const node = e.target as Konva.Shape;
@@ -240,9 +243,9 @@ export function ShapeLayer({
 
     // Clear throttle tracking for this shape
     delete lastDragUpdateRef.current[shape.id];
-  };
+  }, [canEdit, selectedTool, selectedShapeIds, onShapeUpdate, onBatchShapeUpdate]);
 
-  const handleTransform = (shape: Shape) => {
+  const handleTransform = useCallback((shape: Shape) => {
     if (!canEdit || selectedTool !== "select") return;
 
     // Set visual indicator
@@ -319,9 +322,9 @@ export function ShapeLayer({
       node.scaleX(1);
       node.scaleY(1);
     }
-  };
+  }, [canEdit, selectedTool, selectedShapeIds, onShapeUpdate, onDragMove, transformingShapeId]);
 
-  const handleTransformEnd = (shape: Shape) => {
+  const handleTransformEnd = useCallback((shape: Shape) => {
     if (!canEdit || selectedTool !== "select") return;
 
     // Clear visual indicator
@@ -367,9 +370,9 @@ export function ShapeLayer({
         rotation: node.rotation(),
       });
     }
-  };
+  }, [canEdit, selectedTool, onShapeUpdate]);
 
-  const handleShapeClick = (shapeId: string, e: KonvaEventObject<Event>) => {
+  const handleShapeClick = useCallback((shapeId: string, e: KonvaEventObject<Event>) => {
     if (selectedTool === "select" && canEdit) {
       // Check if Shift key is held for additive selection
       // For touch events, shiftKey won't be available, default to false
@@ -377,7 +380,7 @@ export function ShapeLayer({
       const addToSelection = "shiftKey" in evt ? evt.shiftKey : false;
       onShapeSelect(shapeId, addToSelection);
     }
-  };
+  }, [selectedTool, canEdit, onShapeSelect]);
 
   const handleTextDoubleClick = (shape: Shape) => {
     if (!canEdit || !isText(shape) || !onTextEdit) return;
@@ -394,7 +397,7 @@ export function ShapeLayer({
     const pos = transform.point({ x: 0, y: 0 });
 
     onTextEdit(shape.id, shape.text, pos);
-  };
+  }, [canEdit, onTextEdit]);
 
   // Calculate bounding box for large selections (20+ shapes)
   // Used to show visual feedback without expensive Transformer
