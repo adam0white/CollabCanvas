@@ -19,18 +19,9 @@
  */
 
 import { createDecoder, readVarUint, readVarUint8Array } from "lib0/decoding";
-import {
-  createEncoder,
-  toUint8Array,
-  writeVarUint,
-  writeVarUint8Array,
-} from "lib0/encoding";
 import { YDurableObjects } from "y-durableobjects";
 import type { Awareness } from "y-protocols/awareness";
-import {
-  applyAwarenessUpdate,
-  encodeAwarenessUpdate,
-} from "y-protocols/awareness";
+import { applyAwarenessUpdate } from "y-protocols/awareness";
 import { dispatchTool, type ToolCall, type ToolResult } from "./ai-tools";
 import {
   createDebouncedCommit,
@@ -58,6 +49,7 @@ export type AICommandResult = {
   shapesAffected?: string[];
   error?: string;
   commandId: string;
+  toolCalls?: Array<{ name: string; params: Record<string, unknown> }>;
 };
 
 export class RoomDO extends YDurableObjects<DurableBindings> {
@@ -257,61 +249,23 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
       return result;
     }
 
-    // Generate deterministic client ID for AI agent (outside try block for reuse in catch)
-    const agentClientId = Math.abs(
-      Array.from(userId).reduce((acc, c) => acc + c.charCodeAt(0), 0) % 1000000,
-    ) + 1000000; // Large positive ID to avoid collision
+    console.log("[RoomDO] Starting fast tool execution (client will simulate cursor)");
 
     try {
-      // Create AI agent cursor in Awareness
-      // Note: AI_AGENT.COLOR constant is defined in web/src/config/constants.ts
-      // It's duplicated here to avoid circular dependencies between backend and frontend
-      const AI_AGENT_COLOR = "#9333ea"; // Purple color for AI agent
-
-      const agentPresence = {
-        userId: `ai-agent-${userId}`,
-        displayName: `🤖 Agent by ${userName}`,
-        color: AI_AGENT_COLOR,
-        cursor: { x: 1000, y: 1000 }, // Start at canvas center
-        isAIAgent: true,
-        aiAgentOwner: userId,
-        aiAgentStatus: "thinking" as "thinking" | "working" | "idle",
-      };
-
-      // Manually inject AI agent state into awareness and broadcast
-      // We can't use setLocalState because that only affects the DO's own client ID
-      await this.setAwarenessState(agentClientId, { presence: agentPresence });
 
       const shapesCreated: string[] = [];
       const shapesAffected: string[] = [];
       const toolResults: ToolResult[] = [];
 
-      // Execute tools one by one with delays (simulated execution)
+      // Execute tools quickly (frontend will handle simulation/delays)
       for (let i = 0; i < toolCalls.length; i++) {
         const toolCall = toolCalls[i];
 
         console.log(
-          `[RoomDO] AI Agent executing tool ${i + 1}/${toolCalls.length}: ${toolCall.name}`,
+          `[RoomDO] Executing tool ${i + 1}/${toolCalls.length}: ${toolCall.name}`,
         );
 
-        // Calculate cursor position based on tool operation
-        const cursorPos = this.calculateCursorPosition(toolCall, this.doc);
-        console.log(
-          `[RoomDO] Moving AI cursor to (${cursorPos.x}, ${cursorPos.y})`,
-        );
-
-        // Update AI agent status to "working" and move cursor
-        agentPresence.aiAgentStatus = "working";
-        agentPresence.cursor = cursorPos;
-        await this.setAwarenessState(agentClientId, { presence: agentPresence });
-
-        // Delay before executing (simulate "thinking" time)
-        const delay = this.getDelayForTool(toolCall);
-        console.log(`[RoomDO] Waiting ${delay}ms before execution`);
-        await this.sleep(delay);
-
-        // Execute the tool within its own transaction
-        // This ensures each operation is atomic and broadcasts separately
+        // Execute the tool within a transaction
         const result = await new Promise<ToolResult>((resolve) => {
           this.doc.transact(() => {
             const toolResult = dispatchTool(this.doc, toolCall, userId);
@@ -322,10 +276,6 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
           `[RoomDO] Tool result: ${result.success ? "✓" : "✗"} ${result.message}`,
         );
         toolResults.push(result);
-
-        // Small delay after tool execution to allow Yjs update to be sent
-        // This ensures clients receive the shape update before the next cursor movement
-        await this.sleep(30);
 
         if (result.success) {
           // Prefer shapeIds array over single shapeId to avoid duplicates
@@ -352,14 +302,9 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
           }
         }
 
-        // Small delay after each operation for visual effect
-        console.log("[RoomDO] Operation complete, waiting 50ms");
-        await this.sleep(50);
       }
 
-      console.log("[RoomDO] All operations complete, removing AI cursor");
-      // Remove AI agent cursor by setting state to null
-      await this.setAwarenessState(agentClientId, null);
+      console.log("[RoomDO] All operations complete");
 
       // Append to AI history
       this.doc.transact(() => {
@@ -404,6 +349,11 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
         shapesCreated,
         shapesAffected,
         commandId,
+        // Return tool calls for client-side simulation
+        toolCalls: toolCalls.map((tc) => ({
+          name: tc.name,
+          params: tc.parameters,
+        })),
       };
 
       // Performance: Cache result in memory for idempotency (no storage I/O)
@@ -428,9 +378,6 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
 
       return result;
     } catch (error) {
-      // Make sure to remove AI agent cursor on error
-      // agentClientId is now defined outside try block so we can use it here
-      await this.setAwarenessState(agentClientId, null);
 
       console.error("[RoomDO] ✗ executeAICommand error:", error);
       console.error(
@@ -587,75 +534,6 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
     }[toolCall.name] ?? DELAYS.DEFAULT;
   }
 
-  /**
-   * Sleep utility for simulated delays
-   */
-  private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
-
-  /**
-   * Set awareness state for a specific client ID and broadcast to all connected clients
-   * This is used to create "virtual" clients like AI agents that appear in awareness
-   * 
-   * @param clientId - The client ID to set state for
-   * @param state - The state object, or null to remove the client
-   * @returns Promise that resolves after a small delay to allow message delivery
-   */
-  private async setAwarenessState(
-    clientId: number,
-    state: Record<string, unknown> | null,
-  ): Promise<void> {
-    // Directly manipulate awareness states
-    if (state === null) {
-      // Remove the client state
-      this.awareness.states.delete(clientId);
-      this.awareness.meta.delete(clientId);
-    } else {
-      // Set the client state
-      this.awareness.states.set(clientId, state);
-      // Update meta with current timestamp and clock
-      const existingMeta = this.awareness.meta.get(clientId);
-      this.awareness.meta.set(clientId, {
-        clock: (existingMeta?.clock ?? 0) + 1,
-        lastUpdated: Date.now(),
-      });
-    }
-
-    // Encode and broadcast the awareness update
-    const update = encodeAwarenessUpdate(this.awareness, [clientId]);
-
-    // Broadcast to all connected clients via WebSocket
-    // We need to wrap it in the Yjs message format (MessageType.Awareness = 1)
-    const encoder = createEncoder();
-    writeVarUint(encoder, 1); // MessageType.Awareness
-    writeVarUint8Array(encoder, update);
-
-    const message = toUint8Array(encoder);
-
-    console.log(
-      `[RoomDO] Broadcasting awareness update for client ${clientId}, message size: ${message.byteLength} bytes`,
-    );
-
-    // Broadcast to all connected sockets
-    let sentCount = 0;
-    for (const ws of this.sockets) {
-      try {
-        ws.send(message);
-        sentCount++;
-      } catch (error) {
-        console.error("[RoomDO] Failed to send awareness update:", error);
-      }
-    }
-
-    console.log(
-      `[RoomDO] Awareness update sent to ${sentCount}/${this.sockets.size} clients`,
-    );
-
-    // Small delay to allow WebSocket messages to be sent before next operation
-    // This ensures clients receive and process this update before the next one arrives
-    await this.sleep(30);
-  }
 }
 
 type ClientRole = "editor" | "viewer";
