@@ -85,7 +85,7 @@ export const AI_TOOLS = [
         startY: { type: "number", description: "Starting Y coordinate" },
         count: {
           type: "number",
-          description: "Number of shapes to create (max 50)",
+          description: "Number of shapes to create (max 1000)",
         },
         rows: {
           type: "number",
@@ -1190,7 +1190,7 @@ export function createPattern(
       }
 
       case "row": {
-        const count = Math.min(params.count ?? 5, 1000);
+        const count = params.count ?? 5;
         for (let i = 0; i < count; i++) {
           shapes.push({
             ...params.shape,
@@ -1202,7 +1202,7 @@ export function createPattern(
       }
 
       case "column": {
-        const count = Math.min(params.count ?? 5, 1000);
+        const count = params.count ?? 5;
         for (let i = 0; i < count; i++) {
           shapes.push({
             ...params.shape,
@@ -1214,7 +1214,7 @@ export function createPattern(
       }
 
       case "circle_arrangement": {
-        const count = Math.min(params.count ?? 8, 1000);
+        const count = params.count ?? 8;
         const radius = params.radius ?? 200;
         const angleStep = (2 * Math.PI) / count;
 

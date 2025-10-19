@@ -145,17 +145,18 @@ function getRectangleBounds(shape: Rectangle): {
     };
   }
 
-  // With rotation: approximate bounds by diagonal
-  const diagonal = Math.sqrt(
-    shape.width * shape.width + shape.height * shape.height,
-  );
-  const halfDiag = diagonal / 2;
+  // With rotation: approximate with a bounding circle centered on the rectangle
+  // This creates a tighter bounding box than using top-left corner
+  const centerX = shape.x + shape.width / 2;
+  const centerY = shape.y + shape.height / 2;
+  const halfDiag =
+    Math.sqrt(shape.width * shape.width + shape.height * shape.height) / 2;
 
   return {
-    minX: shape.x - halfDiag,
-    maxX: shape.x + shape.width + halfDiag,
-    minY: shape.y - halfDiag,
-    maxY: shape.y + shape.height + halfDiag,
+    minX: centerX - halfDiag,
+    maxX: centerX + halfDiag,
+    minY: centerY - halfDiag,
+    maxY: centerY + halfDiag,
   };
 }
 

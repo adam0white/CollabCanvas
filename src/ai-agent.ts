@@ -471,16 +471,20 @@ export class AIAgent extends Agent {
   ): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
     let totalShapesToCreate = 0;
-    const MAX_SHAPES = 50;
+    const MAX_SHAPES = 1000;
     const MIN_RECTANGLE_SIZE = 10;
     const MIN_CIRCLE_RADIUS = 5;
 
     for (const call of toolCalls) {
-      if (call.name === "createShape") {
+      if (call.name === "createShape" || call.name === "createPattern") {
         const params = call.parameters;
 
-        // Handle array format
-        if ("shapes" in params && Array.isArray(params.shapes)) {
+        // Count shapes from createShape
+        if (
+          call.name === "createShape" &&
+          "shapes" in params &&
+          Array.isArray(params.shapes)
+        ) {
           const shapes = params.shapes as Array<Record<string, unknown>>;
           totalShapesToCreate += shapes.length;
 
@@ -506,6 +510,14 @@ export class AIAgent extends Agent {
               }
             }
           }
+        }
+
+        // Count shapes from createPattern
+        if (call.name === "createPattern") {
+          const count =
+            (params.count as number) ??
+            ((params.rows as number) ?? 1) * ((params.columns as number) ?? 1);
+          totalShapesToCreate += count;
         }
       }
     }

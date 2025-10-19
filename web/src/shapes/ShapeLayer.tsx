@@ -66,6 +66,20 @@ export const ShapeLayer = memo(function ShapeLayer({
     [key: string]: { x: number; y: number };
   }>({});
 
+  // Performance: Memoize shapes map for O(1) lookups instead of O(n) find()
+  // Critical for large selections where we repeatedly look up shapes
+  const shapesById = useMemo(
+    () =>
+      shapes.reduce(
+        (acc, shape) => {
+          acc[shape.id] = shape;
+          return acc;
+        },
+        {} as Record<string, Shape>,
+      ),
+    [shapes],
+  );
+
   // Attach transformer to selected shapes (multi-select support)
   // Performance optimization: For large selections (20+ shapes), disable transformer
   // and use a simple bounding box indicator instead
@@ -96,7 +110,7 @@ export const ShapeLayer = memo(function ShapeLayer({
       if (selectedShapeIds.includes(shape.id) && selectedShapeIds.length > 1) {
         dragStartPositionsRef.current = {};
         for (const shapeId of selectedShapeIds) {
-          const targetShape = shapes.find((s) => s.id === shapeId);
+          const targetShape = shapesById[shapeId];
           if (targetShape) {
             dragStartPositionsRef.current[shapeId] = {
               x: targetShape.x,
@@ -106,7 +120,7 @@ export const ShapeLayer = memo(function ShapeLayer({
         }
       }
     },
-    [selectedShapeIds, shapes],
+    [selectedShapeIds, shapesById],
   );
 
   const handleDragMove = useCallback(
@@ -314,7 +328,11 @@ export const ShapeLayer = memo(function ShapeLayer({
       const scaleY = node.scaleY();
 
       // Prepare updates based on shape type
-      if (isCircle(shape)) {
+      // Use shapesById for O(1) lookup instead of find()
+      const currentShape = shapesById[shape.id];
+      if (!currentShape) return;
+
+      if (isCircle(currentShape)) {
         const avgScale = (scaleX + scaleY) / 2;
         const currentRadius = (node as Konva.Circle).radius();
         onShapeUpdate(shape.id, {
@@ -326,7 +344,7 @@ export const ShapeLayer = memo(function ShapeLayer({
         // Reset scale after broadcasting
         node.scaleX(1);
         node.scaleY(1);
-      } else if (isRectangle(shape)) {
+      } else if (isRectangle(currentShape)) {
         onShapeUpdate(shape.id, {
           x: node.x(),
           y: node.y(),
@@ -337,12 +355,12 @@ export const ShapeLayer = memo(function ShapeLayer({
         // Reset scale after broadcasting
         node.scaleX(1);
         node.scaleY(1);
-      } else if (isText(shape)) {
+      } else if (isText(currentShape)) {
         const avgScale = (scaleX + scaleY) / 2;
         onShapeUpdate(shape.id, {
           x: node.x(),
           y: node.y(),
-          fontSize: Math.max(8, shape.fontSize * avgScale),
+          fontSize: Math.max(8, currentShape.fontSize * avgScale),
           rotation: node.rotation(),
         });
         // Reset scale after broadcasting
@@ -357,6 +375,7 @@ export const ShapeLayer = memo(function ShapeLayer({
       onShapeUpdate,
       onDragMove,
       transformingShapeId,
+      shapesById,
     ],
   );
 
@@ -454,8 +473,9 @@ export const ShapeLayer = memo(function ShapeLayer({
     let maxX = Number.NEGATIVE_INFINITY;
     let maxY = Number.NEGATIVE_INFINITY;
 
+    // Performance: Use shapesById for O(1) lookups instead of find()
     for (const shapeId of selectedShapeIds) {
-      const shape = shapes.find((s) => s.id === shapeId);
+      const shape = shapesById[shapeId];
       if (!shape) continue;
 
       // Calculate shape bounds based on type
@@ -493,7 +513,7 @@ export const ShapeLayer = memo(function ShapeLayer({
       width: maxX - minX,
       height: maxY - minY,
     };
-  }, [selectedShapeIds, shapes]);
+  }, [selectedShapeIds, shapesById]);
 
   return (
     <>
@@ -726,7 +746,7 @@ export const ShapeLayer = memo(function ShapeLayer({
             // All shapes will be transformed on transformEnd
             if (selectedShapeIds.length > 0) {
               const firstShapeId = selectedShapeIds[0];
-              const firstShape = shapes.find((s) => s.id === firstShapeId);
+              const firstShape = shapesById[firstShapeId];
               if (firstShape) {
                 handleTransform(firstShape);
               }
