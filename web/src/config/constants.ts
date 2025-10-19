@@ -65,3 +65,41 @@ export const AI = {
   /** AI command timeout in milliseconds (increased to 60s for simulated execution) */
   COMMAND_TIMEOUT_MS: 60000,
 } as const;
+
+/**
+ * AI Agent visual constants
+ */
+export const AI_AGENT = {
+  /** AI agent cursor color (purple) */
+  COLOR: "#9333ea",
+  /** Base delay for pattern creation (ms) */
+  PATTERN_BASE_DELAY: 200,
+  /** Additional delay per shape in pattern (ms) */
+  PATTERN_PER_SHAPE_DELAY: 10,
+  /** Maximum delay for pattern creation (ms) */
+  PATTERN_MAX_DELAY: 1000,
+  /** Base delay for shape creation (ms) */
+  SHAPE_BASE_DELAY: 150,
+  /** Additional delay per shape (ms) */
+  SHAPE_PER_SHAPE_DELAY: 20,
+  /** Maximum delay for shape creation (ms) */
+  SHAPE_MAX_DELAY: 800,
+  /** Delay for arrange operations base (ms) */
+  ARRANGE_BASE_DELAY: 150,
+  /** Additional delay per shape in arrange (ms) */
+  ARRANGE_PER_SHAPE_DELAY: 15,
+  /** Maximum delay for arrange operations (ms) */
+  ARRANGE_MAX_DELAY: 600,
+  /** Delay for style updates (ms) */
+  STYLE_UPDATE_DELAY: 100,
+  /** Delay for move operations (ms) */
+  MOVE_DELAY: 150,
+  /** Delay for delete operations (ms) */
+  DELETE_DELAY: 120,
+  /** Delay for rotate operations (ms) */
+  ROTATE_DELAY: 120,
+  /** Delay for resize operations (ms) */
+  RESIZE_DELAY: 150,
+  /** Delay between operations for visual separation (ms) */
+  OPERATION_SEPARATION_DELAY: 50,
+} as const;

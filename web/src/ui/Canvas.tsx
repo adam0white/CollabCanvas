@@ -1294,7 +1294,9 @@ export function Canvas({
             const inverseScale = 1 / scale;
 
             // AI agent cursor has special styling
-            const cursorColor = isAIAgent ? "#9333ea" : participant.color;
+            // Note: AI_AGENT.COLOR constant is defined in config/constants.ts
+            const AI_AGENT_COLOR = "#9333ea";
+            const cursorColor = isAIAgent ? AI_AGENT_COLOR : participant.color;
             const cursorSize = isAIAgent ? 16 : 12;
             const hasGlow = isAIAgent;
 

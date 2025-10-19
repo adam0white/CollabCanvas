@@ -257,18 +257,21 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
       return result;
     }
 
+    // Generate deterministic client ID for AI agent (outside try block for reuse in catch)
+    const agentClientId = Math.abs(
+      Array.from(userId).reduce((acc, c) => acc + c.charCodeAt(0), 0) % 1000000,
+    ) + 1000000; // Large positive ID to avoid collision
+
     try {
       // Create AI agent cursor in Awareness
-      // Use deterministic client ID for AI agent so it appears as a separate "user"
-      const agentClientId = Math.abs(
-        Array.from(userId).reduce((acc, c) => acc + c.charCodeAt(0), 0) %
-          1000000,
-      ) + 1000000; // Large positive ID to avoid collision
+      // Note: AI_AGENT.COLOR constant is defined in web/src/config/constants.ts
+      // It's duplicated here to avoid circular dependencies between backend and frontend
+      const AI_AGENT_COLOR = "#9333ea"; // Purple color for AI agent
 
       const agentPresence = {
         userId: `ai-agent-${userId}`,
         displayName: `🤖 Agent by ${userName}`,
-        color: "#9333ea", // Purple color for AI agent
+        color: AI_AGENT_COLOR,
         cursor: { x: 1000, y: 1000 }, // Start at canvas center
         isAIAgent: true,
         aiAgentOwner: userId,
@@ -287,8 +290,15 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
       for (let i = 0; i < toolCalls.length; i++) {
         const toolCall = toolCalls[i];
 
+        console.log(
+          `[RoomDO] AI Agent executing tool ${i + 1}/${toolCalls.length}: ${toolCall.name}`,
+        );
+
         // Calculate cursor position based on tool operation
         const cursorPos = this.calculateCursorPosition(toolCall, this.doc);
+        console.log(
+          `[RoomDO] Moving AI cursor to (${cursorPos.x}, ${cursorPos.y})`,
+        );
 
         // Update AI agent status to "working" and move cursor
         agentPresence.aiAgentStatus = "working";
@@ -296,10 +306,21 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
         this.setAwarenessState(agentClientId, { presence: agentPresence });
 
         // Delay before executing (simulate "thinking" time)
-        await this.sleep(this.getDelayForTool(toolCall));
+        const delay = this.getDelayForTool(toolCall);
+        console.log(`[RoomDO] Waiting ${delay}ms before execution`);
+        await this.sleep(delay);
 
-        // Execute the tool
-        const result = dispatchTool(this.doc, toolCall, userId);
+        // Execute the tool within its own transaction
+        // This ensures each operation is atomic and broadcasts separately
+        const result = await new Promise<ToolResult>((resolve) => {
+          this.doc.transact(() => {
+            const toolResult = dispatchTool(this.doc, toolCall, userId);
+            resolve(toolResult);
+          });
+        });
+        console.log(
+          `[RoomDO] Tool result: ${result.success ? "✓" : "✗"} ${result.message}`,
+        );
         toolResults.push(result);
 
         if (result.success) {
@@ -328,9 +349,11 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
         }
 
         // Small delay after each operation for visual effect
+        console.log("[RoomDO] Operation complete, waiting 50ms");
         await this.sleep(50);
       }
 
+      console.log("[RoomDO] All operations complete, removing AI cursor");
       // Remove AI agent cursor by setting state to null
       this.setAwarenessState(agentClientId, null);
 
@@ -402,12 +425,8 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
       return result;
     } catch (error) {
       // Make sure to remove AI agent cursor on error
-      // Use a fallback client ID in case agentClientId is not in scope
-      const fallbackAgentClientId = Math.abs(
-        Array.from(userId).reduce((acc, c) => acc + c.charCodeAt(0), 0) %
-          1000000,
-      ) + 1000000;
-      this.setAwarenessState(fallbackAgentClientId, null);
+      // agentClientId is now defined outside try block so we can use it here
+      this.setAwarenessState(agentClientId, null);
 
       console.error("[RoomDO] ✗ executeAICommand error:", error);
       console.error(
@@ -495,45 +514,73 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
   /**
    * Calculate delay for a tool operation
    * More complex operations get longer delays for better visual feedback
+   * 
+   * Note: Delay constants are also defined in web/src/config/constants.ts (AI_AGENT)
+   * They are duplicated here to avoid circular dependencies
    */
   private getDelayForTool(toolCall: ToolCall): number {
     const params = toolCall.parameters;
+
+    // Delay constants (also in web/src/config/constants.ts)
+    const DELAYS = {
+      PATTERN_BASE: 200,
+      PATTERN_PER_SHAPE: 10,
+      PATTERN_MAX: 1000,
+      SHAPE_BASE: 150,
+      SHAPE_PER_SHAPE: 20,
+      SHAPE_MAX: 800,
+      ARRANGE_BASE: 150,
+      ARRANGE_PER_SHAPE: 15,
+      ARRANGE_MAX: 600,
+      STYLE_UPDATE: 100,
+      MOVE: 150,
+      DELETE: 120,
+      ROTATE: 120,
+      RESIZE: 150,
+      DEFAULT: 150,
+    } as const;
 
     // Pattern creation: longer delay for many shapes
     if (toolCall.name === "createPattern") {
       const count =
         (params.count as number) ??
         ((params.rows as number) ?? 1) * ((params.columns as number) ?? 1);
-      // Base 200ms + 10ms per shape, capped at 1000ms
-      return Math.min(200 + count * 10, 1000);
+      return Math.min(
+        DELAYS.PATTERN_BASE + count * DELAYS.PATTERN_PER_SHAPE,
+        DELAYS.PATTERN_MAX,
+      );
     }
 
     // Shape creation: delay based on number of shapes
     if (toolCall.name === "createShape" && "shapes" in params) {
       const count = Array.isArray(params.shapes) ? params.shapes.length : 1;
-      // Base 150ms + 20ms per shape, capped at 800ms
-      return Math.min(150 + count * 20, 800);
+      return Math.min(
+        DELAYS.SHAPE_BASE + count * DELAYS.SHAPE_PER_SHAPE,
+        DELAYS.SHAPE_MAX,
+      );
     }
 
     // Arrange operations: longer delay for many shapes
     if (toolCall.name === "arrangeShapes" && "shapeIds" in params) {
       const count = Array.isArray(params.shapeIds) ? params.shapeIds.length : 0;
-      return Math.min(150 + count * 15, 600);
+      return Math.min(
+        DELAYS.ARRANGE_BASE + count * DELAYS.ARRANGE_PER_SHAPE,
+        DELAYS.ARRANGE_MAX,
+      );
     }
 
     // Style updates: short delay
     if (toolCall.name === "updateShapeStyle") {
-      return 100;
+      return DELAYS.STYLE_UPDATE;
     }
 
     // Default delays for other operations
     return {
-      moveShape: 150,
-      deleteShape: 120,
-      findShapes: 100,
-      rotateShape: 120,
-      resizeShape: 150,
-    }[toolCall.name] ?? 150;
+      moveShape: DELAYS.MOVE,
+      deleteShape: DELAYS.DELETE,
+      rotateShape: DELAYS.ROTATE,
+      resizeShape: DELAYS.RESIZE,
+    }[toolCall.name] ?? DELAYS.DEFAULT;
   }
 
   /**
