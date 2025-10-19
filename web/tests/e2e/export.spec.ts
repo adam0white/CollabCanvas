@@ -2,12 +2,18 @@
  * E2E tests for Export functionality
  */
 
-import { expect, test } from "@playwright/test";
-import { createAuthenticatedPage } from "./helpers";
+import { expect, test } from "./fixtures";
+import {
+  createRectangle,
+  navigateToMainCanvas,
+  waitForSync,
+} from "./helpers";
 
 test.describe("Export Canvas", () => {
-  test("should open export modal with Cmd+E", async ({ page }) => {
-    const { page: authPage } = await createAuthenticatedPage(page);
+  test("should open export modal with Cmd+E", async ({
+    authenticatedPage,
+  }) => {
+    await navigateToMainCanvas(authenticatedPage);
 
     // Press Cmd+E to open export modal
     await authPage.keyboard.press("Meta+E");
