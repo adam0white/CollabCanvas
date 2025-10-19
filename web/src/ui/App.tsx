@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePresence } from "../hooks/usePresence";
 import { SelectionProvider } from "../hooks/useSelection";
 import { ToolbarProvider } from "../hooks/useToolbar";
+import { useViewport, ViewportProvider } from "../hooks/useViewport";
 import { useShapes } from "../shapes/useShapes";
 import { useConnectionStatus } from "../yjs/client";
 import { AIPanel } from "./AIPanel";
@@ -80,68 +81,117 @@ export function App(): React.JSX.Element {
   return (
     <ToolbarProvider>
       <SelectionProvider>
-        <div className={styles.app}>
-          <header className={styles.header}>
-            <div className={styles.headerLeft}>
-              <h1 className={styles.title}>CollabCanvas</h1>
-              <div
-                className={styles.connectionStatus}
-                style={{ backgroundColor: connectionStatusColor }}
-              >
-                <div className={styles.connectionDot} />
-                {connectionStatusText}
-              </div>
-            </div>
-
-            <PresenceBar
-              presence={presenceState.presence}
-              localPresence={presenceState.localPresence}
-              roomId={roomId}
-            />
-
-            <div className={styles.headerRight}>
-              <SignedOut>
-                <SignInButton mode="modal" fallbackRedirectUrl="/c/main" />
-              </SignedOut>
-              <SignedIn>
-                <UserButton userProfileUrl="/c/main" />
-              </SignedIn>
-            </div>
-          </header>
-
-          <main className={styles.main}>
-            {isLoading && (
-              <div className={styles.loadingOverlay}>
-                <div className={styles.loadingSpinner} />
-                <p>Connecting to canvas...</p>
-              </div>
-            )}
-
-            <div className={styles.canvasContainer}>
-              <AppContent
-                presence={presenceState.presence}
-                setPresence={presenceState.setPresence}
-                defaultFillColor={defaultFillColor}
-                onDefaultColorChange={setDefaultFillColor}
-                floatingToolbarClassName={styles.floatingToolbar}
-              />
-            </div>
-
-            {/* AI Panel */}
-            <aside className={styles.aiPanel}>
-              <AIPanel ref={aiPanelRef} />
-            </aside>
-          </main>
-
-          <Footer />
-
-          {/* Keyboard shortcuts help panel */}
-          <ShortcutsPanel
-            isOpen={isShortcutsPanelOpen}
-            onClose={() => setIsShortcutsPanelOpen(false)}
+        <ViewportProvider>
+          <AppWithViewport
+            presenceState={presenceState}
+            connectionStatusText={connectionStatusText}
+            connectionStatusColor={connectionStatusColor}
+            roomId={roomId}
+            isLoading={isLoading}
+            defaultFillColor={defaultFillColor}
+            setDefaultFillColor={setDefaultFillColor}
+            aiPanelRef={aiPanelRef}
+            isShortcutsPanelOpen={isShortcutsPanelOpen}
+            setIsShortcutsPanelOpen={setIsShortcutsPanelOpen}
           />
-        </div>
+        </ViewportProvider>
       </SelectionProvider>
     </ToolbarProvider>
+  );
+}
+
+// Separate component to use viewport context
+function AppWithViewport({
+  presenceState,
+  connectionStatusText,
+  connectionStatusColor,
+  roomId,
+  isLoading,
+  defaultFillColor,
+  setDefaultFillColor,
+  aiPanelRef,
+  isShortcutsPanelOpen,
+  setIsShortcutsPanelOpen,
+}: {
+  presenceState: ReturnType<typeof usePresence>;
+  connectionStatusText: string;
+  connectionStatusColor: string;
+  roomId: string;
+  isLoading: boolean;
+  defaultFillColor: string;
+  setDefaultFillColor: (color: string) => void;
+  aiPanelRef: React.RefObject<HTMLTextAreaElement | null>;
+  isShortcutsPanelOpen: boolean;
+  setIsShortcutsPanelOpen: (open: boolean) => void;
+}): React.JSX.Element {
+  const { viewport } = useViewport();
+
+  return (
+    <div className={styles.app}>
+      <header className={styles.header}>
+        <div className={styles.headerLeft}>
+          <h1 className={styles.title}>CollabCanvas</h1>
+          <div
+            className={styles.connectionStatus}
+            style={{ backgroundColor: connectionStatusColor }}
+          >
+            <div className={styles.connectionDot} />
+            {connectionStatusText}
+          </div>
+        </div>
+
+        <PresenceBar
+          presence={presenceState.presence}
+          localPresence={presenceState.localPresence}
+          roomId={roomId}
+        />
+
+        <div className={styles.headerRight}>
+          <SignedOut>
+            <SignInButton mode="modal" fallbackRedirectUrl="/c/main" />
+          </SignedOut>
+          <SignedIn>
+            <UserButton userProfileUrl="/c/main" />
+          </SignedIn>
+        </div>
+      </header>
+
+      <main className={styles.main}>
+        {isLoading && (
+          <div className={styles.loadingOverlay}>
+            <div className={styles.loadingSpinner} />
+            <p>Connecting to canvas...</p>
+          </div>
+        )}
+
+        <div className={styles.canvasContainer}>
+          <AppContent
+            presence={presenceState.presence}
+            setPresence={presenceState.setPresence}
+            defaultFillColor={defaultFillColor}
+            onDefaultColorChange={setDefaultFillColor}
+            floatingToolbarClassName={styles.floatingToolbar}
+          />
+        </div>
+
+        {/* AI Panel with viewport context */}
+        <aside className={styles.aiPanel}>
+          <AIPanel
+            ref={aiPanelRef}
+            viewportCenter={viewport.center}
+            viewportBounds={viewport.bounds}
+            canvasScale={viewport.scale}
+          />
+        </aside>
+      </main>
+
+      <Footer />
+
+      {/* Keyboard shortcuts help panel */}
+      <ShortcutsPanel
+        isOpen={isShortcutsPanelOpen}
+        onClose={() => setIsShortcutsPanelOpen(false)}
+      />
+    </div>
   );
 }
