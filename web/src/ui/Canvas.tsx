@@ -990,7 +990,9 @@ export function Canvas({
                 x: (screenX - position.x) / scale,
                 y: (screenY - position.y) / scale,
               };
-              setPresence({ cursor: adjustedPos });
+              // Use stronger throttling when moving many shapes
+              const forceThrottle = selectedShapeIds.length >= 20;
+              setPresence({ cursor: adjustedPos }, forceThrottle);
             }}
           />
 
