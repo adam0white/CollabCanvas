@@ -20,6 +20,7 @@ type UseShapesReturn = {
   isLoading: boolean;
   createShape: (shape: Shape) => void;
   updateShape: (id: string, updates: Partial<Shape>) => void;
+  updateShapesBatch: (updates: Array<{ id: string; updates: Partial<Shape> }>) => void;
   deleteShape: (id: string) => void;
 };
 
@@ -169,6 +170,43 @@ export function useShapes(): UseShapesReturn {
     shapesMap.set(id, updated);
   };
 
+  /**
+   * Batch-update multiple shapes in a single Yjs transaction.
+   * Reduces network messages during group drag/transform.
+   */
+  const updateShapesBatch = (
+    updates: Array<{ id: string; updates: Partial<Shape> }>,
+  ) => {
+    if (!isSignedIn || updates.length === 0) return;
+
+    const shapesMap = doc.getMap("shapes");
+    doc.transact(() => {
+      for (const { id, updates: partial } of updates) {
+        const existing = shapesMap.get(id);
+        if (!existing) continue;
+
+        const currentData =
+          existing instanceof Map
+            ? Object.fromEntries(existing.entries())
+            : existing;
+
+        // Validate numeric fields lightly (x,y)
+        const validated: Partial<Shape> = { ...partial };
+        if ("x" in validated) {
+          const x = validated.x as number;
+          if (typeof x !== "number" || Number.isNaN(x)) delete (validated as any).x;
+        }
+        if ("y" in validated) {
+          const y = validated.y as number;
+          if (typeof y !== "number" || Number.isNaN(y)) delete (validated as any).y;
+        }
+
+        const next = { ...currentData, ...validated };
+        shapesMap.set(id, next);
+      }
+    });
+  };
+
   const deleteShape = (id: string) => {
     if (!isSignedIn) return;
 
@@ -182,6 +220,7 @@ export function useShapes(): UseShapesReturn {
     isLoading,
     createShape,
     updateShape,
+    updateShapesBatch,
     deleteShape,
   };
 }

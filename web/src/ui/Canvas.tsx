@@ -1,7 +1,7 @@
 import { useUser } from "@clerk/clerk-react";
 import type Konva from "konva";
 import type { KonvaEventObject } from "konva/lib/Node";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Circle, Group, Layer, Rect, Stage, Text } from "react-konva";
 import { useLocking } from "../hooks/useLocking";
 import type { PresenceState } from "../hooks/usePresence";
@@ -14,6 +14,8 @@ import {
   createRectangle,
   createText,
   isRectangle,
+  isCircle,
+  isText,
   type Shape,
 } from "../shapes/types";
 import { useShapes } from "../shapes/useShapes";
@@ -95,6 +97,59 @@ export function Canvas({
 
   // Use prop for default fill color (controlled by App.tsx via Toolbar)
   const defaultFillColor = propDefaultFillColor;
+
+  // Viewport culling: compute visible shapes with a buffer to reduce draw work.
+  const visibleShapes = useMemo(() => {
+    if (!shapes || shapes.length === 0) return shapes;
+
+    const safeScale = Math.max(scale, 0.0001);
+    const bufferScreenPx = 200; // screen-space buffer to avoid pop-in
+    const bufferCanvas = bufferScreenPx / safeScale;
+
+    const minX = -position.x / safeScale - bufferCanvas;
+    const maxX = (canvasSize.width - position.x) / safeScale + bufferCanvas;
+    const minY = -position.y / safeScale - bufferCanvas;
+    const maxY = (canvasSize.height - position.y) / safeScale + bufferCanvas;
+
+    const selectedSet = new Set(selectedShapeIds);
+
+    const intersects = (shape: Shape): boolean => {
+      if (selectedSet.has(shape.id)) return true;
+
+      if (isRectangle(shape)) {
+        const left = shape.x;
+        const top = shape.y;
+        const right = shape.x + shape.width;
+        const bottom = shape.y + shape.height;
+        return right >= minX && left <= maxX && bottom >= minY && top <= maxY;
+      }
+
+      if (isCircle(shape)) {
+        const r = shape.radius;
+        const left = shape.x - r;
+        const right = shape.x + r;
+        const top = shape.y - r;
+        const bottom = shape.y + r;
+        return right >= minX && left <= maxX && bottom >= minY && top <= maxY;
+      }
+
+      if (isText(shape)) {
+        const width =
+          shape.width ??
+          Math.max(80, (shape.text?.length ?? 0) * (shape.fontSize ?? 16) * 0.6);
+        const height = Math.max(20, (shape.fontSize ?? 16) * 1.2);
+        const left = shape.x;
+        const top = shape.y;
+        const right = shape.x + width;
+        const bottom = shape.y + height;
+        return right >= minX && left <= maxX && bottom >= minY && top <= maxY;
+      }
+
+      return true;
+    };
+
+    return shapes.filter(intersects);
+  }, [shapes, scale, position, canvasSize, selectedShapeIds]);
 
   // Update locks when selection changes
   useEffect(() => {
@@ -578,7 +633,7 @@ export function Canvas({
       const maxY = Math.max(lassoStart.y, lassoEnd.y);
 
       // Find shapes whose centers are inside the lasso rectangle
-      const selectedIds = shapes
+      const selectedIds = visibleShapes
         .filter((shape) => {
           // Calculate shape center based on type
           let centerX = shape.x;
@@ -691,8 +746,9 @@ export function Canvas({
     }
   };
 
-  const remoteCursors = Array.from(presence.values()).filter(
-    (participant) => participant.cursor,
+  const remoteCursors = useMemo(
+    () => Array.from(presence.values()).filter((p) => p.cursor),
+    [presence],
   );
 
   // Calculate which cursors are visible and which need edge indicators
@@ -899,7 +955,7 @@ export function Canvas({
         <Layer>
           {/* Render persisted shapes from Yjs */}
           <ShapeLayer
-            shapes={shapes}
+            shapes={visibleShapes}
             canEdit={canEdit}
             selectedTool={activeTool}
             selectedShapeIds={selectedShapeIds}

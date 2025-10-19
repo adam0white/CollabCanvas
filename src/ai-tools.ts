@@ -74,6 +74,37 @@ export const AI_TOOLS = [
       required: ["shapes"],
     },
   },
+  {
+    name: "createGrid",
+    description:
+      "Create an m x n grid of shapes efficiently without enumerating each shape.",
+    parameters: {
+      type: "object",
+      properties: {
+        rows: { type: "number", description: "Number of rows (1-50)" },
+        columns: { type: "number", description: "Number of columns (1-50)" },
+        shape: {
+          type: "object",
+          description: "Base shape specification for each cell",
+          properties: {
+            type: { type: "string", enum: ["rectangle", "circle", "text"] },
+            width: { type: "number" },
+            height: { type: "number" },
+            radius: { type: "number" },
+            text: { type: "string" },
+            fontSize: { type: "number" },
+            fill: { type: "string" },
+          },
+          required: ["type"],
+        },
+        startX: { type: "number", description: "Top-left x position" },
+        startY: { type: "number", description: "Top-left y position" },
+        spacingX: { type: "number", description: "Horizontal spacing" },
+        spacingY: { type: "number", description: "Vertical spacing" },
+      },
+      required: ["rows", "columns", "shape", "startX", "startY"],
+    },
+  },
 ] as const;
 
 // ============================================================================
@@ -141,6 +172,16 @@ export type GetCanvasStateParams = Record<string, never>;
 
 export type CreateMultipleShapesParams = {
   shapes: CreateShapeParams[];
+};
+
+export type CreateGridParams = {
+  rows: number;
+  columns: number;
+  shape: CreateShapeParams;
+  startX: number;
+  startY: number;
+  spacingX?: number;
+  spacingY?: number;
 };
 
 export type ComputeCenterParams = {
@@ -1158,6 +1199,12 @@ export function dispatchTool(
           },
           userId,
         );
+      case "createGrid":
+        return createGrid(
+          doc,
+          toolCall.parameters as CreateGridParams,
+          userId,
+        );
       case "computeCenter":
         return computeCenter(
           doc,
@@ -1194,6 +1241,95 @@ export function dispatchTool(
     return {
       success: false,
       message: `Error executing tool ${toolCall.name}`,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+export function createGrid(
+  doc: Doc,
+  params: CreateGridParams,
+  userId: string,
+): ToolResult {
+  try {
+    const rows = Math.max(1, Math.min(50, Math.floor(params.rows)));
+    const columns = Math.max(1, Math.min(50, Math.floor(params.columns)));
+    const total = rows * columns;
+    if (total > 500) {
+      return {
+        success: false,
+        message: `Grid too large (${total}). Max 500 cells`,
+        error: "Grid size limit",
+      };
+    }
+
+    const shapesMap = doc.getMap("shapes");
+    const createdIds: string[] = [];
+
+    const spacingX = params.spacingX ?? (params.shape.width ?? (params.shape.radius ? params.shape.radius * 2 : 100)) + 20;
+    const spacingY = params.spacingY ?? (params.shape.height ?? (params.shape.radius ? params.shape.radius * 2 : 60)) + 20;
+
+    const baseFill = normalizeColor(params.shape.fill);
+
+    let y = params.startY;
+    for (let r = 0; r < rows; r++) {
+      let x = params.startX;
+      for (let c = 0; c < columns; c++) {
+        const id = crypto.randomUUID();
+        const common = {
+          id,
+          x,
+          y,
+          fill: baseFill,
+          createdBy: `ai-${userId}`,
+          createdAt: Date.now(),
+          aiGenerated: true,
+        } as Record<string, unknown>;
+
+        if (params.shape.type === "rectangle") {
+          const width = params.shape.width ?? 80;
+          const height = params.shape.height ?? 60;
+          shapesMap.set(id, {
+            ...common,
+            type: "rectangle",
+            width,
+            height,
+          });
+        } else if (params.shape.type === "circle") {
+          const radius = params.shape.radius ?? 30;
+          shapesMap.set(id, {
+            ...common,
+            type: "circle",
+            radius,
+          });
+        } else if (params.shape.type === "text") {
+          shapesMap.set(id, {
+            ...common,
+            type: "text",
+            text: params.shape.text ?? "",
+            fontSize: params.shape.fontSize ?? 16,
+            fontFamily: "Arial",
+            align: "left",
+            width: params.shape.width ?? 120,
+          });
+        }
+
+        createdIds.push(id);
+        x += spacingX;
+      }
+      y += spacingY;
+    }
+
+    return {
+      success: true,
+      message: `Created grid ${rows}x${columns} (${createdIds.length} shapes)`,
+      shapeIds: createdIds,
+    };
+  } catch (error) {
+    console.error("[AI Tools] createGrid error:", error);
+    return {
+      success: false,
+      message: "Failed to create grid",
       error: error instanceof Error ? error.message : "Unknown error",
     };
   }

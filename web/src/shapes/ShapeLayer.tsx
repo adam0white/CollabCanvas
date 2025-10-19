@@ -10,12 +10,13 @@
 
 import type Konva from "konva";
 import type { KonvaEventObject } from "konva/lib/Node";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Circle, Rect, Text, Transformer } from "react-konva";
 import { THROTTLE } from "../config/constants";
 import type { LockingHook } from "../hooks/useLocking";
 import type { Shape } from "./types";
 import { isCircle, isRectangle, isText } from "./types";
+import { useShapes } from "./useShapes";
 
 type ShapeLayerProps = {
   shapes: Shape[];
@@ -34,7 +35,7 @@ type ShapeLayerProps = {
   ) => void;
 };
 
-export function ShapeLayer({
+function ShapeLayerImpl({
   shapes,
   canEdit,
   selectedTool,
@@ -46,6 +47,7 @@ export function ShapeLayer({
   onDragMove,
   onTextEdit,
 }: ShapeLayerProps): React.JSX.Element {
+  const { updateShapesBatch } = useShapes();
   const lastDragUpdateRef = useRef<{ [key: string]: number }>({});
   const [hoveredShapeId, setHoveredShapeId] = useState<string | null>(null);
   const [transformingShapeId, setTransformingShapeId] = useState<string | null>(
@@ -60,19 +62,24 @@ export function ShapeLayer({
     [key: string]: { x: number; y: number };
   }>({});
 
+  // Fast selection membership lookup
+  const selectedSet = useMemo(() => new Set(selectedShapeIds), [selectedShapeIds]);
+
   // Attach transformer to selected shapes (multi-select support)
   useEffect(() => {
-    if (transformerRef.current && selectedShapeIds.length > 0) {
+    // For very large selections, avoid attaching transformer for performance
+    const transformer = transformerRef.current;
+    if (transformer && selectedShapeIds.length > 0 && selectedShapeIds.length < 30) {
       const selectedNodes = selectedShapeIds
         .map((id) => shapeRefs.current[id])
         .filter((node): node is Konva.Shape => node !== null);
 
       if (selectedNodes.length > 0) {
-        transformerRef.current.nodes(selectedNodes);
-        transformerRef.current.getLayer()?.batchDraw();
+        transformer.nodes(selectedNodes);
+        transformer.getLayer()?.batchDraw();
       }
-    } else if (transformerRef.current) {
-      transformerRef.current.nodes([]);
+    } else if (transformer) {
+      transformer.nodes([]);
     }
   }, [selectedShapeIds]);
 
@@ -118,26 +125,25 @@ export function ShapeLayer({
     const draggedShapeId = shape.id;
 
     // If multiple shapes are selected and this is one of them, move all selected shapes
-    if (
-      selectedShapeIds.includes(draggedShapeId) &&
-      selectedShapeIds.length > 1
-    ) {
+    if (selectedSet.has(draggedShapeId) && selectedShapeIds.length > 1) {
       const startPos = dragStartPositionsRef.current[draggedShapeId];
       if (startPos) {
         // Calculate the offset from the original position
         const dx = node.x() - startPos.x;
         const dy = node.y() - startPos.y;
 
-        // Apply the same offset to all selected shapes
-        for (const shapeId of selectedShapeIds) {
-          const startPosition = dragStartPositionsRef.current[shapeId];
-          if (startPosition) {
-            onShapeUpdate(shapeId, {
-              x: startPosition.x + dx,
-              y: startPosition.y + dy,
-            });
-          }
-        }
+        // Apply the same offset to all selected shapes in a single transaction
+        const batch = selectedShapeIds
+          .map((shapeId) => {
+            const startPosition = dragStartPositionsRef.current[shapeId];
+            if (!startPosition) return null;
+            return {
+              id: shapeId,
+              updates: { x: startPosition.x + dx, y: startPosition.y + dy },
+            };
+          })
+          .filter((u): u is { id: string; updates: Partial<Shape> } => u !== null);
+        updateShapesBatch(batch);
       }
     } else {
       // Single shape drag
@@ -155,26 +161,24 @@ export function ShapeLayer({
     const draggedShapeId = shape.id;
 
     // If multiple shapes are selected and this is one of them, finalize positions for all
-    if (
-      selectedShapeIds.includes(draggedShapeId) &&
-      selectedShapeIds.length > 1
-    ) {
+    if (selectedSet.has(draggedShapeId) && selectedShapeIds.length > 1) {
       const startPos = dragStartPositionsRef.current[draggedShapeId];
       if (startPos) {
         // Calculate the final offset
         const dx = node.x() - startPos.x;
         const dy = node.y() - startPos.y;
 
-        // Apply final position to all selected shapes
-        for (const shapeId of selectedShapeIds) {
-          const startPosition = dragStartPositionsRef.current[shapeId];
-          if (startPosition) {
-            onShapeUpdate(shapeId, {
-              x: startPosition.x + dx,
-              y: startPosition.y + dy,
-            });
-          }
-        }
+        const batch = selectedShapeIds
+          .map((shapeId) => {
+            const startPosition = dragStartPositionsRef.current[shapeId];
+            if (!startPosition) return null;
+            return {
+              id: shapeId,
+              updates: { x: startPosition.x + dx, y: startPosition.y + dy },
+            };
+          })
+          .filter((u): u is { id: string; updates: Partial<Shape> } => u !== null);
+        updateShapesBatch(batch);
       }
 
       // Clear drag start positions
@@ -389,9 +393,9 @@ export function ShapeLayer({
                       : (shape.strokeWidth ?? 0)
               }
               cornerRadius={8}
-              shadowBlur={isSelected || (isHovered && isDraggable) ? 16 : 12}
+              shadowBlur={isSelected || (isHovered && isDraggable) ? 8 : 6}
               shadowOpacity={
-                isSelected || (isHovered && isDraggable) ? 0.25 : 0.15
+                isSelected || (isHovered && isDraggable) ? 0.2 : 0.12
               }
               opacity={isTransforming ? 0.8 : 1}
               draggable={isDraggable}
@@ -447,9 +451,9 @@ export function ShapeLayer({
                       ? 3
                       : (shape.strokeWidth ?? 0)
               }
-              shadowBlur={isSelected || (isHovered && isDraggable) ? 16 : 12}
+              shadowBlur={isSelected || (isHovered && isDraggable) ? 8 : 6}
               shadowOpacity={
-                isSelected || (isHovered && isDraggable) ? 0.25 : 0.15
+                isSelected || (isHovered && isDraggable) ? 0.2 : 0.12
               }
               opacity={isTransforming ? 0.8 : 1}
               draggable={isDraggable}
@@ -505,9 +509,9 @@ export function ShapeLayer({
                     ? 2
                     : (shape.strokeWidth ?? 0)
               }
-              shadowBlur={isSelected || (isHovered && isDraggable) ? 16 : 12}
+              shadowBlur={isSelected || (isHovered && isDraggable) ? 8 : 6}
               shadowOpacity={
-                isSelected || (isHovered && isDraggable) ? 0.25 : 0.15
+                isSelected || (isHovered && isDraggable) ? 0.2 : 0.12
               }
               opacity={isTransforming ? 0.8 : 1}
               draggable={isDraggable}
@@ -539,7 +543,7 @@ export function ShapeLayer({
       })}
 
       {/* Transformer for selected shape */}
-      {canEdit && selectedTool === "select" && (
+      {canEdit && selectedTool === "select" && selectedShapeIds.length > 0 && selectedShapeIds.length < 30 && (
         <Transformer
           ref={transformerRef}
           boundBoxFunc={(oldBox, newBox) => {
@@ -573,3 +577,39 @@ export function ShapeLayer({
     </>
   );
 }
+
+// Memoize to avoid re-rendering unchanged shapes during presence/selection updates
+export const ShapeLayer = memo(ShapeLayerImpl, (prev, next) => {
+  // Stable equality checks
+  if (prev.canEdit !== next.canEdit) return false;
+  if (prev.selectedTool !== next.selectedTool) return false;
+  if (prev.userId !== next.userId) return false;
+  // Compare selection by size and first/last IDs to avoid O(n) cost; fallback if lengths differ
+  if (prev.selectedShapeIds.length !== next.selectedShapeIds.length) return false;
+  for (let i = 0; i < prev.selectedShapeIds.length; i++) {
+    if (prev.selectedShapeIds[i] !== next.selectedShapeIds[i]) return false;
+  }
+  // Shallow compare shapes array by length and id/version-critical props
+  if (prev.shapes.length !== next.shapes.length) return false;
+  for (let i = 0; i < prev.shapes.length; i++) {
+    const a = prev.shapes[i];
+    const b = next.shapes[i];
+    if (a.id !== b.id) return false;
+    if (a.x !== b.x || a.y !== b.y) return false;
+    if (a.rotation !== b.rotation) return false;
+    // Size props per type
+    if (("width" in a) !== ("width" in b)) return false;
+    if (("height" in a) !== ("height" in b)) return false;
+    if (("radius" in a) !== ("radius" in b)) return false;
+    if ("width" in a && (a as any).width !== (b as any).width) return false;
+    if ("height" in a && (a as any).height !== (b as any).height) return false;
+    if ("radius" in a && (a as any).radius !== (b as any).radius) return false;
+    // Visuals that materially affect drawing
+    if (a.fill !== b.fill) return false;
+    if (a.stroke !== b.stroke) return false;
+    if (a.strokeWidth !== b.strokeWidth) return false;
+    if (("text" in a) !== ("text" in b)) return false;
+    if ("text" in a && (a as any).text !== (b as any).text) return false;
+  }
+  return true;
+});

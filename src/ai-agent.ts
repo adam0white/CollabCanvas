@@ -275,8 +275,8 @@ Example: {shapes:[{type:"circle",x:100,y:200,radius:50,fill:"#FF0000"}]}`;
             { role: "user", content: prompt },
           ],
           tools: AI_TOOLS,
-          // Add max tokens to prevent truncation
-          max_tokens: 2048,
+          max_tokens: 1024,
+          temperature: 0.2,
         },
         {
           gateway: {
