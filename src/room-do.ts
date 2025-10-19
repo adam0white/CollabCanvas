@@ -22,6 +22,7 @@ import { createDecoder, readVarUint, readVarUint8Array } from "lib0/decoding";
 import { YDurableObjects } from "y-durableobjects";
 import type { Awareness } from "y-protocols/awareness";
 import { applyAwarenessUpdate } from "y-protocols/awareness";
+import { executeWithSimulation } from "./ai-cursor-simulator";
 import { dispatchTool, type ToolCall, type ToolResult } from "./ai-tools";
 import {
   createDebouncedCommit,
@@ -248,41 +249,21 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
     }
 
     try {
-      const shapesCreated: string[] = [];
-      const shapesAffected: string[] = [];
-      const toolResults: ToolResult[] = [];
+      // Execute with AI cursor simulation for theatrical effect
+      // This creates a virtual AI agent cursor, moves it between operations,
+      // and executes tool calls slowly with visual feedback
+      const simulationResult = await executeWithSimulation(
+        this.doc,
+        this.awareness,
+        toolCalls,
+        userId,
+        userName,
+      );
 
-      // Execute all tools within a single Yjs transaction (atomic)
+      const { toolResults, shapesCreated, shapesAffected, errors } = simulationResult;
+
+      // Append to AI history (outside of simulation transaction)
       this.doc.transact(() => {
-        for (const toolCall of toolCalls) {
-          const result = dispatchTool(this.doc, toolCall, userId);
-          toolResults.push(result);
-
-          if (result.success) {
-            // Prefer shapeIds array over single shapeId to avoid duplicates
-            if (result.shapeIds && result.shapeIds.length > 0) {
-              // Track created shapes for createShape and createMultipleShapes
-              if (
-                toolCall.name === "createShape" ||
-                toolCall.name === "createMultipleShapes"
-              ) {
-                shapesCreated.push(...result.shapeIds);
-              }
-              shapesAffected.push(...result.shapeIds);
-            } else if (result.shapeId) {
-              // Fallback to single shapeId (for tools that don't return shapeIds array)
-              if (
-                toolCall.name === "createShape" ||
-                toolCall.name === "createMultipleShapes"
-              ) {
-                shapesCreated.push(result.shapeId);
-              }
-              shapesAffected.push(result.shapeId);
-            }
-          }
-        }
-
-        // Performance: Append to AI history within same transaction (atomic)
         const aiHistory = this.doc.getArray("aiHistory");
 
         // Build concise response message
@@ -304,7 +285,7 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
           timestamp: Date.now(),
           shapesAffected,
           success: toolResults.every((r) => r.success),
-          error: toolResults.find((r) => !r.success)?.error,
+          error: errors.length > 0 ? errors.join("; ") : undefined,
         };
 
         aiHistory.push([historyEntry]);
