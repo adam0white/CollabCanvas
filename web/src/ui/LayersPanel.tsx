@@ -117,6 +117,7 @@ export function LayersPanel({
           className={styles.toggleButton}
           onClick={toggleCollapse}
           title={isCollapsed ? "Expand layers" : "Collapse layers"}
+          aria-label="Toggle layers panel"
         >
           {isCollapsed ? "▶" : "◀"}
         </button>
