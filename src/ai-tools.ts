@@ -230,19 +230,10 @@ export function createShape(
         console.warn(
           "[AI Tools] Received stringified shapes, attempting to parse...",
         );
-        console.log(
-          "[AI Tools] Raw string:",
-          (params.shapes as string).substring(0, 150),
-        );
 
         try {
           // Try direct JSON.parse first
           shapesArray = JSON.parse(params.shapes) as CreateShapeParams[];
-          console.log(
-            "[AI Tools] ✓ Parsed",
-            shapesArray.length,
-            "shapes from string",
-          );
         } catch (_parseError1) {
           console.warn("[AI Tools] Direct parse failed, normalizing quotes...");
 
@@ -253,11 +244,6 @@ export function createShape(
               .replace(/(\w+):/g, '"$1":');
 
             shapesArray = JSON.parse(normalized) as CreateShapeParams[];
-            console.log(
-              "[AI Tools] ✓ Parsed after normalization:",
-              shapesArray.length,
-              "shapes",
-            );
           } catch (parseError2) {
             console.error(
               "[AI Tools] Failed to parse stringified shapes:",

@@ -168,21 +168,11 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
     userName: string;
     prompt: string;
   }): Promise<AICommandResult> {
-    const { commandId, toolCalls, userId, userName, prompt } = params;
-
-    console.log(`[RoomDO] ✓ executeAICommand called:`, {
-      commandId,
-      toolCallsCount: toolCalls.length,
-      toolNames: toolCalls.map((t) => t.name),
-      userId,
-      userName,
-      prompt: prompt.substring(0, 50),
-    });
+    const { commandId, toolCalls, userId, userName, prompt} = params;
 
     // Idempotency check: return cached result if command already executed
     const cached = this.commandCache.get(commandId);
     if (cached) {
-      console.log(`[RoomDO] Returning cached result for command ${commandId}`);
       return cached.result;
     }
 
@@ -300,12 +290,6 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
           deleted++;
         }
       }
-
-      console.log(`[RoomDO] ✓ Command executed successfully:`, {
-        success: result.success,
-        shapesCreated: result.shapesCreated?.length || 0,
-        message: result.message,
-      });
 
       return result;
     } catch (error) {
