@@ -69,11 +69,13 @@ test.describe("Layers Panel", () => {
     await visibilityButton.click();
     await waitForSync(authenticatedPage, 100);
 
-    // Shape should be hidden from canvas but still in panel (use layers panel selector)
+    // Shape should be hidden from canvas but still in panel (use first match)
     await expect(
-      authenticatedPage.locator('[class*="layerMain"]', {
-        hasText: "Rectangle",
-      }),
+      authenticatedPage
+        .locator('[class*="layerMain"]', {
+          hasText: "Rectangle",
+        })
+        .first(),
     ).toBeVisible();
   });
 
