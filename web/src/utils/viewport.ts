@@ -110,15 +110,7 @@ function getShapeBounds(shape: Shape): {
   // This should never happen since we check all shape types above
   // TypeScript exhaustiveness check - should be unreachable
   const _exhaustiveCheck: never = shape;
-  console.warn("[Viewport] Unknown shape type:", _exhaustiveCheck);
-
-  // Fallback that won't be reached in practice
-  return {
-    minX: 0,
-    maxX: 100,
-    minY: 0,
-    maxY: 50,
-  };
+  throw new Error(`Unknown shape type: ${JSON.stringify(_exhaustiveCheck)}`);
 }
 
 /**

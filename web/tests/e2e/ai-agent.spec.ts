@@ -150,30 +150,30 @@ test.describe("AI Canvas Agent", () => {
       await expect(history.first()).toBeVisible({ timeout: 5000 });
     });
 
-    test.skip("delete shape with AI - KNOWN BUG: AI doesn't always return delete confirmation", async ({
-      authenticatedPage,
-      roomId,
-    }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
-        waitUntil: "domcontentloaded",
-      });
-      await waitForSync(authenticatedPage, 1000);
+    test.fail(
+      "delete shape with AI - KNOWN BUG: AI doesn't always return delete confirmation",
+      async ({ authenticatedPage, roomId }) => {
+        await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+          waitUntil: "domcontentloaded",
+        });
+        await waitForSync(authenticatedPage, 1000);
 
-      // Create a shape
-      const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
-      await aiTextarea.fill("Create a red rectangle");
-      await authenticatedPage.getByRole("button", { name: /send/i }).click();
-      await waitForSync(authenticatedPage, 10000);
+        // Create a shape
+        const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
+        await aiTextarea.fill("Create a red rectangle");
+        await authenticatedPage.getByRole("button", { name: /send/i }).click();
+        await waitForSync(authenticatedPage, 10000);
 
-      // Delete it
-      await aiTextarea.fill("Delete the red rectangle");
-      await authenticatedPage.getByRole("button", { name: /send/i }).click();
-      await waitForSync(authenticatedPage, 10000);
+        // Delete it
+        await aiTextarea.fill("Delete the red rectangle");
+        await authenticatedPage.getByRole("button", { name: /send/i }).click();
+        await waitForSync(authenticatedPage, 10000);
 
-      // Verify deletion in history
-      const history = authenticatedPage.locator("text=/Deleted|removed/i");
-      await expect(history.first()).toBeVisible({ timeout: 5000 });
-    });
+        // Verify deletion in history
+        const history = authenticatedPage.locator("text=/Deleted|removed/i");
+        await expect(history.first()).toBeVisible({ timeout: 5000 });
+      },
+    );
 
     test("resize shape with AI", async ({ authenticatedPage, roomId }) => {
       await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {

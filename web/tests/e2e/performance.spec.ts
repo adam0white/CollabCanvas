@@ -96,7 +96,7 @@ test.describe("Performance & Scalability", () => {
 
       // Test zoom operation
       const zoomInButton = authenticatedPage.getByRole("button", {
-        name: "+",
+        name: /Zoom in/i,
       });
       const zoomStart = Date.now();
       await zoomInButton.click();
@@ -152,9 +152,11 @@ test.describe("Performance & Scalability", () => {
       }
 
       // Test zoom
-      const zoomInButton = authenticatedPage.getByRole("button", {
-        name: "+",
-      });
+      const zoomInButton = authenticatedPage
+        .getByRole("button", {
+          name: "+",
+        })
+        .first();
       const zoomStart = Date.now();
       await zoomInButton.click();
       await waitForSync(authenticatedPage, 500);
@@ -174,52 +176,52 @@ test.describe("Performance & Scalability", () => {
       expect(errors.length).toBe(0);
     });
 
-    test.skip("rapid shape creation does not degrade performance - TIMING TOO STRICT FOR CI", async ({
-      authenticatedPage,
-      roomId,
-    }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
-        waitUntil: "domcontentloaded",
-      });
-      await waitForSync(authenticatedPage, 1000);
+    test.fail(
+      "rapid shape creation does not degrade performance - TIMING TOO STRICT FOR CI",
+      async ({ authenticatedPage, roomId }) => {
+        await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+          waitUntil: "domcontentloaded",
+        });
+        await waitForSync(authenticatedPage, 1000);
 
-      // Create 20 shapes rapidly
-      const times: number[] = [];
+        // Create 20 shapes rapidly
+        const times: number[] = [];
 
-      for (let i = 0; i < 20; i++) {
-        const start = Date.now();
+        for (let i = 0; i < 20; i++) {
+          const start = Date.now();
 
-        await authenticatedPage
-          .getByRole("button", { name: /rectangle/i })
-          .click();
-        const canvas = authenticatedPage.locator("canvas").first();
-        const box = await canvas.boundingBox();
-        if (box) {
-          const x = 150 + (i % 10) * 80;
-          const y = 150 + Math.floor(i / 10) * 80;
-          await authenticatedPage.mouse.move(box.x + x, box.y + y);
-          await authenticatedPage.mouse.down();
-          await authenticatedPage.mouse.move(box.x + x + 60, box.y + y + 50);
-          await authenticatedPage.mouse.up();
+          await authenticatedPage
+            .getByRole("button", { name: /rectangle/i })
+            .click();
+          const canvas = authenticatedPage.locator("canvas").first();
+          const box = await canvas.boundingBox();
+          if (box) {
+            const x = 150 + (i % 10) * 80;
+            const y = 150 + Math.floor(i / 10) * 80;
+            await authenticatedPage.mouse.move(box.x + x, box.y + y);
+            await authenticatedPage.mouse.down();
+            await authenticatedPage.mouse.move(box.x + x + 60, box.y + y + 50);
+            await authenticatedPage.mouse.up();
+          }
+
+          const elapsed = Date.now() - start;
+          times.push(elapsed);
+
+          await waitForSync(authenticatedPage, 50); // Minimal sync time
         }
 
-        const elapsed = Date.now() - start;
-        times.push(elapsed);
+        // Average creation time should be reasonable
+        const avgTime = times.reduce((a, b) => a + b, 0) / times.length;
+        expect(avgTime).toBeLessThan(500); // Each shape creation < 500ms average
 
-        await waitForSync(authenticatedPage, 50); // Minimal sync time
-      }
+        // Last 5 shapes should not be significantly slower than first 5
+        const firstAvg = times.slice(0, 5).reduce((a, b) => a + b, 0) / 5;
+        const lastAvg = times.slice(-5).reduce((a, b) => a + b, 0) / 5;
 
-      // Average creation time should be reasonable
-      const avgTime = times.reduce((a, b) => a + b, 0) / times.length;
-      expect(avgTime).toBeLessThan(500); // Each shape creation < 500ms average
-
-      // Last 5 shapes should not be significantly slower than first 5
-      const firstAvg = times.slice(0, 5).reduce((a, b) => a + b, 0) / 5;
-      const lastAvg = times.slice(-5).reduce((a, b) => a + b, 0) / 5;
-
-      // Last should be within 2x of first (no severe degradation)
-      expect(lastAvg).toBeLessThan(firstAvg * 2);
-    });
+        // Last should be within 2x of first (no severe degradation)
+        expect(lastAvg).toBeLessThan(firstAvg * 2);
+      },
+    );
   });
 
   test.describe("Concurrent User Performance", () => {
@@ -271,10 +273,7 @@ test.describe("Performance & Scalability", () => {
       await expect(user2.locator("canvas").first()).toBeVisible();
     });
 
-    test.skip("3+ users editing simultaneously - RESOURCE INTENSIVE", async ({
-      browser,
-      roomId,
-    }) => {
+    test("3+ users editing simultaneously", async ({ browser, roomId }) => {
       // Create 3 authenticated contexts
       const authFile = "./playwright/.auth/user.json";
       const contexts = await Promise.all([
@@ -327,37 +326,37 @@ test.describe("Performance & Scalability", () => {
   });
 
   test.describe("AI Performance", () => {
-    test.skip("simple AI command completes within 2 seconds - TIMING VARIES BY AI PROVIDER", async ({
-      authenticatedPage,
-      roomId,
-    }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
-        waitUntil: "domcontentloaded",
-      });
-      await waitForSync(authenticatedPage, 1000);
+    test.fail(
+      "simple AI command completes within 2 seconds - TIMING VARIES BY AI PROVIDER",
+      async ({ authenticatedPage, roomId }) => {
+        await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+          waitUntil: "domcontentloaded",
+        });
+        await waitForSync(authenticatedPage, 1000);
 
-      const startTime = Date.now();
+        const startTime = Date.now();
 
-      const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
-      await aiTextarea.fill("Create a red rectangle");
-      await authenticatedPage.getByRole("button", { name: /send/i }).click();
+        const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
+        await aiTextarea.fill("Create a red rectangle");
+        await authenticatedPage.getByRole("button", { name: /send/i }).click();
 
-      // Wait for loading indicator
-      await expect(
-        authenticatedPage.locator('text="AI is thinking"'),
-      ).toBeVisible({ timeout: 1000 });
+        // Wait for loading indicator
+        await expect(
+          authenticatedPage.locator('text="AI is thinking"'),
+        ).toBeVisible({ timeout: 1000 });
 
-      // Wait for completion (history entry appears)
-      await expect(
-        authenticatedPage.locator("text=/Created|shape|rectangle/i"),
-      ).toBeVisible({ timeout: 10000 });
+        // Wait for completion (history entry appears)
+        await expect(
+          authenticatedPage.locator("text=/Created|shape|rectangle/i"),
+        ).toBeVisible({ timeout: 10000 });
 
-      const elapsed = Date.now() - startTime;
+        const elapsed = Date.now() - startTime;
 
-      // Should complete within 10s total (includes network + AI processing)
-      // Actual AI processing should be < 2s, but network adds overhead
-      expect(elapsed).toBeLessThan(10000);
-    });
+        // Should complete within 10s total (includes network + AI processing)
+        // Actual AI processing should be < 2s, but network adds overhead
+        expect(elapsed).toBeLessThan(10000);
+      },
+    );
 
     test("complex AI command completes within 15 seconds", async ({
       authenticatedPage,

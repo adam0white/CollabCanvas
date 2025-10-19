@@ -196,19 +196,9 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
   }): Promise<AICommandResult> {
     const { commandId, toolCalls, userId, userName, prompt } = params;
 
-    console.log(`[RoomDO] ✓ executeAICommand called:`, {
-      commandId,
-      toolCallsCount: toolCalls.length,
-      toolNames: toolCalls.map((t) => t.name),
-      userId,
-      userName,
-      prompt: prompt.substring(0, 50),
-    });
-
     // Performance: Idempotency check in memory (no storage I/O)
     const cached = this.commandCache.get(commandId);
     if (cached) {
-      console.log(`[RoomDO] ⚡ Cache hit for command ${commandId}`);
       return cached.result;
     }
 
@@ -354,14 +344,7 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
           this.commandCache.delete(key);
           deleted++;
         }
-        console.log(`[RoomDO] 🧹 Pruned ${toDelete} old cache entries`);
       }
-
-      console.log(`[RoomDO] ✓ Command executed successfully:`, {
-        success: result.success,
-        shapesCreated: result.shapesCreated?.length || 0,
-        message: result.message,
-      });
 
       return result;
     } catch (error) {

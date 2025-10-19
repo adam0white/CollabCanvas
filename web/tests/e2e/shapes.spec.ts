@@ -45,7 +45,7 @@ test.describe("Shape Creation & Editing", () => {
     }) => {
       await navigateToMainCanvas(authenticatedPage);
       await authenticatedPage
-        .getByRole("button", { name: /rectangle/i })
+        .getByRole("button", { name: "Rectangle tool" })
         .click();
 
       // Draw very small rectangle (5px) - should not be created
@@ -121,7 +121,9 @@ test.describe("Shape Creation & Editing", () => {
 
     test("cancel text creation with Escape", async ({ authenticatedPage }) => {
       await navigateToMainCanvas(authenticatedPage);
-      await authenticatedPage.getByRole("button", { name: /text/i }).click();
+      await authenticatedPage
+        .getByRole("button", { name: "Text tool" })
+        .click();
       await waitForSync(authenticatedPage, 200);
 
       // Click canvas using mouse position
@@ -147,7 +149,9 @@ test.describe("Shape Creation & Editing", () => {
 
     test("empty text is not created", async ({ authenticatedPage }) => {
       await navigateToMainCanvas(authenticatedPage);
-      await authenticatedPage.getByRole("button", { name: /text/i }).click();
+      await authenticatedPage
+        .getByRole("button", { name: "Text tool" })
+        .click();
       await waitForSync(authenticatedPage, 200);
 
       // Click canvas using mouse position

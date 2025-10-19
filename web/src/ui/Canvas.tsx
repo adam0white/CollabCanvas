@@ -6,8 +6,20 @@ import { Circle, Group, Layer, Rect, Stage, Text } from "react-konva";
 import { useLocking } from "../hooks/useLocking";
 import type { PresenceState } from "../hooks/usePresence";
 import { useSelection } from "../hooks/useSelection";
+import { useSnapToGrid } from "../hooks/useSnapToGrid";
 import { useToolbar } from "../hooks/useToolbar";
 import { useUndoRedo } from "../hooks/useUndoRedo";
+import {
+  alignBottom,
+  alignCenter,
+  alignLeft,
+  alignMiddle,
+  alignRight,
+  alignTop,
+  distributeHorizontally,
+  distributeVertically,
+  getShapeBounds,
+} from "../shapes/alignment";
 import { ShapeLayer } from "../shapes/ShapeLayer";
 import {
   createCircle,
@@ -18,11 +30,18 @@ import {
 } from "../shapes/types";
 import { useShapes } from "../shapes/useShapes";
 import {
+  bringForward,
+  bringToFront,
+  sendBackward,
+  sendToBack,
+} from "../shapes/zindex";
+import {
   calculateViewportBounds,
   filterVisibleShapes,
-  getViewportStats,
 } from "../utils/viewport";
 import styles from "./Canvas.module.css";
+import type { ExportFormat, ExportQuality, ExportScope } from "./ExportModal";
+import { ExportModal } from "./ExportModal";
 
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 5;
@@ -55,6 +74,7 @@ export function Canvas({
   const locking = useLocking(userId);
   const undoRedo = useUndoRedo();
   const { selectedShapeIds, setSelectedShapeIds } = useSelection();
+  const snap = useSnapToGrid();
 
   // State for rectangle creation (click-and-drag)
   const [isDrawing, setIsDrawing] = useState(false);
@@ -64,6 +84,9 @@ export function Canvas({
     width: number;
     height: number;
   } | null>(null);
+
+  // State for export modal
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   // State for circle creation (click-and-drag from center)
   const [newCircle, setNewCircle] = useState<{
@@ -360,6 +383,135 @@ export function Canvas({
         setSelectedShapeIds(pastedShapeIds);
         setPasteCount(pasteCount + 1);
       }
+
+      // Z-Index shortcuts (Cmd+] / Cmd+[ / Cmd+Shift+] / Cmd+Shift+[)
+      if ((e.metaKey || e.ctrlKey) && selectedShapeIds.length > 0 && canEdit) {
+        // Bring to Front: Cmd+]
+        if (e.key === "]" && !e.shiftKey) {
+          e.preventDefault();
+          const zIndexUpdates = bringToFront(selectedShapeIds, shapes);
+          for (const [id, zIndex] of zIndexUpdates) {
+            updateShape(id, { zIndex });
+          }
+        }
+
+        // Send to Back: Cmd+[
+        if (e.key === "[" && !e.shiftKey) {
+          e.preventDefault();
+          const zIndexUpdates = sendToBack(selectedShapeIds, shapes);
+          for (const [id, zIndex] of zIndexUpdates) {
+            updateShape(id, { zIndex });
+          }
+        }
+
+        // Bring Forward: Cmd+Shift+]
+        if (e.key === "]" && e.shiftKey) {
+          e.preventDefault();
+          const zIndexUpdates = bringForward(selectedShapeIds, shapes);
+          for (const [id, zIndex] of zIndexUpdates) {
+            updateShape(id, { zIndex });
+          }
+        }
+
+        // Send Backward: Cmd+Shift+[
+        if (e.key === "[" && e.shiftKey) {
+          e.preventDefault();
+          const zIndexUpdates = sendBackward(selectedShapeIds, shapes);
+          for (const [id, zIndex] of zIndexUpdates) {
+            updateShape(id, { zIndex });
+          }
+        }
+      }
+
+      // Alignment shortcuts (Cmd+Shift+L/H/R/T/M/B/D/V)
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.shiftKey &&
+        selectedShapeIds.length >= 2 &&
+        canEdit
+      ) {
+        const selectedShapes = shapes.filter((s) =>
+          selectedShapeIds.includes(s.id),
+        );
+
+        // Align Left: Cmd+Shift+L
+        if (e.key === "L") {
+          e.preventDefault();
+          const updates = alignLeft(selectedShapes);
+          for (const [id, shapeUpdates] of updates) {
+            updateShape(id, shapeUpdates);
+          }
+        }
+
+        // Align Center: Cmd+Shift+H
+        if (e.key === "H") {
+          e.preventDefault();
+          const updates = alignCenter(selectedShapes);
+          for (const [id, shapeUpdates] of updates) {
+            updateShape(id, shapeUpdates);
+          }
+        }
+
+        // Align Right: Cmd+Shift+R
+        if (e.key === "R") {
+          e.preventDefault();
+          const updates = alignRight(selectedShapes);
+          for (const [id, shapeUpdates] of updates) {
+            updateShape(id, shapeUpdates);
+          }
+        }
+
+        // Align Top: Cmd+Shift+T
+        if (e.key === "T") {
+          e.preventDefault();
+          const updates = alignTop(selectedShapes);
+          for (const [id, shapeUpdates] of updates) {
+            updateShape(id, shapeUpdates);
+          }
+        }
+
+        // Align Middle: Cmd+Shift+M
+        if (e.key === "M") {
+          e.preventDefault();
+          const updates = alignMiddle(selectedShapes);
+          for (const [id, shapeUpdates] of updates) {
+            updateShape(id, shapeUpdates);
+          }
+        }
+
+        // Align Bottom: Cmd+Shift+B
+        if (e.key === "B") {
+          e.preventDefault();
+          const updates = alignBottom(selectedShapes);
+          for (const [id, shapeUpdates] of updates) {
+            updateShape(id, shapeUpdates);
+          }
+        }
+
+        // Distribute Horizontally: Cmd+Shift+D
+        if (e.key === "D" && selectedShapeIds.length >= 3) {
+          e.preventDefault();
+          const updates = distributeHorizontally(selectedShapes);
+          for (const [id, shapeUpdates] of updates) {
+            updateShape(id, shapeUpdates);
+          }
+        }
+
+        // Distribute Vertically: Cmd+Shift+V
+        if (e.key === "V" && selectedShapeIds.length >= 3) {
+          e.preventDefault();
+          const updates = distributeVertically(selectedShapes);
+          for (const [id, shapeUpdates] of updates) {
+            updateShape(id, shapeUpdates);
+          }
+        }
+      }
+
+      // Export: Cmd+E
+      if ((e.metaKey || e.ctrlKey) && e.key === "e") {
+        e.preventDefault();
+        setIsExportModalOpen(true);
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
@@ -377,6 +529,79 @@ export function Canvas({
     batchDeleteShapes,
     setSelectedShapeIds,
   ]);
+
+  // Export handler
+  const handleExport = (options: {
+    format: ExportFormat;
+    scope: ExportScope;
+    quality: ExportQuality;
+    filename: string;
+  }) => {
+    const { format, scope, quality, filename } = options;
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    let dataURL: string;
+
+    if (scope === "selection" && selectedShapeIds.length > 0) {
+      // Export selected shapes only
+      const selectedShapes = shapes.filter((s) =>
+        selectedShapeIds.includes(s.id),
+      );
+
+      // Calculate bounding box
+      let minX = Number.POSITIVE_INFINITY;
+      let minY = Number.POSITIVE_INFINITY;
+      let maxX = Number.NEGATIVE_INFINITY;
+      let maxY = Number.NEGATIVE_INFINITY;
+
+      for (const shape of selectedShapes) {
+        const bounds = getShapeBounds(shape);
+        minX = Math.min(minX, bounds.left);
+        minY = Math.min(minY, bounds.top);
+        maxX = Math.max(maxX, bounds.right);
+        maxY = Math.max(maxY, bounds.bottom);
+      }
+
+      const width = maxX - minX;
+      const height = maxY - minY;
+
+      // Export cropped region
+      dataURL = stage.toDataURL({
+        x: minX,
+        y: minY,
+        width,
+        height,
+        pixelRatio: quality === 1 ? 1 : quality === 2 ? 2 : 4,
+      });
+    } else {
+      // Export entire canvas
+      dataURL = stage.toDataURL({
+        pixelRatio: quality === 1 ? 1 : quality === 2 ? 2 : 4,
+      });
+    }
+
+    // Trigger download
+    const link = document.createElement("a");
+    link.download = `${filename}.${format}`;
+    link.href = dataURL;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setIsExportModalOpen(false);
+  };
+
+  // Expose export modal opener to window for Toolbar
+  useEffect(() => {
+    (window as { openExportModal?: () => void }).openExportModal = () => {
+      setIsExportModalOpen(true);
+    };
+
+    return () => {
+      delete (window as { openExportModal?: () => void }).openExportModal;
+    };
+  }, []);
 
   // Handle zoom with mouse wheel
   const handleWheel = (e: KonvaEventObject<WheelEvent>) => {
@@ -732,15 +957,7 @@ export function Canvas({
     return [...selectedShapes, ...visibleUnselected];
   }, [shapes, selectedShapeIds, viewportBounds]);
 
-  // Log viewport culling stats in development (helps with performance debugging)
-  useEffect(() => {
-    if (import.meta.env.DEV && shapes.length > 50) {
-      const stats = getViewportStats(shapes.length, visibleShapes.length);
-      console.debug(
-        `[Viewport Culling] ${stats.visibleShapes}/${stats.totalShapes} shapes visible (${stats.cullPercentage}% culled)`,
-      );
-    }
-  }, [shapes.length, visibleShapes.length]);
+  // Viewport culling automatically applied for performance with 50+ shapes
 
   const remoteCursors = Array.from(presence.values()).filter(
     (participant) => participant.cursor,
@@ -857,6 +1074,7 @@ export function Canvas({
           onClick={() => setScale(Math.min(MAX_ZOOM, scale * ZOOM_SPEED))}
           className={styles.zoomButton}
           title="Zoom in"
+          aria-label="Zoom in"
         >
           +
         </button>
@@ -873,6 +1091,7 @@ export function Canvas({
           onClick={() => setScale(Math.max(MIN_ZOOM, scale / ZOOM_SPEED))}
           className={styles.zoomButton}
           title="Zoom out"
+          aria-label="Zoom out"
         >
           −
         </button>
@@ -961,6 +1180,7 @@ export function Canvas({
             selectedShapeIds={selectedShapeIds}
             userId={userId}
             locking={locking}
+            snapToGrid={snap.snapEnabled ? snap.snapPoint : undefined}
             onShapeUpdate={updateShape}
             onBatchShapeUpdate={batchUpdateShapes}
             onShapeSelect={(shapeId, addToSelection) => {
@@ -1173,6 +1393,15 @@ export function Canvas({
             className={styles.textInput}
           />
         </div>
+      )}
+
+      {/* Export Modal */}
+      {isExportModalOpen && (
+        <ExportModal
+          onClose={() => setIsExportModalOpen(false)}
+          onExport={handleExport}
+          hasSelection={selectedShapeIds.length > 0}
+        />
       )}
     </div>
   );

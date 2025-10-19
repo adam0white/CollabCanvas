@@ -49,9 +49,11 @@ test.describe("Canvas Interactions", () => {
       const zoomButton = authenticatedPage
         .locator('button[class*="zoomButton"]')
         .nth(1);
-      const zoomInButton = authenticatedPage.getByRole("button", { name: "+" });
+      const zoomInButton = authenticatedPage.getByRole("button", {
+        name: "Zoom in",
+      });
       const zoomOutButton = authenticatedPage.getByRole("button", {
-        name: "−",
+        name: "Zoom out",
       });
 
       const initialZoom = await zoomButton.textContent();
@@ -75,7 +77,9 @@ test.describe("Canvas Interactions", () => {
       const zoomButton = authenticatedPage
         .locator('button[class*="zoomButton"]')
         .nth(1);
-      const zoomInButton = authenticatedPage.getByRole("button", { name: "+" });
+      const zoomInButton = authenticatedPage.getByRole("button", {
+        name: "Zoom in",
+      });
 
       // Zoom in multiple times
       await zoomInButton.click();
@@ -98,7 +102,7 @@ test.describe("Canvas Interactions", () => {
       await page.goto("/c/main", { waitUntil: "domcontentloaded" });
       await waitForSync(page, 500);
 
-      const zoomOutButton = page.getByRole("button", { name: "−" });
+      const zoomOutButton = page.getByRole("button", { name: "Zoom out" });
 
       // Try to zoom out many times
       for (let i = 0; i < 20; i++) {
@@ -190,8 +194,10 @@ test.describe("Canvas Interactions", () => {
       authenticatedPage,
     }) => {
       await navigateToMainCanvas(authenticatedPage);
-      // Create a circle
-      await authenticatedPage.getByRole("button", { name: /circle/i }).click();
+      // Create a circle using button click
+      await authenticatedPage
+        .getByRole("button", { name: "Circle tool" })
+        .click();
       await canvasDrag(authenticatedPage, 300, 300, 360, 360);
 
       // Select the shape
@@ -265,7 +271,7 @@ test.describe("Canvas Interactions", () => {
       await page.waitForLoadState("networkidle");
 
       // Zoom in
-      const zoomInButton = page.getByRole("button", { name: "+" });
+      const zoomInButton = page.getByRole("button", { name: "Zoom in" });
       await zoomInButton.click();
       await page.waitForTimeout(200);
 

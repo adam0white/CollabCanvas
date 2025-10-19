@@ -16,6 +16,7 @@ import { getAdaptiveThrottleMs } from "../config/constants";
 import type { LockingHook } from "../hooks/useLocking";
 import type { Shape } from "./types";
 import { isCircle, isRectangle, isText } from "./types";
+import { sortShapesByZIndex } from "./zindex";
 
 type ShapeLayerProps = {
   shapes: Shape[];
@@ -24,6 +25,7 @@ type ShapeLayerProps = {
   selectedShapeIds: string[];
   userId: string;
   locking: LockingHook;
+  snapToGrid?: (x: number, y: number) => { x: number; y: number };
   onShapeSelect: (id: string, addToSelection: boolean) => void;
   onShapeUpdate: (id: string, updates: Partial<Shape>) => void;
   onBatchShapeUpdate?: (
@@ -46,6 +48,7 @@ export const ShapeLayer = memo(function ShapeLayer({
   selectedShapeIds,
   userId,
   locking,
+  snapToGrid,
   onShapeSelect,
   onShapeUpdate,
   onBatchShapeUpdate,
@@ -242,12 +245,17 @@ export const ShapeLayer = memo(function ShapeLayer({
             for (const shapeId of selectedShapeIds) {
               const startPosition = dragStartPositionsRef.current[shapeId];
               if (startPosition) {
+                let newPos = {
+                  x: startPosition.x + dx,
+                  y: startPosition.y + dy,
+                };
+                // Apply snap-to-grid if enabled
+                if (snapToGrid) {
+                  newPos = snapToGrid(newPos.x, newPos.y);
+                }
                 updates.push({
                   id: shapeId,
-                  updates: {
-                    x: startPosition.x + dx,
-                    y: startPosition.y + dy,
-                  },
+                  updates: newPos,
                 });
               }
             }
@@ -260,10 +268,15 @@ export const ShapeLayer = memo(function ShapeLayer({
             for (const shapeId of selectedShapeIds) {
               const startPosition = dragStartPositionsRef.current[shapeId];
               if (startPosition) {
-                onShapeUpdate(shapeId, {
+                let newPos = {
                   x: startPosition.x + dx,
                   y: startPosition.y + dy,
-                });
+                };
+                // Apply snap-to-grid if enabled
+                if (snapToGrid) {
+                  newPos = snapToGrid(newPos.x, newPos.y);
+                }
+                onShapeUpdate(shapeId, newPos);
               }
             }
           }
@@ -273,10 +286,15 @@ export const ShapeLayer = memo(function ShapeLayer({
         dragStartPositionsRef.current = {};
       } else {
         // Single shape drag end
-        onShapeUpdate(shape.id, {
+        let newPos = {
           x: node.x(),
           y: node.y(),
-        });
+        };
+        // Apply snap-to-grid if enabled
+        if (snapToGrid) {
+          newPos = snapToGrid(newPos.x, newPos.y);
+        }
+        onShapeUpdate(shape.id, newPos);
       }
 
       // Clear throttle tracking for this shape
@@ -289,6 +307,7 @@ export const ShapeLayer = memo(function ShapeLayer({
       selectedShapeSet,
       onShapeUpdate,
       onBatchShapeUpdate,
+      snapToGrid,
     ],
   );
 
@@ -519,9 +538,14 @@ export const ShapeLayer = memo(function ShapeLayer({
     };
   }, [selectedShapeIds, shapesById]);
 
+  // Sort shapes by zIndex before rendering (lower zIndex renders first)
+  const sortedShapes = sortShapesByZIndex(shapes);
+
   return (
     <>
-      {shapes.map((shape) => {
+      {sortedShapes.map((shape) => {
+        // Skip rendering if shape is hidden
+        if (shape.visible === false) return null;
         const isHovered = hoveredShapeId === shape.id;
         // Performance: Use Set.has() for O(1) selection check (critical with many shapes)
         const isSelected = selectedShapeSet.has(shape.id);
@@ -529,8 +553,12 @@ export const ShapeLayer = memo(function ShapeLayer({
         const lockOwner = locking.getLockOwner(shape.id);
         const isLockedByOther =
           lockOwner !== null && lockOwner.userId !== userId;
+        const isShapeLocked = shape.locked === true;
         const isDraggable =
-          canEdit && selectedTool === "select" && !isLockedByOther;
+          canEdit &&
+          selectedTool === "select" &&
+          !isLockedByOther &&
+          !isShapeLocked;
 
         if (isRectangle(shape)) {
           return (

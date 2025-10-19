@@ -440,19 +440,24 @@ if (lockAge > STALE_LOCK_TIMEOUT_MS) continue;
 
 ## Future Enhancements
 
-**Post-MVP Completed Features**:
-1. ✅ **Multiple shape types**: Rectangle, circle, text
+**Completed Features**:
+1. ✅ **Multiple shape types**: Rectangle, circle, text with full transform support
 2. ✅ **Multi-select & lasso selection**: Group operations, Shift+Click
 3. ✅ **Object locking**: Conflict prevention via Awareness
-4. ⏳ **Undo/Redo**: Yjs UndoManager integration (in progress)
-5. ⏳ **Advanced features**: Color picker, copy/paste, keyboard shortcuts (in progress)
+4. ✅ **Undo/Redo**: Yjs UndoManager with local-only undo (Cmd+Z/Cmd+Shift+Z)
+5. ✅ **Advanced features**: Color picker with recent colors, copy/paste, 20+ keyboard shortcuts
+6. ✅ **Z-index management**: Bring to front/back, bring forward/backward (Cmd+]/[)
+7. ✅ **Alignment tools**: Align left/center/right, top/middle/bottom, distribute shapes (Cmd+Shift+L/H/R/T/M/B/D/V)
+8. ✅ **Export**: PNG export with quality options, entire canvas or selected shapes (Cmd+E)
+9. ✅ **AI canvas agent**: Natural language commands, 12 distinct tool types, complex multi-shape layouts
 
 **Future Work**:
-1. **Layers**: Z-index management, bring to front/back
-2. **Rooms**: Multi-room support (already architected for it)
-3. **Export**: PNG/SVG export
-4. **Performance**: Code splitting, dynamic imports
-5. **Testing**: Frontend unit/integration tests
+1. **Rooms**: Multi-room support (architecture supports it)
+2. **SVG Export**: True vector export (currently PNG only)
+3. **Layers panel**: Visual layers sidebar with drag-to-reorder
+4. **Snap-to-grid**: Magnetic snapping and smart guides
+5. **Performance**: Code splitting, dynamic imports, viewport culling
+6. **Testing**: Additional e2e coverage for new features
 
 ## Key Decisions
 

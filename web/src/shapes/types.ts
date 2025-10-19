@@ -17,6 +17,9 @@ export type BaseShape = {
   x: number;
   y: number;
   rotation?: number; // Rotation in degrees
+  zIndex?: number; // Stacking order (higher = front, default: 0)
+  visible?: boolean; // Visibility toggle (default: true)
+  locked?: boolean; // Lock toggle prevents editing (default: false)
   createdBy: string;
   createdAt: number;
   aiGenerated?: boolean; // True if created by AI assistant

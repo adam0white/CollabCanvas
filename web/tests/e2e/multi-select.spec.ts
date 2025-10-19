@@ -105,7 +105,7 @@ test.describe("Multi-Select & Group Operations", () => {
   });
 
   test.describe("Lasso Selection (Drag-to-Select)", () => {
-    test.skip("drag on empty canvas creates selection rectangle - LASSO MAY NOT BE FULLY IMPLEMENTED", async ({
+    test("drag on empty canvas creates selection rectangle", async ({
       authenticatedPage,
       roomId,
     }) => {
@@ -136,7 +136,7 @@ test.describe("Multi-Select & Group Operations", () => {
       expect(errors.length).toBe(0);
     });
 
-    test.skip("lasso selection only selects shapes inside rectangle - NEEDS VISUAL VERIFICATION", async ({
+    test("lasso selection only selects shapes inside rectangle", async ({
       authenticatedPage,
       roomId,
     }) => {
@@ -167,7 +167,7 @@ test.describe("Multi-Select & Group Operations", () => {
       await expect(authenticatedPage.locator("canvas").first()).toBeVisible();
     });
 
-    test.skip("shift+lasso adds to existing selection - NOT IMPLEMENTED", async ({
+    test("shift+lasso adds to existing selection", async ({
       authenticatedPage,
       roomId,
     }) => {
@@ -313,7 +313,7 @@ test.describe("Multi-Select & Group Operations", () => {
       await expect(authenticatedPage.locator("canvas").first()).toBeVisible();
     });
 
-    test.skip("resize handles encompass all selected shapes - NOT FULLY TESTABLE IN E2E", async ({
+    test("resize handles encompass all selected shapes", async ({
       authenticatedPage,
       roomId,
     }) => {

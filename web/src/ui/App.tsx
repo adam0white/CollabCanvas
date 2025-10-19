@@ -12,11 +12,10 @@ import { useShapes } from "../shapes/useShapes";
 import { useConnectionStatus } from "../yjs/client";
 import { AIPanel } from "./AIPanel";
 import styles from "./App.module.css";
-import { Canvas } from "./Canvas";
+import { AppContent } from "./AppContent";
 import { Footer } from "./Footer";
 import { PresenceBar } from "./PresenceBar";
 import { ShortcutsPanel } from "./ShortcutsPanel";
-import { Toolbar } from "./Toolbar";
 
 export function App(): React.JSX.Element {
   if (typeof window === "undefined") {
@@ -118,18 +117,13 @@ export function App(): React.JSX.Element {
               </div>
             )}
 
-            {/* Floating toolbar */}
-            <Toolbar
-              className={styles.floatingToolbar}
-              defaultColor={defaultFillColor}
-              onDefaultColorChange={setDefaultFillColor}
-            />
-
             <div className={styles.canvasContainer}>
-              <Canvas
+              <AppContent
                 presence={presenceState.presence}
                 setPresence={presenceState.setPresence}
                 defaultFillColor={defaultFillColor}
+                onDefaultColorChange={setDefaultFillColor}
+                floatingToolbarClassName={styles.floatingToolbar}
               />
             </div>
 

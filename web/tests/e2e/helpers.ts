@@ -15,8 +15,15 @@ export async function waitForSync(page: Page, ms = 500): Promise<void> {
  * Navigate to main canvas and wait for it to be ready
  */
 export async function navigateToMainCanvas(page: Page): Promise<void> {
-  await page.goto("/c/main", { waitUntil: "domcontentloaded" });
-  await waitForSync(page, 1000);
+  // Set localStorage BEFORE navigation to COLLAPSE layers panel (avoid blocking canvas)
+  await page.goto("/c/main");
+  await page.evaluate(() => {
+    localStorage.setItem("layersPanelCollapsed", "true");
+  });
+
+  // Reload to apply localStorage changes
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await waitForSync(page, 1500);
 
   // Wait for canvas to be visible
   await page
@@ -32,6 +39,13 @@ export async function navigateToMainCanvas(page: Page): Promise<void> {
     .catch(() => {
       // If not immediately available, might need a moment for auth to sync
     });
+
+  // Close any open modals (e.g., export modal from previous tests)
+  const exportModalOverlay = page.locator('[aria-label="Close export modal"]');
+  if (await exportModalOverlay.isVisible().catch(() => false)) {
+    await exportModalOverlay.click({ force: true });
+    await waitForSync(page, 200);
+  }
 
   await waitForSync(page, 500);
 }
@@ -156,7 +170,7 @@ export async function createRectangle(
   width: number,
   height: number,
 ): Promise<void> {
-  await page.getByRole("button", { name: /rectangle/i }).click();
+  await page.getByRole("button", { name: "Rectangle tool" }).click();
   await canvasDrag(page, x, y, x + width, y + height);
 }
 
@@ -169,7 +183,7 @@ export async function createCircle(
   y: number,
   radius: number,
 ): Promise<void> {
-  await page.getByRole("button", { name: /circle/i }).click();
+  await page.getByRole("button", { name: "Circle tool" }).click();
 
   // Calculate end position for desired radius
   const endX = x + radius * Math.cos(Math.PI / 4);
@@ -187,7 +201,7 @@ export async function createText(
   y: number,
   text: string,
 ): Promise<void> {
-  await page.getByRole("button", { name: /text/i }).click();
+  await page.getByRole("button", { name: "Text tool" }).click();
   await waitForSync(page, 200);
 
   // Click canvas to place text using mouse position
@@ -229,7 +243,7 @@ export async function selectShape(
   x: number,
   y: number,
 ): Promise<void> {
-  await page.getByRole("button", { name: /select/i }).click();
+  await switchToSelectMode(page);
   await canvasClick(page, x, y);
 }
 
@@ -245,7 +259,11 @@ export async function deleteSelectedShape(page: Page): Promise<void> {
  * Switch to select mode
  */
 export async function switchToSelectMode(page: Page): Promise<void> {
-  await page.getByRole("button", { name: /select/i }).click();
+  // Use exact match for Select button (shouldn't collide but be consistent)
+  await page
+    .getByRole("button", { name: "Select", exact: true })
+    .first()
+    .click();
   await waitForSync(page, 100);
 }
 
@@ -270,6 +288,21 @@ export async function navigateToSharedRoom(
   await Promise.all([
     user1.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" }),
     user2.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" }),
+  ]);
+
+  // Ensure layers panel is expanded for both users
+  await Promise.all([
+    user1.evaluate(() => {
+      localStorage.setItem("layersPanelCollapsed", "false");
+    }),
+    user2.evaluate(() => {
+      localStorage.setItem("layersPanelCollapsed", "false");
+    }),
+  ]);
+
+  await Promise.all([
+    user1.reload({ waitUntil: "domcontentloaded" }),
+    user2.reload({ waitUntil: "domcontentloaded" }),
   ]);
 
   // Wait longer for auth to be picked up (storage state needs more time in multi-context)

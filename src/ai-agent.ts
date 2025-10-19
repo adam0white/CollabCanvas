@@ -112,7 +112,6 @@ export class AIAgent extends Agent {
       // Check idempotency in Agent state
       const cachedResult = await this.getCachedCommand(commandId);
       if (cachedResult) {
-        console.log(`[AIAgent] Returning cached result for ${commandId}`);
         return Response.json(cachedResult);
       }
 
@@ -134,13 +133,6 @@ export class AIAgent extends Agent {
         );
       }
 
-      console.log(
-        `[AIAgent] Generated ${toolCalls.length} tool calls:`,
-        toolCalls.map(
-          (t) => `${t.name}(${JSON.stringify(t.parameters).slice(0, 100)})`,
-        ),
-      );
-
       // Validate tool calls before execution
       const validation = this.validateToolCalls(toolCalls);
       if (!validation.valid) {
@@ -157,7 +149,6 @@ export class AIAgent extends Agent {
 
       // Get RoomDO stub and execute via RPC
       const roomId = this.getRoomId(request);
-      console.log(`[AIAgent] Executing commands for room: ${roomId}`);
 
       // Type assertion: Agent base class doesn't provide typed env
       // Env interface defined in worker-configuration.d.ts has all bindings
@@ -170,9 +161,6 @@ export class AIAgent extends Agent {
       }
 
       const roomStub = env.RoomDO.get(env.RoomDO.idFromName(roomId));
-      console.log(
-        `[AIAgent] Calling RoomDO.executeAICommand with ${toolCalls.length} tool calls`,
-      );
 
       const result = await roomStub.executeAICommand({
         commandId,
@@ -180,12 +168,6 @@ export class AIAgent extends Agent {
         userId,
         userName,
         prompt,
-      });
-
-      console.log(`[AIAgent] ✓ RoomDO execution result:`, {
-        success: result.success,
-        shapesCreated: result.shapesCreated?.length || 0,
-        message: result.message,
       });
 
       // Cache result in Agent state
@@ -242,6 +224,18 @@ export class AIAgent extends Agent {
     }
 
     try {
+      // Check total prompt length to avoid truncation
+      const totalPromptLength = systemPrompt.length + prompt.length;
+      const MAX_SAFE_PROMPT_LENGTH = 1500; // Leave room for response
+
+      if (totalPromptLength > MAX_SAFE_PROMPT_LENGTH) {
+        console.warn(
+          `[AIAgent] Prompt too long (${totalPromptLength} chars), truncating context`,
+        );
+        // Reduce system prompt to essentials
+        systemPrompt = `Canvas 2000x2000px. Center: ${centerX},${centerY}. Shapes: rectangle, circle, text. Colors: hex format.`;
+      }
+
       // biome-ignore lint/suspicious/noExplicitAny: Agent framework limitation - env property not typed
       const env = this.env as any;
       const ai = env.AI;
@@ -279,14 +273,6 @@ export class AIAgent extends Agent {
         },
       );
 
-      console.log("[AIAgent] ✓ AI response received");
-      console.log("[AIAgent] Response type:", typeof response);
-
-      // Log response structure for debugging
-      if (response && typeof response === "object") {
-        console.log("[AIAgent] Response keys:", Object.keys(response));
-      }
-
       // Extract tool calls from response
       if (
         response &&
@@ -297,8 +283,6 @@ export class AIAgent extends Agent {
           name: string;
           arguments: Record<string, unknown>;
         }>;
-
-        console.log("[AIAgent] ✓ Got", toolCalls.length, "tool calls");
 
         // Parse and fix stringified shapes parameters
         return toolCalls.map((call) => {
@@ -332,7 +316,6 @@ export class AIAgent extends Agent {
       // Fallback: try to parse text response
       if (response && typeof response === "object" && "response" in response) {
         const textResponse = (response as { response?: string }).response;
-        console.log("[AIAgent] Text response (no tool calls):", textResponse);
 
         // Try to extract and fix the response - AI sometimes returns it as a string
         try {
@@ -375,18 +358,11 @@ export class AIAgent extends Agent {
 
             // If it looks like a tool call structure
             if (parsed.name && parsed.arguments) {
-              console.log(
-                "[AIAgent] Detected tool call in text response, extracting...",
-              );
-
               // Fix stringified shapes parameter if present
               if (
                 parsed.arguments.shapes &&
                 typeof parsed.arguments.shapes === "string"
               ) {
-                console.log(
-                  "[AIAgent] Fixing stringified shapes in text response",
-                );
                 try {
                   parsed.arguments.shapes = JSON.parse(parsed.arguments.shapes);
                 } catch {
@@ -543,7 +519,6 @@ export class AIAgent extends Agent {
     const roomId = request.headers.get("x-room-id");
 
     if (roomId) {
-      console.log(`[AIAgent] ✓ Room ID from header: ${roomId}`);
       return roomId;
     }
 
