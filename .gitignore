@@ -7,3 +7,4 @@ coverage/
 *.log
 *.tsbuildinfo
 .DS_Store
+src/worker-configuration.d.ts

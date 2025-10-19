@@ -64,15 +64,15 @@ test.describe("Alignment Tools", () => {
   }) => {
     await navigateToMainCanvas(authenticatedPage);
 
-    // Check that alignment buttons are disabled with no selection
+    // Check that alignment buttons are disabled with no selection (use title attribute since buttons are icon-only)
     await expect(
-      authenticatedPage.getByRole("button", { name: /^left$/i }),
+      authenticatedPage.getByRole("button", { name: /Align Left/i }),
     ).toBeDisabled();
     await expect(
-      authenticatedPage.getByRole("button", { name: /^center$/i }),
+      authenticatedPage.getByRole("button", { name: /Align Center/i }),
     ).toBeDisabled();
     await expect(
-      authenticatedPage.getByRole("button", { name: /^right$/i }),
+      authenticatedPage.getByRole("button", { name: /Align Right/i }),
     ).toBeDisabled();
   });
 

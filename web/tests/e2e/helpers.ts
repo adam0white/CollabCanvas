@@ -15,7 +15,12 @@ export async function waitForSync(page: Page, ms = 500): Promise<void> {
  * Navigate to main canvas and wait for it to be ready
  */
 export async function navigateToMainCanvas(page: Page): Promise<void> {
+  // Set localStorage before navigation to expand layers panel
   await page.goto("/c/main", { waitUntil: "domcontentloaded" });
+  await page.evaluate(() => {
+    localStorage.setItem("layersPanelCollapsed", "false");
+  });
+  await page.reload({ waitUntil: "domcontentloaded" });
   await waitForSync(page, 1000);
 
   // Wait for canvas to be visible
@@ -191,7 +196,8 @@ export async function createText(
   y: number,
   text: string,
 ): Promise<void> {
-  await page.getByRole("button", { name: /text/i }).click();
+  // Use exact match for toolbar button to avoid collision with layers panel
+  await page.getByRole("button", { name: "Text", exact: true }).first().click();
   await waitForSync(page, 200);
 
   // Click canvas to place text using mouse position
