@@ -26,11 +26,13 @@ const ZOOM_SPEED = 1.1;
 type CanvasProps = {
   presence: Map<number, PresenceState>;
   setPresence: (state: Partial<PresenceState>) => void;
+  defaultFillColor?: string;
 };
 
 export function Canvas({
   presence,
   setPresence,
+  defaultFillColor: propDefaultFillColor = "#38bdf8",
 }: CanvasProps): React.JSX.Element {
   const stageRef = useRef<Konva.Stage | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -90,6 +92,9 @@ export function Canvas({
   // State for copy/paste
   const [clipboard, setClipboard] = useState<Shape[]>([]);
   const [pasteCount, setPasteCount] = useState(0);
+
+  // Use prop for default fill color (controlled by App.tsx via Toolbar)
+  const defaultFillColor = propDefaultFillColor;
 
   // Update locks when selection changes
   useEffect(() => {
@@ -159,14 +164,16 @@ export function Canvas({
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Check if user is typing in an input field or text area
+      // Check if user is typing in an input field, text area, or AI panel
       const target = e.target as HTMLElement;
       const isTyping =
         target instanceof HTMLInputElement ||
         target instanceof HTMLTextAreaElement ||
-        target.isContentEditable;
+        target.isContentEditable ||
+        target.closest('[class*="AIPanel"]') !== null; // Also check if inside AI panel
 
-      // Skip keyboard shortcuts when user is typing in text inputs
+      // Skip keyboard shortcuts when user is typing in text inputs or AI panel
+      // Allow native copy/paste in text fields
       if (isTyping) {
         return;
       }
@@ -454,7 +461,8 @@ export function Canvas({
     }
 
     // Handle circle creation (click+drag from center)
-    if (activeTool === "circle" && canEdit && clickedOnEmpty) {
+    // Allow creation anywhere, even on top of existing shapes
+    if (activeTool === "circle" && canEdit) {
       const pos = stage.getPointerPosition();
       if (!pos) return;
 
@@ -473,7 +481,8 @@ export function Canvas({
     }
 
     // Handle text creation (click to place)
-    if (activeTool === "text" && canEdit && clickedOnEmpty) {
+    // Allow creation anywhere, even on top of existing shapes
+    if (activeTool === "text" && canEdit) {
       const pos = stage.getPointerPosition();
       if (!pos) return;
 
@@ -488,18 +497,18 @@ export function Canvas({
     }
 
     // Handle panning:
-    // - For authenticated users: pan when clicking on empty space with middle mouse button
-    // - For guests: allow panning when clicking empty
+    // - Middle mouse button: pan for everyone
+    // - For guests: also allow left-click panning anywhere (since they can't edit)
+    const isMiddleClick = e.evt.button === 1;
     const shouldPan =
-      (canEdit &&
-        clickedOnEmpty &&
-        activeTool === "select" &&
-        e.evt.button === 1) || // Middle mouse button
-      (!canEdit && clickedOnEmpty && activeTool === "select"); // Guests: pan on empty in select mode
+      (isMiddleClick && activeTool === "select") || // Middle mouse for everyone
+      (!canEdit && activeTool === "select"); // Guests: left-click anywhere
 
     if (shouldPan) {
+      e.evt.preventDefault(); // Prevent default middle-click behavior
       setIsPanning(true);
       stage.container().style.cursor = "grabbing";
+      return;
     }
   };
 
@@ -637,7 +646,7 @@ export function Canvas({
         const normalizedWidth = Math.abs(width);
         const normalizedHeight = Math.abs(height);
 
-        // Create the rectangle shape
+        // Create the rectangle shape with current default color
         const rect = createRectangle(
           x,
           y,
@@ -645,7 +654,12 @@ export function Canvas({
           normalizedHeight,
           "user",
         );
+        // Override default color with selected color
+        rect.fill = defaultFillColor;
         createShape(rect);
+
+        // Auto-select the newly created shape
+        setSelectedShapeIds([rect.id]);
       }
 
       // Reset drawing state
@@ -663,7 +677,12 @@ export function Canvas({
           newCircle.radius,
           "user",
         );
+        // Override default color with selected color
+        circle.fill = defaultFillColor;
         createShape(circle);
+
+        // Auto-select the newly created shape
+        setSelectedShapeIds([circle.id]);
       }
 
       // Reset drawing state
@@ -727,21 +746,31 @@ export function Canvas({
 
   // Handle text input submission
   const handleTextSubmit = () => {
-    if (textInput.trim()) {
+    const trimmedText = textInput.trim();
+
+    if (trimmedText) {
+      // Only create/update if there's actual text
       if (editingTextShapeId) {
         // Update existing text shape
-        updateShape(editingTextShapeId, { text: textInput });
+        updateShape(editingTextShapeId, { text: trimmedText });
+        // Keep the edited shape selected
+        setSelectedShapeIds([editingTextShapeId]);
       } else if (textPosition) {
-        // Create new text shape
+        // Create new text shape with default color
         const text = createText(
           textPosition.x,
           textPosition.y,
-          textInput,
+          trimmedText,
           "user",
         );
+        text.fill = defaultFillColor;
         createShape(text);
+
+        // Auto-select the newly created text shape
+        setSelectedShapeIds([text.id]);
       }
     }
+    // Always close the input, even if empty (don't create empty text shapes)
     setIsCreatingText(false);
     setTextInput("");
     setTextPosition(null);

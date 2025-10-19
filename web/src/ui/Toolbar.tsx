@@ -1,5 +1,6 @@
 import { useAuth } from "@clerk/clerk-react";
 import clsx from "clsx";
+import { useState } from "react";
 import { useSelection } from "../hooks/useSelection";
 import { useToolbar } from "../hooks/useToolbar";
 import { useUndoRedo } from "../hooks/useUndoRedo";
@@ -9,23 +10,39 @@ import styles from "./Toolbar.module.css";
 
 type ToolbarProps = {
   className?: string;
+  defaultColor?: string;
+  onDefaultColorChange?: (color: string) => void;
 };
 
-export function Toolbar({ className }: ToolbarProps): React.JSX.Element {
+export function Toolbar({
+  className,
+  defaultColor = "#38bdf8",
+  onDefaultColorChange,
+}: ToolbarProps): React.JSX.Element {
   const { activeTool, setActiveTool } = useToolbar();
   const { isSignedIn } = useAuth();
   const { canUndo, canRedo, undo, redo } = useUndoRedo();
   const { shapes, updateShape, canEdit } = useShapes();
   const { selectedShapeIds } = useSelection();
+  const [internalDefaultColor, setInternalDefaultColor] =
+    useState(defaultColor);
 
-  // Get current color of selected shapes (or "mixed" if multiple colors)
+  // Use controlled or uncontrolled mode for default color
+  const currentDefaultColor = onDefaultColorChange
+    ? defaultColor
+    : internalDefaultColor;
+
+  // Get current color of selected shapes, default color, or "mixed"
   const getCurrentColor = (): string | "mixed" => {
-    if (selectedShapeIds.length === 0) return "#38bdf8"; // default
+    if (selectedShapeIds.length === 0) {
+      // When no shapes selected, show the default color for new shapes
+      return currentDefaultColor;
+    }
 
     const selectedShapes = shapes.filter((s) =>
       selectedShapeIds.includes(s.id),
     );
-    if (selectedShapes.length === 0) return "#38bdf8";
+    if (selectedShapes.length === 0) return currentDefaultColor;
 
     const firstColor = selectedShapes[0].fill;
     const allSameColor = selectedShapes.every((s) => s.fill === firstColor);
@@ -34,11 +51,20 @@ export function Toolbar({ className }: ToolbarProps): React.JSX.Element {
   };
 
   const handleColorChange = (color: string) => {
-    if (!canEdit || selectedShapeIds.length === 0) return;
+    if (!canEdit) return;
 
-    // Apply color to all selected shapes
-    for (const shapeId of selectedShapeIds) {
-      updateShape(shapeId, { fill: color });
+    if (selectedShapeIds.length === 0) {
+      // No shapes selected: update default color for future shapes
+      if (onDefaultColorChange) {
+        onDefaultColorChange(color);
+      } else {
+        setInternalDefaultColor(color);
+      }
+    } else {
+      // Apply color to all selected shapes
+      for (const shapeId of selectedShapeIds) {
+        updateShape(shapeId, { fill: color });
+      }
     }
   };
 
@@ -125,16 +151,26 @@ export function Toolbar({ className }: ToolbarProps): React.JSX.Element {
         Redo
       </button>
 
-      {selectedShapeIds.length > 0 && (
-        <>
-          <div className={styles.toolDivider} />
-          <ColorPicker
-            currentColor={getCurrentColor()}
-            onColorChange={handleColorChange}
-            disabled={!canEdit}
-          />
-        </>
-      )}
+      <div className={styles.toolDivider} />
+      <ColorPicker
+        currentColor={getCurrentColor()}
+        onColorChange={handleColorChange}
+        disabled={!canEdit && !isSignedIn}
+      />
+
+      <div className={styles.toolDivider} />
+      <button
+        type="button"
+        className={styles.toolButton}
+        onClick={() => {
+          // Trigger keyboard shortcut to open help panel
+          window.dispatchEvent(new KeyboardEvent("keydown", { key: "?" }));
+        }}
+        title="Keyboard shortcuts (press ?)"
+      >
+        <span aria-hidden>❓</span>
+        Help
+      </button>
     </nav>
   );
 }

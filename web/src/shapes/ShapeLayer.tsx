@@ -200,13 +200,19 @@ export function ShapeLayer({
     }
 
     const now = performance.now();
-    if (now - lastTransformUpdateRef.current < THROTTLE.TRANSFORM_MS) {
+    // Use aggressive throttling for large selections (30+ shapes)
+    const throttleMs =
+      selectedShapeIds.length >= 30
+        ? THROTTLE.TRANSFORM_MS_LARGE_SELECTION
+        : THROTTLE.TRANSFORM_MS;
+
+    if (now - lastTransformUpdateRef.current < throttleMs) {
       return;
     }
     lastTransformUpdateRef.current = now;
 
-    // Update cursor position
-    if (onDragMove) {
+    // Skip cursor updates for large selections to improve performance
+    if (selectedShapeIds.length < 20 && onDragMove) {
       const transformer = transformerRef.current;
       if (transformer) {
         const stage = transformer.getStage();
@@ -549,16 +555,16 @@ export function ShapeLayer({
             "bottom-left",
             "bottom-right",
           ]}
+          // Disable rotation for large selections to improve performance
+          rotateEnabled={selectedShapeIds.length < 20}
           onTransform={() => {
-            // Handle transform for all selected shapes
+            // Performance optimization: only transform first shape during interaction
+            // All shapes will be transformed on transformEnd
             if (selectedShapeIds.length > 0) {
-              // For now, we apply the transform to each shape individually
-              // This maintains the relative positions of shapes during group transform
-              for (const shapeId of selectedShapeIds) {
-                const shape = shapes.find((s) => s.id === shapeId);
-                if (shape) {
-                  handleTransform(shape);
-                }
+              const firstShapeId = selectedShapeIds[0];
+              const firstShape = shapes.find((s) => s.id === firstShapeId);
+              if (firstShape) {
+                handleTransform(firstShape);
               }
             }
           }}

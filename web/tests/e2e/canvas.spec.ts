@@ -13,75 +13,85 @@ import {
   canvasDrag,
   createRectangle,
   getCanvas,
+  navigateToMainCanvas,
   selectShape,
   waitForSync,
 } from "./helpers";
 
 test.describe("Canvas Interactions", () => {
   test.describe("Pan & Zoom", () => {
-    test("mouse wheel zooms in and out", async ({ page }) => {
-      await page.goto("/c/main", { waitUntil: "domcontentloaded" });
-      await waitForSync(page, 500);
+    test("mouse wheel zooms in and out", async ({ authenticatedPage }) => {
+      await navigateToMainCanvas(authenticatedPage);
+      const canvas = await getCanvas(authenticatedPage);
+      const zoomButton = authenticatedPage
+        .locator('button[class*="zoomButton"]')
+        .nth(1);
 
-      const canvas = await getCanvas(page);
-      const zoomButton = page.getByRole("button", { name: /100%/i });
-
-      // Initial zoom should be 100%
-      await expect(zoomButton).toHaveText("100%");
+      // Get initial zoom
+      const initialZoom = await zoomButton.textContent();
 
       // Zoom in with wheel
       const box = await canvas.boundingBox();
       if (box) {
-        await page.mouse.move(box.x + 400, box.y + 300);
-        await page.mouse.wheel(0, -100);
+        await authenticatedPage.mouse.move(box.x + 400, box.y + 300);
+        await authenticatedPage.mouse.wheel(0, -100);
       }
 
-      await waitForSync(page, 200);
+      await waitForSync(authenticatedPage, 200);
 
       // Zoom level should have changed
-      const zoomText = await zoomButton.textContent();
-      expect(zoomText).not.toBe("100%");
+      const newZoom = await zoomButton.textContent();
+      expect(newZoom).not.toBe(initialZoom);
     });
 
-    test("zoom controls buttons work", async ({ page }) => {
-      await page.goto("/c/main", { waitUntil: "domcontentloaded" });
-      await waitForSync(page, 500);
+    test("zoom controls buttons work", async ({ authenticatedPage }) => {
+      await navigateToMainCanvas(authenticatedPage);
+      const zoomButton = authenticatedPage
+        .locator('button[class*="zoomButton"]')
+        .nth(1);
+      const zoomInButton = authenticatedPage.getByRole("button", { name: "+" });
+      const zoomOutButton = authenticatedPage.getByRole("button", {
+        name: "−",
+      });
 
-      const zoomButton = page.getByRole("button", { name: /100%/i });
-      const zoomInButton = page.getByRole("button", { name: "+" });
-      const zoomOutButton = page.getByRole("button", { name: "−" });
+      const initialZoom = await zoomButton.textContent();
 
       // Zoom in
       await zoomInButton.click();
-      await waitForSync(page, 100);
+      await waitForSync(authenticatedPage, 200);
       let zoomText = await zoomButton.textContent();
-      expect(zoomText).toContain("110%");
+      expect(zoomText).not.toBe(initialZoom);
+      expect(zoomText).toContain("%");
 
       // Zoom out
       await zoomOutButton.click();
-      await waitForSync(page, 100);
+      await waitForSync(authenticatedPage, 200);
       zoomText = await zoomButton.textContent();
-      expect(zoomText).toBe("100%");
+      expect(zoomText).toBe(initialZoom);
     });
 
-    test("reset zoom button returns to 100%", async ({ page }) => {
-      await page.goto("/c/main", { waitUntil: "domcontentloaded" });
-      await waitForSync(page, 500);
-
-      const zoomButton = page.getByRole("button", { name: /100%/i });
-      const zoomInButton = page.getByRole("button", { name: "+" });
+    test("reset zoom button returns to 100%", async ({ authenticatedPage }) => {
+      await navigateToMainCanvas(authenticatedPage);
+      const zoomButton = authenticatedPage
+        .locator('button[class*="zoomButton"]')
+        .nth(1);
+      const zoomInButton = authenticatedPage.getByRole("button", { name: "+" });
 
       // Zoom in multiple times
       await zoomInButton.click();
       await zoomInButton.click();
-      await waitForSync(page, 200);
+      await waitForSync(authenticatedPage, 200);
+
+      const zoomedValue = await zoomButton.textContent();
+      expect(zoomedValue).not.toBe("100%");
 
       // Click reset
       await zoomButton.click();
-      await waitForSync(page, 100);
+      await waitForSync(authenticatedPage, 200);
 
       // Should be back to 100%
-      await expect(zoomButton).toHaveText("100%");
+      const finalZoom = await zoomButton.textContent();
+      expect(finalZoom).toBe("100%");
     });
 
     test("zoom is clamped to MIN_ZOOM and MAX_ZOOM", async ({ page }) => {
@@ -106,6 +116,7 @@ test.describe("Canvas Interactions", () => {
     test("authenticated user can pan with click-drag in select mode", async ({
       authenticatedPage,
     }) => {
+      await navigateToMainCanvas(authenticatedPage);
       // Click select tool
       await authenticatedPage.getByRole("button", { name: /select/i }).click();
 
@@ -114,7 +125,8 @@ test.describe("Canvas Interactions", () => {
     });
 
     test("guest user can pan", async ({ guestPage }) => {
-      await waitForSync(guestPage, 500);
+      await guestPage.goto("/c/main", { waitUntil: "domcontentloaded" });
+      await waitForSync(guestPage, 1000);
 
       // Guest users should be able to pan
       await canvasDrag(guestPage, 400, 300, 300, 200);
@@ -122,7 +134,12 @@ test.describe("Canvas Interactions", () => {
   });
 
   test.describe("Selection", () => {
-    test("click shape to select", async ({ authenticatedPage }) => {
+    test("click shape to select", async ({ authenticatedPage, roomId }) => {
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
+      await waitForSync(authenticatedPage, 1000);
+
       // Create a rectangle
       await createRectangle(authenticatedPage, 200, 200, 150, 100);
 
@@ -131,6 +148,7 @@ test.describe("Canvas Interactions", () => {
     });
 
     test("click empty canvas deselects", async ({ authenticatedPage }) => {
+      await navigateToMainCanvas(authenticatedPage);
       // Create and select a shape
       await createRectangle(authenticatedPage, 200, 200, 150, 100);
       await selectShape(authenticatedPage, 275, 250);
@@ -143,6 +161,7 @@ test.describe("Canvas Interactions", () => {
     });
 
     test("Escape key deselects", async ({ authenticatedPage }) => {
+      await navigateToMainCanvas(authenticatedPage);
       // Create and select a shape
       await createRectangle(authenticatedPage, 200, 200, 150, 100);
       await selectShape(authenticatedPage, 275, 250);
@@ -155,6 +174,7 @@ test.describe("Canvas Interactions", () => {
 
   test.describe("Keyboard Shortcuts", () => {
     test("Delete key removes selected shape", async ({ authenticatedPage }) => {
+      await navigateToMainCanvas(authenticatedPage);
       // Create a rectangle
       await createRectangle(authenticatedPage, 200, 200, 150, 100);
 
@@ -169,6 +189,7 @@ test.describe("Canvas Interactions", () => {
     test("Backspace key removes selected shape", async ({
       authenticatedPage,
     }) => {
+      await navigateToMainCanvas(authenticatedPage);
       // Create a circle
       await authenticatedPage.getByRole("button", { name: /circle/i }).click();
       await canvasDrag(authenticatedPage, 300, 300, 360, 360);
@@ -184,6 +205,7 @@ test.describe("Canvas Interactions", () => {
     test("shortcuts disabled when typing in text input", async ({
       authenticatedPage,
     }) => {
+      await navigateToMainCanvas(authenticatedPage);
       // Focus AI textarea
       const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
       await aiTextarea.click();

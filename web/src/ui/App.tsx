@@ -30,6 +30,7 @@ export function App(): React.JSX.Element {
   const { isLoading: shapesLoading } = useShapes();
   const [isShortcutsPanelOpen, setIsShortcutsPanelOpen] = useState(false);
   const aiPanelRef = useRef<HTMLTextAreaElement>(null);
+  const [defaultFillColor, setDefaultFillColor] = useState("#38bdf8");
 
   // Show loading only on initial load (when shapes are loading)
   // Don't block the UI during reconnection - show connection status badge instead
@@ -118,12 +119,17 @@ export function App(): React.JSX.Element {
             )}
 
             {/* Floating toolbar */}
-            <Toolbar className={styles.floatingToolbar} />
+            <Toolbar
+              className={styles.floatingToolbar}
+              defaultColor={defaultFillColor}
+              onDefaultColorChange={setDefaultFillColor}
+            />
 
             <div className={styles.canvasContainer}>
               <Canvas
                 presence={presenceState.presence}
                 setPresence={presenceState.setPresence}
+                defaultFillColor={defaultFillColor}
               />
             </div>
 

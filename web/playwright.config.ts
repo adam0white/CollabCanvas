@@ -1,7 +1,14 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig, devices } from "@playwright/test";
 import { config } from "dotenv";
 
-config({ path: "../.env", quiet: true });
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load .env from workspace root (works whether running from root or web/ directory)
+const envPath = path.resolve(process.cwd(), "../.env");
+config({ path: envPath, quiet: true });
 
 /**
  * Playwright Configuration for CollabCanvas E2E Tests
@@ -59,6 +66,7 @@ export default defineConfig({
     timeout: 120000, // 2 minutes to start
     stdout: "pipe",
     stderr: "pipe",
+    cwd: path.resolve(__dirname, ".."),
   },
 
   // Browser projects

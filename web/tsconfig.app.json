@@ -23,5 +23,12 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": [
+    "tests/**/*",
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "playwright.config.ts",
+    "playwright/.auth"
+  ]
 }

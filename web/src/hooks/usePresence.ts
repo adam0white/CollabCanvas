@@ -16,7 +16,7 @@ export type PresenceState = {
 type PresenceHook = {
   presence: Map<number, PresenceState>;
   localPresence: PresenceState | null;
-  setPresence: (state: Partial<PresenceState>) => void;
+  setPresence: (state: Partial<PresenceState>, forceThrottle?: boolean) => void;
 };
 
 // Expanded color palette with broader spectrum
@@ -40,6 +40,7 @@ const COLORS = [
   "#f43f5e", // rose
 ];
 const UPDATE_INTERVAL_MS = 50;
+const UPDATE_INTERVAL_MS_THROTTLED = 150; // More aggressive throttling for large selections
 
 /**
  * Sanitize display name to prevent XSS attacks
@@ -115,9 +116,16 @@ export function usePresence(): PresenceHook {
     };
   }, [awareness]);
 
-  const setPresence = (state: Partial<PresenceState>) => {
+  const setPresence = (
+    state: Partial<PresenceState>,
+    forceThrottle = false,
+  ) => {
     const now = performance.now();
-    if (now - lastUpdateRef.current < UPDATE_INTERVAL_MS) {
+    const throttleInterval = forceThrottle
+      ? UPDATE_INTERVAL_MS_THROTTLED
+      : UPDATE_INTERVAL_MS;
+
+    if (now - lastUpdateRef.current < throttleInterval) {
       return;
     }
     lastUpdateRef.current = now;

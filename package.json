@@ -11,14 +11,16 @@
     "frontend:install": "npm --prefix web ci",
     "frontend:build": "npm --prefix web run build",
     "frontend:dev": "npm --prefix web run dev -- --host",
-    "frontend:test": "npm --prefix web run test:e2e",
-    "test": "npm-run-all wrangler:types test:run",
+    "test:e2e": "npm --prefix web run test:e2e",
+    "test:e2e:ui": "npm --prefix web run test:e2e:ui",
+    "test:e2e:headed": "npm --prefix web run test:e2e:headed",
+    "test:e2e:debug": "npm --prefix web run test:e2e:debug",
+    "test": "vitest",
     "lint": "biome check .",
     "format": "biome format .",
     "deploy": "wrangler deploy",
     "wrangler:types": "wrangler types worker-configuration.d.ts",
-    "dev:worker": "wrangler dev",
-    "test:run": "vitest"
+    "dev:worker": "wrangler dev"
   },
   "repository": {
     "type": "git",
