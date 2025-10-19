@@ -13,8 +13,8 @@
     "test:e2e:debug": "playwright test --debug"
   },
   "dependencies": {
-    "@clerk/clerk-react": "^5.7.1",
-    "@clerk/nextjs": "^6.1.5",
+    "@clerk/clerk-react": "^5.53.2",
+    "@clerk/nextjs": "^6.33.7",
     "@lexical/react": "^0.37.0",
     "@lexical/yjs": "^0.37.0",
     "clsx": "^2.1.1",
@@ -29,12 +29,12 @@
     "yjs": "^13.6.27"
   },
   "devDependencies": {
-    "dotenv": "^17.2.3",
     "@playwright/test": "^1.56.1",
     "@types/node": "^24.8.1",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
     "@vitejs/plugin-react": "^5.0.4",
+    "dotenv": "^17.2.3",
     "typescript": "~5.9.3",
     "vite": "^7.1.7"
   }

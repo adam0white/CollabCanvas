@@ -1,7 +1,7 @@
 name = "collabcanvas"
 main = "src/worker.ts"
-compatibility_date = "2025-10-13"
-compatibility_flags = ["nodejs_compat"]
+compatibility_date = "2025-10-19"
+compatibility_flags = ["nodejs_compat", "enable_ctx_exports"]
 workers_dev = false
 
 [[routes]]
@@ -21,6 +21,12 @@ bindings = [
   { name = "RoomDO", class_name = "RoomDO" },
   { name = "AIAgent", class_name = "AIAgent" }
 ]
+
+[observability]
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
 
 [[migrations]]
 tag = "v1"

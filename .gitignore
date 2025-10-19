@@ -7,9 +7,3 @@ coverage/
 *.log
 *.tsbuildinfo
 .DS_Store
-
-# Core dumps from test process crashes
-core
-
-# Core dumps from process crashes
-core
