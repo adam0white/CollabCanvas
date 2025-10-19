@@ -7,19 +7,30 @@
  * - Error display
  * - History panel showing all AI interactions
  * - Guest users see history but cannot send commands
+ * - Context-aware commands (selected shapes, viewport)
  */
 
 import { useUser } from "@clerk/clerk-react";
 import React, { useCallback, useRef, useState } from "react";
 import { useAI } from "../hooks/useAI";
+import { useSelection } from "../hooks/useSelection";
+import { useShapes } from "../shapes/useShapes";
 import styles from "./AIPanel.module.css";
 
-export const AIPanel = React.forwardRef<HTMLTextAreaElement>(
-  function AIPanel(_, ref): React.JSX.Element {
+type AIContextProps = {
+  viewportCenter: { x: number; y: number };
+  viewportBounds: { x: number; y: number; width: number; height: number };
+  canvasScale: number;
+};
+
+export const AIPanel = React.forwardRef<HTMLTextAreaElement, AIContextProps>(
+  function AIPanel({ viewportCenter, viewportBounds, canvasScale }, ref): React.JSX.Element {
     const { history, isLoading, error, sendCommand, canUseAI } = useAI();
     const { user } = useUser();
     const [prompt, setPrompt] = useState("");
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const { selectedShapeIds } = useSelection();
+    const { shapes } = useShapes();
 
     // Merge external ref with internal ref
     React.useImperativeHandle(
@@ -38,13 +49,71 @@ export const AIPanel = React.forwardRef<HTMLTextAreaElement>(
         if (!trimmedPrompt) return;
 
         try {
-          await sendCommand(trimmedPrompt);
+          // Build rich context for AI
+          const selectedShapes = selectedShapeIds
+            .map((id) => {
+              const shape = shapes.find((s) => s.id === id);
+              if (!shape) return null;
+              return {
+                id: shape.id,
+                type: shape.type,
+                x: shape.x,
+                y: shape.y,
+                width: "width" in shape ? shape.width : undefined,
+                height: "height" in shape ? shape.height : undefined,
+                radius: "radius" in shape ? shape.radius : undefined,
+                fill: shape.fill,
+              };
+            })
+            .filter((s) => s !== null);
+
+          // Get nearby shapes in viewport
+          const nearbyShapes = shapes
+            .filter((shape) => {
+              const inViewport =
+                shape.x >= viewportBounds.x &&
+                shape.x <= viewportBounds.x + viewportBounds.width &&
+                shape.y >= viewportBounds.y &&
+                shape.y <= viewportBounds.y + viewportBounds.height;
+              return inViewport;
+            })
+            .slice(0, 20) // Limit to 20 shapes to avoid token bloat
+            .map((shape) => ({
+              id: shape.id,
+              type: shape.type,
+              x: shape.x,
+              y: shape.y,
+            }));
+
+          // Calculate canvas statistics
+          const shapeTypes = shapes.reduce(
+            (acc, shape) => {
+              acc[shape.type] = (acc[shape.type] || 0) + 1;
+              return acc;
+            },
+            {} as Record<string, number>,
+          );
+
+          const context = {
+            selectedShapeIds,
+            viewportCenter,
+            viewportBounds,
+            canvasScale,
+            selectedShapes,
+            nearbyShapes,
+            canvasStats: {
+              totalShapes: shapes.length,
+              shapeTypes,
+            },
+          };
+
+          await sendCommand(trimmedPrompt, context);
           setPrompt(""); // Clear input on success
         } catch {
           // Error is already handled by useAI hook
         }
       },
-      [prompt, sendCommand],
+      [prompt, sendCommand, selectedShapeIds, shapes, viewportCenter, viewportBounds, canvasScale],
     );
 
     const handleKeyDown = useCallback(

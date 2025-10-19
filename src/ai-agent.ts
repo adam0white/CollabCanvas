@@ -67,6 +67,28 @@ export class AIAgent extends Agent {
       context?: {
         selectedShapeIds?: string[];
         viewportCenter?: { x: number; y: number };
+        viewportBounds?: { x: number; y: number; width: number; height: number };
+        canvasScale?: number;
+        selectedShapes?: Array<{
+          id: string;
+          type: string;
+          x: number;
+          y: number;
+          width?: number;
+          height?: number;
+          radius?: number;
+          fill?: string;
+        }>;
+        nearbyShapes?: Array<{
+          id: string;
+          type: string;
+          x: number;
+          y: number;
+        }>;
+        canvasStats?: {
+          totalShapes: number;
+          shapeTypes: Record<string, number>;
+        };
       };
     };
 
@@ -207,6 +229,28 @@ export class AIAgent extends Agent {
     context: {
       selectedShapeIds?: string[];
       viewportCenter?: { x: number; y: number };
+      viewportBounds?: { x: number; y: number; width: number; height: number };
+      canvasScale?: number;
+      selectedShapes?: Array<{
+        id: string;
+        type: string;
+        x: number;
+        y: number;
+        width?: number;
+        height?: number;
+        radius?: number;
+        fill?: string;
+      }>;
+      nearbyShapes?: Array<{
+        id: string;
+        type: string;
+        x: number;
+        y: number;
+      }>;
+      canvasStats?: {
+        totalShapes: number;
+        shapeTypes: Record<string, number>;
+      };
       userId?: string;
       userName?: string;
     },
@@ -214,13 +258,47 @@ export class AIAgent extends Agent {
     const centerX = context.viewportCenter?.x ?? 1000;
     const centerY = context.viewportCenter?.y ?? 1000;
 
-    // Ultra-concise system prompt for faster inference
-    // Shorter prompts = faster generation, less truncation risk
-    let systemPrompt = `Canvas 2000x2000px. Center: ${centerX},${centerY}. Shapes: rectangle, circle, text. Colors: hex (#FF0000=red). Use createPattern for grids/rows (more efficient than arrays). Return JSON arrays in shapes parameter.`;
+    // Enhanced system prompt with context awareness
+    // Teaches AI about canvas state and context-aware operations
+    let systemPrompt = `You are an AI canvas assistant. Canvas is 2000x2000px.
 
-    // Only add selection context if it's actually useful (3+ shapes)
-    if (context.selectedShapeIds && context.selectedShapeIds.length >= 3) {
-      systemPrompt += ` Selected: ${context.selectedShapeIds.length} shapes`;
+CURRENT CONTEXT:
+- Viewport center: (${centerX}, ${centerY})
+- Zoom level: ${context.canvasScale?.toFixed(2) ?? "1.00"}x
+- Total shapes on canvas: ${context.canvasStats?.totalShapes ?? "unknown"}
+
+AVAILABLE TOOLS:
+- createShape: Create new shapes (use createPattern for grids/repeated shapes)
+- moveShape: Move existing shapes
+- updateShapeStyle: Change colors/styles
+- deleteShape: Delete shapes
+- arrangeShapes: Arrange multiple shapes in layouts
+- findShapes: Search for shapes by type/color
+
+COLORS: Use hex format (#FF0000 for red, #0000FF for blue, etc.)`;
+
+    // Add selected shapes context
+    if (context.selectedShapes && context.selectedShapes.length > 0) {
+      systemPrompt += `\n\nSELECTED SHAPES (${context.selectedShapes.length}):`;
+      context.selectedShapes.slice(0, 5).forEach((shape, i) => {
+        systemPrompt += `\n${i + 1}. ${shape.type} at (${shape.x}, ${shape.y})${shape.fill ? ` - ${shape.fill}` : ""}`;
+      });
+      if (context.selectedShapes.length > 5) {
+        systemPrompt += `\n... and ${context.selectedShapes.length - 5} more`;
+      }
+      systemPrompt += `\n\nWhen user says "these shapes" or "selected shapes", use these shape IDs: ${context.selectedShapes.map((s) => s.id).join(", ")}`;
+    }
+
+    // Add nearby shapes context for spatial awareness
+    if (context.nearbyShapes && context.nearbyShapes.length > 0) {
+      systemPrompt += `\n\nVISIBLE SHAPES IN VIEWPORT (${context.nearbyShapes.length}):`;
+      const typeCount: Record<string, number> = {};
+      context.nearbyShapes.forEach((s) => {
+        typeCount[s.type] = (typeCount[s.type] || 0) + 1;
+      });
+      Object.entries(typeCount).forEach(([type, count]) => {
+        systemPrompt += `\n- ${count} ${type}${count > 1 ? "s" : ""}`;
+      });
     }
 
     try {
