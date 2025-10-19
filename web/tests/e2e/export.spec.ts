@@ -98,7 +98,9 @@ test.describe("Export Canvas", () => {
     // Open modal via keyboard shortcut
     await authenticatedPage.keyboard.press("Meta+E");
     await waitForSync(authenticatedPage, 500);
-    await expect(authenticatedPage.getByText("Export Canvas")).toBeVisible({ timeout: 10000 });
+    await expect(authenticatedPage.getByText("Export Canvas")).toBeVisible({
+      timeout: 10000,
+    });
 
     // Click cancel
     await authenticatedPage.getByRole("button", { name: /cancel/i }).click();
@@ -109,5 +111,4 @@ test.describe("Export Canvas", () => {
       authenticatedPage.getByText("Export Canvas"),
     ).not.toBeVisible();
   });
-});
 });
