@@ -67,6 +67,24 @@ export class AIAgent extends Agent {
       context?: {
         selectedShapeIds?: string[];
         viewportCenter?: { x: number; y: number };
+        selectedShapes?: Array<{
+          id: string;
+          type: string;
+          x: number;
+          y: number;
+          [key: string]: unknown;
+        }>;
+        viewportBounds?: {
+          x: number;
+          y: number;
+          width: number;
+          height: number;
+        };
+        canvasStats?: {
+          totalShapes: number;
+          shapeTypes: Record<string, number>;
+          visibleShapes: number;
+        };
       };
     };
 
@@ -207,6 +225,24 @@ export class AIAgent extends Agent {
     context: {
       selectedShapeIds?: string[];
       viewportCenter?: { x: number; y: number };
+      selectedShapes?: Array<{
+        id: string;
+        type: string;
+        x: number;
+        y: number;
+        [key: string]: unknown;
+      }>;
+      viewportBounds?: {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+      };
+      canvasStats?: {
+        totalShapes: number;
+        shapeTypes: Record<string, number>;
+        visibleShapes: number;
+      };
       userId?: string;
       userName?: string;
     },
@@ -214,13 +250,48 @@ export class AIAgent extends Agent {
     const centerX = context.viewportCenter?.x ?? 1000;
     const centerY = context.viewportCenter?.y ?? 1000;
 
-    // Ultra-concise system prompt for faster inference
-    // Shorter prompts = faster generation, less truncation risk
-    let systemPrompt = `Canvas 2000x2000px. Center: ${centerX},${centerY}. Shapes: rectangle, circle, text. Colors: hex (#FF0000=red). Use createPattern for grids/rows (more efficient than arrays). Return JSON arrays in shapes parameter.`;
+    // Enhanced system prompt with context awareness
+    // Provides AI with canvas state for intelligent operations
+    let systemPrompt = `Canvas 2000x2000px. Viewport center: ${centerX},${centerY}. Shapes: rectangle, circle, text. Colors: hex (#FF0000=red). Use createPattern for grids/rows (more efficient than arrays). Return JSON arrays in shapes parameter.`;
 
-    // Only add selection context if it's actually useful (3+ shapes)
-    if (context.selectedShapeIds && context.selectedShapeIds.length >= 3) {
-      systemPrompt += ` Selected: ${context.selectedShapeIds.length} shapes`;
+    // Add canvas statistics if available
+    if (context.canvasStats) {
+      systemPrompt += ` Canvas has ${context.canvasStats.totalShapes} total shapes`;
+      if (context.canvasStats.visibleShapes > 0) {
+        systemPrompt += ` (${context.canvasStats.visibleShapes} visible in viewport)`;
+      }
+    }
+
+    // Add viewport bounds for context-aware positioning
+    if (context.viewportBounds) {
+      const vp = context.viewportBounds;
+      systemPrompt += `. Current viewport: x:${Math.round(vp.x)}-${Math.round(vp.x + vp.width)}, y:${Math.round(vp.y)}-${Math.round(vp.y + vp.height)}`;
+    }
+
+    // Add detailed selection context if shapes are selected
+    if (context.selectedShapes && context.selectedShapes.length > 0) {
+      const shapes = context.selectedShapes;
+      systemPrompt += `. Selected ${shapes.length} shape(s): `;
+      
+      // Summarize selected shapes (keep concise)
+      const typeCounts: Record<string, number> = {};
+      for (const shape of shapes) {
+        typeCounts[shape.type] = (typeCounts[shape.type] || 0) + 1;
+      }
+      
+      const typesSummary = Object.entries(typeCounts)
+        .map(([type, count]) => `${count} ${type}${count > 1 ? 's' : ''}`)
+        .join(", ");
+      
+      systemPrompt += typesSummary;
+      
+      // If small selection, include positions
+      if (shapes.length <= 3) {
+        const positions = shapes.map(s => `(${Math.round(s.x)},${Math.round(s.y)})`).join(" ");
+        systemPrompt += ` at ${positions}`;
+      }
+      
+      systemPrompt += `. When user says "these", "selected", or "them", refer to these shapes.`;
     }
 
     try {
@@ -242,6 +313,7 @@ export class AIAgent extends Agent {
 
       // Performance: Call Workers AI through AI Gateway with optimized settings
       // Use llama-3.3-70b-instruct-fp8-fast for better function calling accuracy and speed
+      // Note: Workers AI has internal timeout of ~60s, we optimize for speed within that constraint
       const response = await ai.run(
         "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
         {
@@ -250,8 +322,9 @@ export class AIAgent extends Agent {
             { role: "user", content: prompt },
           ],
           tools: AI_TOOLS,
-          // Reduced max_tokens for faster generation (shapes rarely need 2048 tokens)
-          max_tokens: 1024,
+          // Increased max_tokens to prevent truncation on large requests
+          // Balance: Larger token budget for complex commands, but slower generation
+          max_tokens: 2048,
           // Lower temperature for more deterministic, faster responses
           temperature: 0.7,
         },

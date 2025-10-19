@@ -45,6 +45,24 @@ type UseAIReturn = {
 type AIContext = {
   selectedShapeIds?: string[];
   viewportCenter?: { x: number; y: number };
+  selectedShapes?: Array<{
+    id: string;
+    type: string;
+    x: number;
+    y: number;
+    [key: string]: unknown;
+  }>;
+  viewportBounds?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+  canvasStats?: {
+    totalShapes: number;
+    shapeTypes: Record<string, number>;
+    visibleShapes: number;
+  };
 };
 
 export function useAI(): UseAIReturn {
