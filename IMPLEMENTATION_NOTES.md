@@ -28,15 +28,25 @@ This properly:
 - Emits update events to broadcast to all clients
 - Creates a virtual client that all users can see
 
-### 2. AI Model Upgrade
+### 2. AI Model Selection
 
-**Changed from:** `@cf/meta/llama-3.3-70b-instruct-fp8-fast`
-**Changed to:** `@cf/mistralai/mistral-small-3.1-24b-instruct`
+**Final Model:** `@cf/meta/llama-3.1-70b-instruct`
+
+**Evolution:**
+1. Started with: `@cf/meta/llama-3.3-70b-instruct-fp8-fast` (too fast, less reliable)
+2. Tried: `@cf/mistralai/mistral-small-3.1-24b-instruct` (incompatible with tools parameter)
+3. Settled on: `@cf/meta/llama-3.1-70b-instruct` (proven compatibility)
 
 **Reasoning:**
-- Mistral models excel at function calling and structured output
-- Better reliability for tool execution commands
-- More consistent results with complex tool chains
+- Llama 3.1 70B has proven compatibility with Workers AI function calling
+- Properly handles the `tools` parameter format
+- Good balance of speed, quality, and reliability
+- Consistent structured output for tool execution
+
+**Note:** Mistral models threw "8001: Invalid input" errors, indicating they either:
+- Don't support the `tools` parameter in Workers AI
+- Require a different parameter format
+- Have API compatibility issues with Workers AI implementation
 
 ## Architecture Summary
 
