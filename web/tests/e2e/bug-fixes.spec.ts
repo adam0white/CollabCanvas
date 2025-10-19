@@ -119,7 +119,7 @@ test.describe("Bug Fix Regression Tests", () => {
 
       // Panning should work (no error, page still functional)
       // Verify by doing a zoom operation
-      await guestPage.getByRole("button", { name: /Zoom in/i }).click();
+      await guestPage.getByRole("button", { name: "+" }).first().click();
       await waitForSync(guestPage, 200);
 
       const newZoom = await zoomButton.textContent();

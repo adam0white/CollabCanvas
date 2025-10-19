@@ -152,9 +152,11 @@ test.describe("Performance & Scalability", () => {
       }
 
       // Test zoom
-      const zoomInButton = authenticatedPage.getByRole("button", {
-        name: /Zoom in/i,
-      });
+      const zoomInButton = authenticatedPage
+        .getByRole("button", {
+          name: "+",
+        })
+        .first();
       const zoomStart = Date.now();
       await zoomInButton.click();
       await waitForSync(authenticatedPage, 500);

@@ -15,10 +15,10 @@ export async function waitForSync(page: Page, ms = 500): Promise<void> {
  * Navigate to main canvas and wait for it to be ready
  */
 export async function navigateToMainCanvas(page: Page): Promise<void> {
-  // Set localStorage BEFORE navigation to expand layers panel
+  // Set localStorage BEFORE navigation to COLLAPSE layers panel (avoid blocking canvas)
   await page.goto("/c/main");
   await page.evaluate(() => {
-    localStorage.setItem("layersPanelCollapsed", "false");
+    localStorage.setItem("layersPanelCollapsed", "true");
   });
 
   // Reload to apply localStorage changes

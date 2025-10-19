@@ -80,6 +80,13 @@ test.describe("Layers Panel", () => {
   test("should show layer count", async ({ authenticatedPage }) => {
     await navigateToMainCanvas(authenticatedPage);
 
+    // Expand layers panel for this test
+    await authenticatedPage.evaluate(() => {
+      localStorage.setItem("layersPanelCollapsed", "false");
+    });
+    await authenticatedPage.reload({ waitUntil: "domcontentloaded" });
+    await waitForSync(authenticatedPage, 1000);
+
     // Create 3 shapes
     for (let i = 0; i < 3; i++) {
       const x = 100 + i * 100;
