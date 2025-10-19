@@ -9,6 +9,7 @@ import { useSelection } from "../hooks/useSelection";
 import { useSnapToGrid } from "../hooks/useSnapToGrid";
 import { useToolbar } from "../hooks/useToolbar";
 import { useUndoRedo } from "../hooks/useUndoRedo";
+import { useViewport } from "../hooks/useViewport";
 import {
   alignBottom,
   alignCenter,
@@ -75,6 +76,7 @@ export function Canvas({
   const undoRedo = useUndoRedo();
   const { selectedShapeIds, setSelectedShapeIds } = useSelection();
   const snap = useSnapToGrid();
+  const { viewport, setViewport } = useViewport();
 
   // State for rectangle creation (click-and-drag)
   const [isDrawing, setIsDrawing] = useState(false);
@@ -106,10 +108,18 @@ export function Canvas({
     null,
   );
 
-  // State for pan and zoom
-  const [scale, setScale] = useState(1);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
+  // Use viewport context for pan and zoom
+  const scale = viewport.scale;
+  const position = viewport.position;
   const [isPanning, setIsPanning] = useState(false);
+  
+  // Helper functions to update viewport
+  const setScale = (newScale: number) => {
+    setViewport({ scale: newScale });
+  };
+  const setPosition = (newPosition: { x: number; y: number }) => {
+    setViewport({ position: newPosition });
+  };
 
   // State for responsive canvas size
   const [canvasSize, setCanvasSize] = useState({ width: 960, height: 600 });
@@ -136,6 +146,31 @@ export function Canvas({
       locking.updateLocks(selectedShapeIds);
     }
   }, [selectedShapeIds, canEdit, locking]);
+
+  // Update viewport context when scale/position/canvasSize changes
+  useEffect(() => {
+    const bounds = calculateViewportBounds(
+      canvasSize.width,
+      canvasSize.height,
+      scale,
+      position,
+    );
+    const center = {
+      x: bounds.minX + (bounds.maxX - bounds.minX) / 2,
+      y: bounds.minY + (bounds.maxY - bounds.minY) / 2,
+    };
+    setViewport({
+      scale,
+      position,
+      center,
+      bounds: {
+        x: bounds.minX,
+        y: bounds.minY,
+        width: bounds.maxX - bounds.minX,
+        height: bounds.maxY - bounds.minY,
+      },
+    });
+  }, [scale, position, canvasSize, setViewport]);
 
   // Update canvas size based on container dimensions
   useEffect(() => {
@@ -1259,11 +1294,17 @@ export function Canvas({
           {/* Render visible remote cursors with labels */}
           {visibleCursors.map((participant) => {
             if (!participant.cursor) return null;
+            const isAIAgent = participant.isAIAgent === true;
             const labelText = participant.displayName;
             const labelWidth = labelText.length * 8 + 12; // Approximate width
 
             // Inverse scale to keep cursor/label at consistent size across zoom levels
             const inverseScale = 1 / scale;
+
+            // AI agent cursor has special styling
+            const cursorColor = isAIAgent ? "#9333ea" : participant.color;
+            const cursorSize = isAIAgent ? 16 : 12;
+            const hasGlow = isAIAgent;
 
             return (
               <Group
@@ -1273,22 +1314,55 @@ export function Canvas({
                 scaleX={inverseScale}
                 scaleY={inverseScale}
               >
+                {/* Glow effect for AI agent */}
+                {hasGlow && (
+                  <Circle
+                    x={cursorSize / 2}
+                    y={cursorSize / 2}
+                    radius={cursorSize * 1.5}
+                    fill="rgba(147, 51, 234, 0.2)"
+                    listening={false}
+                  />
+                )}
                 {/* Cursor dot */}
                 <Rect
                   x={0}
                   y={0}
-                  width={12}
-                  height={12}
-                  fill={participant.color}
-                  cornerRadius={4}
+                  width={cursorSize}
+                  height={cursorSize}
+                  fill={cursorColor}
+                  cornerRadius={isAIAgent ? cursorSize / 2 : 4}
+                  shadowColor={
+                    isAIAgent ? "rgba(147, 51, 234, 0.8)" : "rgba(0, 0, 0, 0.3)"
+                  }
+                  shadowBlur={isAIAgent ? 8 : 2}
+                  shadowOffsetY={2}
                 />
+                {/* Thinking indicator for AI agent */}
+                {isAIAgent && participant.aiAgentStatus === "thinking" && (
+                  <Text
+                    x={cursorSize + 4}
+                    y={cursorSize}
+                    text="💭"
+                    fontSize={16}
+                  />
+                )}
+                {/* Working indicator for AI agent */}
+                {isAIAgent && participant.aiAgentStatus === "working" && (
+                  <Text
+                    x={cursorSize + 4}
+                    y={cursorSize}
+                    text="✨"
+                    fontSize={16}
+                  />
+                )}
                 {/* Label background */}
                 <Rect
                   x={16}
                   y={-2}
                   width={labelWidth}
                   height={20}
-                  fill={participant.color}
+                  fill={cursorColor}
                   cornerRadius={4}
                   shadowColor="rgba(0, 0, 0, 0.3)"
                   shadowBlur={4}
@@ -1301,6 +1375,7 @@ export function Canvas({
                   text={labelText}
                   fontSize={12}
                   fontFamily="system-ui, -apple-system, sans-serif"
+                  fontStyle={isAIAgent ? "bold" : "normal"}
                   fill="#fff"
                   shadowColor="rgba(0, 0, 0, 0.5)"
                   shadowBlur={2}
