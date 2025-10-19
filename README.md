@@ -12,15 +12,35 @@ CollabCanvas is a production-ready MVP demonstrating real-time collaboration wit
 
 ## Features
 
-✅ **Real-time Collaboration**: Multiple users can simultaneously create and edit rectangles with instant sync  
-✅ **Cursor Presence**: See collaborators' cursors and names in real-time  
-✅ **Authentication**: Clerk-powered auth with guest view-only access  
-✅ **CRDT Sync**: Yjs provides conflict-free replicated data types for reliable merge semantics  
-✅ **Offline Support**: Yjs buffers changes offline and merges on reconnect  
-✅ **Transform Operations**: Create, move, resize, rotate, and delete shapes  
-✅ **Pan & Zoom**: Navigate large canvases with mouse wheel zoom and drag panning  
-✅ **Responsive Design**: Canvas adapts to window size with floating toolbar  
-✅ **Security**: CSP headers, XSS protection, role-based mutation enforcement
+### Core Collaboration
+✅ **Real-time Sync**: Multiple users edit simultaneously with sub-100ms latency  
+✅ **Cursor Presence**: See collaborators' cursors with name labels  
+✅ **Conflict Resolution**: Hybrid CRDT + optimistic locking prevents conflicts  
+✅ **Offline Support**: Buffers changes offline, merges on reconnect  
+✅ **Authentication**: Clerk auth with role-based access (editor/viewer)  
+✅ **Persistence**: Auto-save with Durable Object storage
+
+### Canvas Features
+✅ **Shape Types**: Rectangle, circle, text with full formatting  
+✅ **Transform**: Create, move, resize, rotate with real-time sync  
+✅ **Multi-select**: Shift+Click or lasso selection  
+✅ **Pan & Zoom**: Mouse wheel zoom, drag to pan  
+✅ **Undo/Redo**: Local undo (Cmd+Z/Cmd+Shift+Z)  
+✅ **Copy/Paste**: Duplicate shapes (Cmd+C/V/D)
+
+### Advanced Features
+✅ **Z-Index**: Bring to front/back (Cmd+]/[)  
+✅ **Alignment**: Align & distribute shapes (Cmd+Shift+L/H/R/T/M/B)  
+✅ **Color Picker**: Palette + recent colors + hex input  
+✅ **Export**: PNG export with quality options (Cmd+E)  
+✅ **Keyboard Shortcuts**: 20+ shortcuts (press ? for help)
+
+### AI Canvas Agent
+✅ **Natural Language**: "Create a login form", "Align left"  
+✅ **12 Tool Types**: Create, move, resize, style, arrange, find  
+✅ **Complex Layouts**: Multi-shape commands with smart positioning  
+✅ **Multi-user AI**: Shared history synced in real-time  
+✅ **Context-Aware**: Works with selection and canvas state
 
 ---
 
