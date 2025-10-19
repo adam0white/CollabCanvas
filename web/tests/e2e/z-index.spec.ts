@@ -62,10 +62,15 @@ test.describe("Z-Index Management", () => {
 
     // Switch to select tool and select second rectangle
     await switchToSelectMode(authenticatedPage);
-    await authenticatedPage
-      .locator("canvas")
-      .first()
-      .click({ position: { x: 200, y: 200 } });
+    await waitForSync(authenticatedPage, 200);
+
+    // Click canvas to select (use bounding box to avoid panel)
+    const canvas = authenticatedPage.locator("canvas").first();
+    const canvasBox = await canvas.boundingBox();
+    if (canvasBox) {
+      await authenticatedPage.mouse.click(canvasBox.x + 300, canvasBox.y + 200);
+    }
+    await waitForSync(authenticatedPage, 200);
 
     // Press Cmd+[ to send to back
     await authenticatedPage.keyboard.press("Meta+BracketLeft");
