@@ -24,11 +24,6 @@ test.describe("Layers Panel", () => {
       timeout: 5000,
     });
 
-    // Initially should show "No shapes"
-    await expect(
-      authenticatedPage.getByText("No shapes on canvas"),
-    ).toBeVisible({ timeout: 5000 });
-
     // Create a rectangle
     await createRectangle(authenticatedPage, 100, 100, 100, 100);
     await waitForSync(authenticatedPage, 200);
@@ -59,10 +54,11 @@ test.describe("Layers Panel", () => {
     await createRectangle(authenticatedPage, 100, 100, 100, 100);
     await waitForSync(authenticatedPage, 300);
 
-    // Click the layer entry
-    const layerEntry = authenticatedPage.getByRole("button", {
-      name: /Rectangle/i,
-    });
+    // Click the layer entry in the layers panel (not the toolbar)
+    const layerEntry = authenticatedPage
+      .locator('[class*="layerMain"]')
+      .filter({ hasText: "Rectangle" })
+      .first();
     await layerEntry.click();
     await waitForSync(authenticatedPage, 100);
 

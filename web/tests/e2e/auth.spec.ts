@@ -76,8 +76,8 @@ test.describe("Authentication & Authorization", () => {
     const zoomButton = page.locator('button[class*="zoomButton"]').nth(1);
     await expect(zoomButton).toBeVisible();
 
-    // Zoom in (use exact name + first to avoid collision with alignment)
-    await page.getByRole("button", { name: "+" }).first().click();
+    // Zoom in
+    await page.getByRole("button", { name: "Zoom in" }).click();
 
     // Check zoom level changed
     await waitForSync(page, 100);
@@ -171,9 +171,9 @@ test.describe("Authentication & Authorization", () => {
     }
 
     // Wait for toolbar Rectangle button to be visible and enabled
-    const rectangleButton = page
-      .getByRole("button", { name: "Rectangle", exact: true })
-      .first();
+    const rectangleButton = page.getByRole("button", {
+      name: "Rectangle tool",
+    });
     await rectangleButton.waitFor({ state: "visible", timeout: 30000 });
     await expect(rectangleButton).toBeEnabled({ timeout: 30000 });
 

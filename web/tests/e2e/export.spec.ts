@@ -95,11 +95,11 @@ test.describe("Export Canvas", () => {
   test("should close modal on cancel", async ({ authenticatedPage }) => {
     await navigateToMainCanvas(authenticatedPage);
 
-    // Open modal via keyboard shortcut
-    await authenticatedPage.keyboard.press("Meta+E");
-    await waitForSync(authenticatedPage, 500);
+    // Open modal via toolbar button
+    await authenticatedPage.getByRole("button", { name: /export/i }).click();
+    await waitForSync(authenticatedPage, 300);
     await expect(authenticatedPage.getByText("Export Canvas")).toBeVisible({
-      timeout: 10000,
+      timeout: 5000,
     });
 
     // Click cancel
