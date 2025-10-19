@@ -307,6 +307,8 @@ export const ShapeLayer = memo(function ShapeLayer({
       selectedShapeSet,
       onShapeUpdate,
       onBatchShapeUpdate,
+      onDragMove,
+      snapToGrid,
     ],
   );
 
