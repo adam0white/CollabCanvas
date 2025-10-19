@@ -49,16 +49,12 @@ test.describe("Canvas Interactions", () => {
       const zoomButton = authenticatedPage
         .locator('button[class*="zoomButton"]')
         .nth(1);
-      const zoomInButton = authenticatedPage
-        .getByRole("button", {
-          name: "+",
-        })
-        .first();
-      const zoomOutButton = authenticatedPage
-        .getByRole("button", {
-          name: "−",
-        })
-        .first();
+      const zoomInButton = authenticatedPage.getByRole("button", {
+        name: "Zoom in",
+      });
+      const zoomOutButton = authenticatedPage.getByRole("button", {
+        name: "Zoom out",
+      });
 
       const initialZoom = await zoomButton.textContent();
 
@@ -81,11 +77,9 @@ test.describe("Canvas Interactions", () => {
       const zoomButton = authenticatedPage
         .locator('button[class*="zoomButton"]')
         .nth(1);
-      const zoomInButton = authenticatedPage
-        .getByRole("button", {
-          name: "+",
-        })
-        .first();
+      const zoomInButton = authenticatedPage.getByRole("button", {
+        name: "Zoom in",
+      });
 
       // Zoom in multiple times
       await zoomInButton.click();
