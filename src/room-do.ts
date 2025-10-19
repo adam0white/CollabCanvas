@@ -168,7 +168,7 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
     userName: string;
     prompt: string;
   }): Promise<AICommandResult> {
-    const { commandId, toolCalls, userId, userName, prompt} = params;
+    const { commandId, toolCalls, userId, userName, prompt } = params;
 
     // Idempotency check: return cached result if command already executed
     const cached = this.commandCache.get(commandId);

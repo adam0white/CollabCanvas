@@ -227,7 +227,6 @@ Example: {shapes:[{type:"circle",x:100,y:200,radius:50,fill:"#FF0000"}]}`;
     }
 
     try {
-
       // Check total prompt length to avoid truncation
       const totalPromptLength = systemPrompt.length + prompt.length;
       const MAX_SAFE_PROMPT_LENGTH = 1500; // Leave room for response
@@ -274,7 +273,6 @@ Example: {shapes:[{type:"circle",x:100,y:200,radius:50,fill:"#FF0000"}]}`;
           name: string;
           arguments: Record<string, unknown>;
         }>;
-
 
         // Parse and fix stringified shapes parameters
         return toolCalls.map((call) => {
@@ -350,7 +348,6 @@ Example: {shapes:[{type:"circle",x:100,y:200,radius:50,fill:"#FF0000"}]}`;
 
             // If it looks like a tool call structure
             if (parsed.name && parsed.arguments) {
-
               // Fix stringified shapes parameter if present
               if (
                 parsed.arguments.shapes &&
