@@ -45,8 +45,7 @@ test.describe("Shape Creation & Editing", () => {
     }) => {
       await navigateToMainCanvas(authenticatedPage);
       await authenticatedPage
-        .getByRole("button", { name: "Rectangle", exact: true })
-        .first()
+        .getByRole("button", { name: "Rectangle tool" })
         .click();
 
       // Draw very small rectangle (5px) - should not be created
@@ -123,8 +122,7 @@ test.describe("Shape Creation & Editing", () => {
     test("cancel text creation with Escape", async ({ authenticatedPage }) => {
       await navigateToMainCanvas(authenticatedPage);
       await authenticatedPage
-        .getByRole("button", { name: "Text", exact: true })
-        .first()
+        .getByRole("button", { name: "Text tool" })
         .click();
       await waitForSync(authenticatedPage, 200);
 
@@ -152,8 +150,7 @@ test.describe("Shape Creation & Editing", () => {
     test("empty text is not created", async ({ authenticatedPage }) => {
       await navigateToMainCanvas(authenticatedPage);
       await authenticatedPage
-        .getByRole("button", { name: "Text", exact: true })
-        .first()
+        .getByRole("button", { name: "Text tool" })
         .click();
       await waitForSync(authenticatedPage, 200);
 
