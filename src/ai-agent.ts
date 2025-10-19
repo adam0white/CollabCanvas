@@ -231,7 +231,7 @@ export class AIAgent extends Agent {
 
     // Ultra-concise system prompt for faster inference
     // Shorter prompts = faster generation, less truncation risk
-    let systemPrompt = `Canvas 2000x2000px. Center: ${centerX},${centerY}. Shapes: rectangle, circle, text. Colors: hex (#FF0000=red). Sizes: 80,150,250. Return JSON array in shapes parameter.`;
+    let systemPrompt = `Canvas 2000x2000px. Center: ${centerX},${centerY}. Shapes: rectangle, circle, text. Colors: hex (#FF0000=red). Use createPattern for grids/rows (more efficient than arrays). Return JSON arrays in shapes parameter.`;
 
     // Only add selection context if it's actually useful (3+ shapes)
     if (context.selectedShapeIds && context.selectedShapeIds.length >= 3) {

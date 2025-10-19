@@ -15,7 +15,7 @@ import type { Doc } from "yjs";
 // ============================================================================
 
 // Performance: Concise tool definitions for faster AI inference
-// Shorter descriptions reduce prompt tokens and generation time
+// Pattern-based generation reduces payload size for bulk operations
 export const AI_TOOLS = [
   {
     name: "createShape",
@@ -48,6 +48,42 @@ export const AI_TOOLS = [
         },
       },
       required: ["shapes"],
+    },
+  },
+  {
+    name: "createPattern",
+    description: "Create multiple shapes in a pattern. More efficient than creating shapes individually. Use for grids, rows, columns, or repeated shapes.",
+    parameters: {
+      type: "object",
+      properties: {
+        pattern: {
+          type: "string",
+          enum: ["grid", "row", "column", "circle_arrangement"],
+          description: "Pattern type: grid, row, column, or circle_arrangement",
+        },
+        shape: {
+          type: "object",
+          description: "Template shape to repeat",
+          properties: {
+            type: { type: "string", enum: ["rectangle", "circle", "text"] },
+            width: { type: "number", description: "Width (rectangle)" },
+            height: { type: "number", description: "Height (rectangle)" },
+            radius: { type: "number", description: "Radius (circle)" },
+            text: { type: "string", description: "Text content" },
+            fontSize: { type: "number", description: "Font size" },
+            fill: { type: "string", description: "Hex color" },
+          },
+          required: ["type"],
+        },
+        startX: { type: "number", description: "Starting X coordinate" },
+        startY: { type: "number", description: "Starting Y coordinate" },
+        count: { type: "number", description: "Number of shapes to create (max 50)" },
+        rows: { type: "number", description: "Number of rows (for grid pattern)" },
+        columns: { type: "number", description: "Number of columns (for grid pattern)" },
+        spacing: { type: "number", description: "Spacing between shapes (default: 20)" },
+        radius: { type: "number", description: "Radius for circle_arrangement pattern" },
+      },
+      required: ["pattern", "shape", "startX", "startY"],
     },
   },
 ] as const;
@@ -114,6 +150,18 @@ export type FindShapesParams = {
 };
 
 export type GetCanvasStateParams = Record<string, never>;
+
+export type CreatePatternParams = {
+  pattern: "grid" | "row" | "column" | "circle_arrangement";
+  shape: CreateShapeParams;
+  startX: number;
+  startY: number;
+  count?: number;
+  rows?: number;
+  columns?: number;
+  spacing?: number;
+  radius?: number;
+};
 
 export type CreateMultipleShapesParams = {
   shapes: CreateShapeParams[];
@@ -1067,6 +1115,109 @@ export function getCanvasState(
   }
 }
 
+/**
+ * Create multiple shapes in a pattern
+ * Performance: Generates shapes on server side, reducing AI payload from O(n) to O(1)
+ */
+export function createPattern(
+  doc: Doc,
+  params: CreatePatternParams,
+  userId: string,
+): ToolResult {
+  try {
+    const spacing = params.spacing ?? 20;
+    const shapes: CreateShapeParams[] = [];
+
+    // Calculate shape dimensions for spacing
+    const getShapeWidth = (): number => {
+      if (params.shape.type === "rectangle") return params.shape.width ?? 100;
+      if (params.shape.type === "circle") return (params.shape.radius ?? 50) * 2;
+      return 100; // text default
+    };
+
+    const getShapeHeight = (): number => {
+      if (params.shape.type === "rectangle") return params.shape.height ?? 100;
+      if (params.shape.type === "circle") return (params.shape.radius ?? 50) * 2;
+      return 50; // text default
+    };
+
+    const shapeWidth = getShapeWidth();
+    const shapeHeight = getShapeHeight();
+
+    switch (params.pattern) {
+      case "grid": {
+        const rows = params.rows ?? Math.ceil(Math.sqrt(params.count ?? 9));
+        const columns = params.columns ?? Math.ceil(Math.sqrt(params.count ?? 9));
+        const totalShapes = Math.min(rows * columns, 50); // Cap at 50 shapes
+
+        for (let row = 0; row < rows; row++) {
+          for (let col = 0; col < columns; col++) {
+            if (shapes.length >= totalShapes) break;
+
+            shapes.push({
+              ...params.shape,
+              x: params.startX + col * (shapeWidth + spacing),
+              y: params.startY + row * (shapeHeight + spacing),
+            });
+          }
+          if (shapes.length >= totalShapes) break;
+        }
+        break;
+      }
+
+      case "row": {
+        const count = Math.min(params.count ?? 5, 50);
+        for (let i = 0; i < count; i++) {
+          shapes.push({
+            ...params.shape,
+            x: params.startX + i * (shapeWidth + spacing),
+            y: params.startY,
+          });
+        }
+        break;
+      }
+
+      case "column": {
+        const count = Math.min(params.count ?? 5, 50);
+        for (let i = 0; i < count; i++) {
+          shapes.push({
+            ...params.shape,
+            x: params.startX,
+            y: params.startY + i * (shapeHeight + spacing),
+          });
+        }
+        break;
+      }
+
+      case "circle_arrangement": {
+        const count = Math.min(params.count ?? 8, 50);
+        const radius = params.radius ?? 200;
+        const angleStep = (2 * Math.PI) / count;
+
+        for (let i = 0; i < count; i++) {
+          const angle = i * angleStep;
+          shapes.push({
+            ...params.shape,
+            x: params.startX + radius * Math.cos(angle),
+            y: params.startY + radius * Math.sin(angle),
+          });
+        }
+        break;
+      }
+    }
+
+    // Create all shapes using existing createShape function
+    return createShape(doc, { shapes }, userId);
+  } catch (error) {
+    console.error("[AI Tools] createPattern error:", error);
+    return {
+      success: false,
+      message: "Failed to create pattern",
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
 // ============================================================================
 // Tool Dispatcher
 // ============================================================================
@@ -1156,6 +1307,12 @@ export function dispatchTool(
         return getCanvasState(
           doc,
           toolCall.parameters as GetCanvasStateParams,
+          userId,
+        );
+      case "createPattern":
+        return createPattern(
+          doc,
+          toolCall.parameters as CreatePatternParams,
           userId,
         );
       default:
