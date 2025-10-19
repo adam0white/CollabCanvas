@@ -21,6 +21,11 @@ type UseShapesReturn = {
   createShape: (shape: Shape) => void;
   updateShape: (id: string, updates: Partial<Shape>) => void;
   deleteShape: (id: string) => void;
+  batchCreateShapes: (shapes: Shape[]) => void;
+  batchUpdateShapes: (
+    updates: Array<{ id: string; updates: Partial<Shape> }>,
+  ) => void;
+  batchDeleteShapes: (ids: string[]) => void;
 };
 
 export function useShapes(): UseShapesReturn {
@@ -179,6 +184,54 @@ export function useShapes(): UseShapesReturn {
     shapesMap.delete(id);
   };
 
+  /**
+   * Batch create multiple shapes in a single Yjs transaction
+   * This dramatically reduces network overhead for bulk operations
+   */
+  const batchCreateShapes = (shapes: Shape[]) => {
+    if (!isSignedIn) {
+      console.warn("[Shapes] Cannot create shapes: user not signed in");
+      return;
+    }
+
+    // Use Yjs transaction to batch all creates into single network message
+    doc.transact(() => {
+      for (const shape of shapes) {
+        createShape(shape);
+      }
+    });
+  };
+
+  /**
+   * Batch update multiple shapes in a single Yjs transaction
+   * Used for group operations like multi-select drag
+   */
+  const batchUpdateShapes = (
+    updates: Array<{ id: string; updates: Partial<Shape> }>,
+  ) => {
+    if (!isSignedIn) return;
+
+    // Use Yjs transaction to batch all updates into single network message
+    doc.transact(() => {
+      for (const update of updates) {
+        updateShape(update.id, update.updates);
+      }
+    });
+  };
+
+  /**
+   * Batch delete multiple shapes in a single Yjs transaction
+   */
+  const batchDeleteShapes = (ids: string[]) => {
+    if (!isSignedIn) return;
+
+    doc.transact(() => {
+      for (const id of ids) {
+        deleteShape(id);
+      }
+    });
+  };
+
   return {
     shapes,
     canEdit: !!isSignedIn,
@@ -186,6 +239,10 @@ export function useShapes(): UseShapesReturn {
     createShape,
     updateShape,
     deleteShape,
+    // New batch operations for performance
+    batchCreateShapes,
+    batchUpdateShapes,
+    batchDeleteShapes,
   };
 }
 

@@ -74,12 +74,29 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
     this.awareness = this.doc.awareness;
     this.awareness.setLocalState({});
 
+    // Performance: Only schedule commits on actual updates
+    // Debouncing already implemented, but this ensures we don't schedule unnecessarily
+    let updatePending = false;
+
     this.awareness.on("update", () => {
-      this.commitScheduler.schedule();
+      if (!updatePending) {
+        updatePending = true;
+        this.commitScheduler.schedule();
+        // Reset flag after a tick to allow batching
+        queueMicrotask(() => {
+          updatePending = false;
+        });
+      }
     });
 
     this.doc.on("update", () => {
-      this.commitScheduler.schedule();
+      if (!updatePending) {
+        updatePending = true;
+        this.commitScheduler.schedule();
+        queueMicrotask(() => {
+          updatePending = false;
+        });
+      }
     });
   }
 
@@ -161,6 +178,15 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
    * @param params - Command parameters including toolCalls, userId, userName
    * @returns Result object with success status and affected shape IDs
    */
+  /**
+   * RPC Method: Execute AI Command
+   *
+   * Performance optimizations:
+   * - Idempotency via in-memory cache (no storage reads)
+   * - Single Yjs transaction for all tools (atomic + single network message)
+   * - Batch shape creation with createPattern tool
+   * - LRU cache cleanup (keep last 50 commands)
+   */
   async executeAICommand(params: {
     commandId: string;
     toolCalls: ToolCall[];
@@ -170,21 +196,46 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
   }): Promise<AICommandResult> {
     const { commandId, toolCalls, userId, userName, prompt } = params;
 
-    // Idempotency check: return cached result if command already executed
+    // Performance: Idempotency check in memory (no storage I/O)
     const cached = this.commandCache.get(commandId);
     if (cached) {
       return cached.result;
     }
 
-    // Validate bounds: limit shapes per command
-    const MAX_SHAPES = 50;
-    const createToolCount = toolCalls.filter(
-      (t) => t.name === "createShape",
-    ).length;
-    if (createToolCount > MAX_SHAPES) {
+    // Validate bounds: With viewport culling and batching, we can handle much larger operations
+    // Increased from 50 to 1000 shapes per command thanks to performance optimizations
+    const MAX_SHAPES = 1000;
+
+    // Count total shapes being created across all tool calls
+    let totalShapesToCreate = 0;
+    for (const toolCall of toolCalls) {
+      if (
+        toolCall.name === "createShape" ||
+        toolCall.name === "createPattern"
+      ) {
+        if (
+          toolCall.name === "createShape" &&
+          "shapes" in toolCall.parameters
+        ) {
+          const shapes = toolCall.parameters.shapes as unknown[];
+          totalShapesToCreate += Array.isArray(shapes) ? shapes.length : 1;
+        } else if (toolCall.name === "createPattern") {
+          const params = toolCall.parameters as {
+            count?: number;
+            rows?: number;
+            columns?: number;
+          };
+          const count =
+            params.count ?? (params.rows ?? 1) * (params.columns ?? 1);
+          totalShapesToCreate += count;
+        }
+      }
+    }
+
+    if (totalShapesToCreate > MAX_SHAPES) {
       const result: AICommandResult = {
         success: false,
-        message: `Too many shapes requested: ${createToolCount}. Maximum is ${MAX_SHAPES}.`,
+        message: `Too many shapes requested: ${totalShapesToCreate}. Maximum is ${MAX_SHAPES} per command.`,
         error: "Exceeded shape limit",
         commandId,
       };
@@ -231,10 +282,10 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
           }
         }
 
-        // Append to AI history within same transaction
+        // Performance: Append to AI history within same transaction (atomic)
         const aiHistory = this.doc.getArray("aiHistory");
 
-        // Build a better response message
+        // Build concise response message
         let responseMessage = "";
         if (shapesCreated.length > 0) {
           responseMessage = `Created ${shapesCreated.length} shape${shapesCreated.length > 1 ? "s" : ""}`;
@@ -258,9 +309,12 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
 
         aiHistory.push([historyEntry]);
 
-        // Prune history to last 100 entries
-        if (aiHistory.length > 100) {
-          aiHistory.delete(0, aiHistory.length - 100);
+        // Performance: Efficient history pruning (delete range vs multiple deletes)
+        // Keep last 50 entries (reduced from 100 to save memory)
+        const MAX_HISTORY_ENTRIES = 50;
+        if (aiHistory.length > MAX_HISTORY_ENTRIES) {
+          const toDelete = aiHistory.length - MAX_HISTORY_ENTRIES;
+          aiHistory.delete(0, toDelete);
         }
       });
 
@@ -272,23 +326,25 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
         commandId,
       };
 
-      // Cache result for idempotency
+      // Performance: Cache result in memory for idempotency (no storage I/O)
       this.commandCache.set(commandId, {
         commandId,
         result,
         timestamp: Date.now(),
       });
 
-      // Clean old cache entries (keep last 50) - O(1) using Map iteration order
-      if (this.commandCache.size > 50) {
-        // Maps maintain insertion order, so delete oldest entries
-        const entriesToDelete = this.commandCache.size - 50;
+      // Performance: LRU cache cleanup - O(n) but only runs when cache is full
+      // Maps maintain insertion order, so oldest entries are first
+      const MAX_CACHE_SIZE = 50;
+      if (this.commandCache.size > MAX_CACHE_SIZE) {
+        const toDelete = this.commandCache.size - MAX_CACHE_SIZE;
         let deleted = 0;
         for (const [key] of this.commandCache) {
-          if (deleted >= entriesToDelete) break;
+          if (deleted >= toDelete) break;
           this.commandCache.delete(key);
           deleted++;
         }
+        console.log(`[RoomDO] 🧹 Pruned ${toDelete} old cache entries`);
       }
 
       return result;

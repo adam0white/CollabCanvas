@@ -1,7 +1,7 @@
 import { useUser } from "@clerk/clerk-react";
 import type Konva from "konva";
 import type { KonvaEventObject } from "konva/lib/Node";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Circle, Group, Layer, Rect, Stage, Text } from "react-konva";
 import { useLocking } from "../hooks/useLocking";
 import type { PresenceState } from "../hooks/usePresence";
@@ -35,6 +35,11 @@ import {
   sendBackward,
   sendToBack,
 } from "../shapes/zindex";
+import {
+  calculateViewportBounds,
+  filterVisibleShapes,
+  getViewportStats,
+} from "../utils/viewport";
 import styles from "./Canvas.module.css";
 import type { ExportFormat, ExportQuality, ExportScope } from "./ExportModal";
 import { ExportModal } from "./ExportModal";
@@ -57,8 +62,14 @@ export function Canvas({
   const stageRef = useRef<Konva.Stage | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { activeTool, setActiveTool } = useToolbar();
-  const { shapes, canEdit, createShape, updateShape, deleteShape } =
-    useShapes();
+  const {
+    shapes,
+    canEdit,
+    createShape,
+    updateShape,
+    batchDeleteShapes,
+    batchUpdateShapes,
+  } = useShapes();
   const { user } = useUser();
   const userId = user?.id ?? "guest";
   const locking = useLocking(userId);
@@ -74,6 +85,9 @@ export function Canvas({
     width: number;
     height: number;
   } | null>(null);
+
+  // State for export modal
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   // State for circle creation (click-and-drag from center)
   const [newCircle, setNewCircle] = useState<{
@@ -113,9 +127,6 @@ export function Canvas({
   // State for copy/paste
   const [clipboard, setClipboard] = useState<Shape[]>([]);
   const [pasteCount, setPasteCount] = useState(0);
-
-  // State for export modal
-  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   // Use prop for default fill color (controlled by App.tsx via Toolbar)
   const defaultFillColor = propDefaultFillColor;
@@ -209,10 +220,8 @@ export function Canvas({
         canEdit
       ) {
         e.preventDefault();
-        // Delete all selected shapes
-        for (const shapeId of selectedShapeIds) {
-          deleteShape(shapeId);
-        }
+        // Batch delete for performance (single Yjs transaction)
+        batchDeleteShapes(selectedShapeIds);
         setSelectedShapeIds([]);
       }
 
@@ -376,213 +385,135 @@ export function Canvas({
         setPasteCount(pasteCount + 1);
       }
 
-      // Z-Index: Bring to Front with Cmd+]
+      // Z-Index shortcuts (Cmd+] / Cmd+[ / Cmd+Shift+] / Cmd+Shift+[)
       if (
         (e.metaKey || e.ctrlKey) &&
-        e.key === "]" &&
-        !e.shiftKey &&
-        canEdit &&
-        selectedShapeIds.length > 0
+        selectedShapeIds.length > 0 &&
+        canEdit
       ) {
-        e.preventDefault();
-        const updates = bringToFront(selectedShapeIds, shapes);
-        for (const [shapeId, zIndex] of updates.entries()) {
-          updateShape(shapeId, { zIndex });
+        // Bring to Front: Cmd+]
+        if (e.key === "]" && !e.shiftKey) {
+          e.preventDefault();
+          const zIndexUpdates = bringToFront(selectedShapeIds, shapes);
+          for (const [id, zIndex] of zIndexUpdates) {
+            updateShape(id, { zIndex });
+          }
+        }
+
+        // Send to Back: Cmd+[
+        if (e.key === "[" && !e.shiftKey) {
+          e.preventDefault();
+          const zIndexUpdates = sendToBack(selectedShapeIds, shapes);
+          for (const [id, zIndex] of zIndexUpdates) {
+            updateShape(id, { zIndex });
+          }
+        }
+
+        // Bring Forward: Cmd+Shift+]
+        if (e.key === "]" && e.shiftKey) {
+          e.preventDefault();
+          const zIndexUpdates = bringForward(selectedShapeIds, shapes);
+          for (const [id, zIndex] of zIndexUpdates) {
+            updateShape(id, { zIndex });
+          }
+        }
+
+        // Send Backward: Cmd+Shift+[
+        if (e.key === "[" && e.shiftKey) {
+          e.preventDefault();
+          const zIndexUpdates = sendBackward(selectedShapeIds, shapes);
+          for (const [id, zIndex] of zIndexUpdates) {
+            updateShape(id, { zIndex });
+          }
         }
       }
 
-      // Z-Index: Send to Back with Cmd+[
-      if (
-        (e.metaKey || e.ctrlKey) &&
-        e.key === "[" &&
-        !e.shiftKey &&
-        canEdit &&
-        selectedShapeIds.length > 0
-      ) {
-        e.preventDefault();
-        const updates = sendToBack(selectedShapeIds, shapes);
-        for (const [shapeId, zIndex] of updates.entries()) {
-          updateShape(shapeId, { zIndex });
-        }
-      }
-
-      // Z-Index: Bring Forward with Cmd+Shift+]
-      if (
-        (e.metaKey || e.ctrlKey) &&
-        e.key === "]" &&
-        e.shiftKey &&
-        canEdit &&
-        selectedShapeIds.length > 0
-      ) {
-        e.preventDefault();
-        const updates = bringForward(selectedShapeIds, shapes);
-        for (const [shapeId, zIndex] of updates.entries()) {
-          updateShape(shapeId, { zIndex });
-        }
-      }
-
-      // Z-Index: Send Backward with Cmd+Shift+[
-      if (
-        (e.metaKey || e.ctrlKey) &&
-        e.key === "[" &&
-        e.shiftKey &&
-        canEdit &&
-        selectedShapeIds.length > 0
-      ) {
-        e.preventDefault();
-        const updates = sendBackward(selectedShapeIds, shapes);
-        for (const [shapeId, zIndex] of updates.entries()) {
-          updateShape(shapeId, { zIndex });
-        }
-      }
-
-      // Alignment: Align Left with Cmd+Shift+L
+      // Alignment shortcuts (Cmd+Shift+L/H/R/T/M/B/D/V)
       if (
         (e.metaKey || e.ctrlKey) &&
         e.shiftKey &&
-        e.key === "l" &&
-        canEdit &&
-        selectedShapeIds.length >= 2
+        selectedShapeIds.length >= 2 &&
+        canEdit
       ) {
-        e.preventDefault();
         const selectedShapes = shapes.filter((s) =>
           selectedShapeIds.includes(s.id),
         );
-        const updates = alignLeft(selectedShapes);
-        for (const [shapeId, shapeUpdates] of updates.entries()) {
-          updateShape(shapeId, shapeUpdates);
+
+        // Align Left: Cmd+Shift+L
+        if (e.key === "L") {
+          e.preventDefault();
+          const updates = alignLeft(selectedShapes);
+          for (const [id, shapeUpdates] of updates) {
+            updateShape(id, shapeUpdates);
+          }
+        }
+
+        // Align Center: Cmd+Shift+H
+        if (e.key === "H") {
+          e.preventDefault();
+          const updates = alignCenter(selectedShapes);
+          for (const [id, shapeUpdates] of updates) {
+            updateShape(id, shapeUpdates);
+          }
+        }
+
+        // Align Right: Cmd+Shift+R
+        if (e.key === "R") {
+          e.preventDefault();
+          const updates = alignRight(selectedShapes);
+          for (const [id, shapeUpdates] of updates) {
+            updateShape(id, shapeUpdates);
+          }
+        }
+
+        // Align Top: Cmd+Shift+T
+        if (e.key === "T") {
+          e.preventDefault();
+          const updates = alignTop(selectedShapes);
+          for (const [id, shapeUpdates] of updates) {
+            updateShape(id, shapeUpdates);
+          }
+        }
+
+        // Align Middle: Cmd+Shift+M
+        if (e.key === "M") {
+          e.preventDefault();
+          const updates = alignMiddle(selectedShapes);
+          for (const [id, shapeUpdates] of updates) {
+            updateShape(id, shapeUpdates);
+          }
+        }
+
+        // Align Bottom: Cmd+Shift+B
+        if (e.key === "B") {
+          e.preventDefault();
+          const updates = alignBottom(selectedShapes);
+          for (const [id, shapeUpdates] of updates) {
+            updateShape(id, shapeUpdates);
+          }
+        }
+
+        // Distribute Horizontally: Cmd+Shift+D
+        if (e.key === "D" && selectedShapeIds.length >= 3) {
+          e.preventDefault();
+          const updates = distributeHorizontally(selectedShapes);
+          for (const [id, shapeUpdates] of updates) {
+            updateShape(id, shapeUpdates);
+          }
+        }
+
+        // Distribute Vertically: Cmd+Shift+V
+        if (e.key === "V" && selectedShapeIds.length >= 3) {
+          e.preventDefault();
+          const updates = distributeVertically(selectedShapes);
+          for (const [id, shapeUpdates] of updates) {
+            updateShape(id, shapeUpdates);
+          }
         }
       }
 
-      // Alignment: Align Center with Cmd+Shift+H
-      if (
-        (e.metaKey || e.ctrlKey) &&
-        e.shiftKey &&
-        e.key === "h" &&
-        canEdit &&
-        selectedShapeIds.length >= 2
-      ) {
-        e.preventDefault();
-        const selectedShapes = shapes.filter((s) =>
-          selectedShapeIds.includes(s.id),
-        );
-        const updates = alignCenter(selectedShapes);
-        for (const [shapeId, shapeUpdates] of updates.entries()) {
-          updateShape(shapeId, shapeUpdates);
-        }
-      }
-
-      // Alignment: Align Right with Cmd+Shift+R (override tool shortcut R)
-      if (
-        (e.metaKey || e.ctrlKey) &&
-        e.shiftKey &&
-        e.key === "r" &&
-        canEdit &&
-        selectedShapeIds.length >= 2
-      ) {
-        e.preventDefault();
-        const selectedShapes = shapes.filter((s) =>
-          selectedShapeIds.includes(s.id),
-        );
-        const updates = alignRight(selectedShapes);
-        for (const [shapeId, shapeUpdates] of updates.entries()) {
-          updateShape(shapeId, shapeUpdates);
-        }
-      }
-
-      // Alignment: Align Top with Cmd+Shift+T (override tool shortcut T)
-      if (
-        (e.metaKey || e.ctrlKey) &&
-        e.shiftKey &&
-        e.key === "t" &&
-        canEdit &&
-        selectedShapeIds.length >= 2
-      ) {
-        e.preventDefault();
-        const selectedShapes = shapes.filter((s) =>
-          selectedShapeIds.includes(s.id),
-        );
-        const updates = alignTop(selectedShapes);
-        for (const [shapeId, shapeUpdates] of updates.entries()) {
-          updateShape(shapeId, shapeUpdates);
-        }
-      }
-
-      // Alignment: Align Middle with Cmd+Shift+M
-      if (
-        (e.metaKey || e.ctrlKey) &&
-        e.shiftKey &&
-        e.key === "m" &&
-        canEdit &&
-        selectedShapeIds.length >= 2
-      ) {
-        e.preventDefault();
-        const selectedShapes = shapes.filter((s) =>
-          selectedShapeIds.includes(s.id),
-        );
-        const updates = alignMiddle(selectedShapes);
-        for (const [shapeId, shapeUpdates] of updates.entries()) {
-          updateShape(shapeId, shapeUpdates);
-        }
-      }
-
-      // Alignment: Align Bottom with Cmd+Shift+B
-      if (
-        (e.metaKey || e.ctrlKey) &&
-        e.shiftKey &&
-        e.key === "b" &&
-        canEdit &&
-        selectedShapeIds.length >= 2
-      ) {
-        e.preventDefault();
-        const selectedShapes = shapes.filter((s) =>
-          selectedShapeIds.includes(s.id),
-        );
-        const updates = alignBottom(selectedShapes);
-        for (const [shapeId, shapeUpdates] of updates.entries()) {
-          updateShape(shapeId, shapeUpdates);
-        }
-      }
-
-      // Distribution: Distribute Horizontally with Cmd+Shift+D (override Duplicate)
-      if (
-        (e.metaKey || e.ctrlKey) &&
-        e.shiftKey &&
-        e.key === "d" &&
-        canEdit &&
-        selectedShapeIds.length >= 3
-      ) {
-        e.preventDefault();
-        const selectedShapes = shapes.filter((s) =>
-          selectedShapeIds.includes(s.id),
-        );
-        const updates = distributeHorizontally(selectedShapes);
-        for (const [shapeId, shapeUpdates] of updates.entries()) {
-          updateShape(shapeId, shapeUpdates);
-        }
-      }
-
-      // Distribution: Distribute Vertically with Cmd+Shift+V (override Paste)
-      // Note: Only trigger if 3+ shapes selected to avoid conflicts
-      if (
-        (e.metaKey || e.ctrlKey) &&
-        e.shiftKey &&
-        e.key === "v" &&
-        canEdit &&
-        selectedShapeIds.length >= 3
-      ) {
-        e.preventDefault();
-        const selectedShapes = shapes.filter((s) =>
-          selectedShapeIds.includes(s.id),
-        );
-        const updates = distributeVertically(selectedShapes);
-        for (const [shapeId, shapeUpdates] of updates.entries()) {
-          updateShape(shapeId, shapeUpdates);
-        }
-      }
-
-      // Export with Cmd+E
-      if ((e.metaKey || e.ctrlKey) && e.key === "e" && !e.shiftKey) {
+      // Export: Cmd+E
+      if ((e.metaKey || e.ctrlKey) && e.key === "e") {
         e.preventDefault();
         setIsExportModalOpen(true);
       }
@@ -593,16 +524,88 @@ export function Canvas({
   }, [
     selectedShapeIds,
     canEdit,
-    deleteShape,
     shapes,
     createShape,
     undoRedo,
     setActiveTool,
     updateShape,
     clipboard,
-    pasteCount, // Select pasted shapes
+    pasteCount,
+    batchDeleteShapes,
     setSelectedShapeIds,
   ]);
+
+  // Export handler
+  const handleExport = (
+    format: ExportFormat,
+    scope: ExportScope,
+    quality: ExportQuality,
+    filename: string,
+  ) => {
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    let dataURL: string;
+
+    if (scope === "selection" && selectedShapeIds.length > 0) {
+      // Export selected shapes only
+      const selectedShapes = shapes.filter((s) =>
+        selectedShapeIds.includes(s.id),
+      );
+
+      // Calculate bounding box
+      let minX = Number.POSITIVE_INFINITY;
+      let minY = Number.POSITIVE_INFINITY;
+      let maxX = Number.NEGATIVE_INFINITY;
+      let maxY = Number.NEGATIVE_INFINITY;
+
+      for (const shape of selectedShapes) {
+        const bounds = getShapeBounds(shape);
+        minX = Math.min(minX, bounds.x);
+        minY = Math.min(minY, bounds.y);
+        maxX = Math.max(maxX, bounds.x + bounds.width);
+        maxY = Math.max(maxY, bounds.y + bounds.height);
+      }
+
+      const width = maxX - minX;
+      const height = maxY - minY;
+
+      // Export cropped region
+      dataURL = stage.toDataURL({
+        x: minX,
+        y: minY,
+        width,
+        height,
+        pixelRatio: quality === "1x" ? 1 : quality === "2x" ? 2 : 4,
+      });
+    } else {
+      // Export entire canvas
+      dataURL = stage.toDataURL({
+        pixelRatio: quality === "1x" ? 1 : quality === "2x" ? 2 : 4,
+      });
+    }
+
+    // Trigger download
+    const link = document.createElement("a");
+    link.download = `${filename}.${format}`;
+    link.href = dataURL;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setIsExportModalOpen(false);
+  };
+
+  // Expose export modal opener to window for Toolbar
+  useEffect(() => {
+    (window as { openExportModal?: () => void }).openExportModal = () => {
+      setIsExportModalOpen(true);
+    };
+
+    return () => {
+      delete (window as { openExportModal?: () => void }).openExportModal;
+    };
+  }, []);
 
   // Handle zoom with mouse wheel
   const handleWheel = (e: KonvaEventObject<WheelEvent>) => {
@@ -680,13 +683,10 @@ export function Canvas({
       if (!pos) return;
 
       // Adjust for current zoom and pan
-      let adjustedPos = {
+      const adjustedPos = {
         x: (pos.x - position.x) / scale,
         y: (pos.y - position.y) / scale,
       };
-
-      // Apply snap-to-grid if enabled
-      adjustedPos = snap.snapPoint(adjustedPos.x, adjustedPos.y);
 
       setIsDrawing(true);
       setNewRect({
@@ -704,13 +704,10 @@ export function Canvas({
       const pos = stage.getPointerPosition();
       if (!pos) return;
 
-      let adjustedPos = {
+      const adjustedPos = {
         x: (pos.x - position.x) / scale,
         y: (pos.y - position.y) / scale,
       };
-
-      // Apply snap-to-grid if enabled
-      adjustedPos = snap.snapPoint(adjustedPos.x, adjustedPos.y);
 
       setIsDrawing(true);
       setNewCircle({
@@ -727,13 +724,10 @@ export function Canvas({
       const pos = stage.getPointerPosition();
       if (!pos) return;
 
-      let adjustedPos = {
+      const adjustedPos = {
         x: (pos.x - position.x) / scale,
         y: (pos.y - position.y) / scale,
       };
-
-      // Apply snap-to-grid if enabled
-      adjustedPos = snap.snapPoint(adjustedPos.x, adjustedPos.y);
 
       setTextPosition(adjustedPos);
       setIsCreatingText(true);
@@ -890,13 +884,10 @@ export function Canvas({
         const normalizedWidth = Math.abs(width);
         const normalizedHeight = Math.abs(height);
 
-        // Apply snap-to-grid to final position
-        const snappedPos = snap.snapPoint(x, y);
-
         // Create the rectangle shape with current default color
         const rect = createRectangle(
-          snappedPos.x,
-          snappedPos.y,
+          x,
+          y,
           normalizedWidth,
           normalizedHeight,
           "user",
@@ -918,11 +909,9 @@ export function Canvas({
     if (isDrawing && activeTool === "circle" && newCircle) {
       // Only create if circle has minimum radius
       if (newCircle.radius > 5) {
-        // Apply snap-to-grid to final position
-        const snappedPos = snap.snapPoint(newCircle.x, newCircle.y);
         const circle = createCircle(
-          snappedPos.x,
-          snappedPos.y,
+          newCircle.x,
+          newCircle.y,
           newCircle.radius,
           "user",
         );
@@ -939,6 +928,48 @@ export function Canvas({
       setNewCircle(null);
     }
   };
+
+  // Viewport culling: Only render shapes visible in current viewport
+  // This dramatically improves performance with 500+ shapes
+  const viewportBounds = useMemo(
+    () =>
+      calculateViewportBounds(
+        canvasSize.width,
+        canvasSize.height,
+        scale,
+        position,
+      ),
+    [canvasSize.width, canvasSize.height, scale, position],
+  );
+
+  const visibleShapes = useMemo(() => {
+    // Always render selected shapes even if off-screen (for transformer)
+    const selectedShapes = shapes.filter((s) =>
+      selectedShapeIds.includes(s.id),
+    );
+    const unselectedShapes = shapes.filter(
+      (s) => !selectedShapeIds.includes(s.id),
+    );
+
+    // Filter unselected shapes by viewport
+    const visibleUnselected = filterVisibleShapes(
+      unselectedShapes,
+      viewportBounds,
+    );
+
+    // Combine selected and visible shapes
+    return [...selectedShapes, ...visibleUnselected];
+  }, [shapes, selectedShapeIds, viewportBounds]);
+
+  // Log viewport culling stats in development (helps with performance debugging)
+  useEffect(() => {
+    if (import.meta.env.DEV && shapes.length > 50) {
+      const stats = getViewportStats(shapes.length, visibleShapes.length);
+      console.debug(
+        `[Viewport Culling] ${stats.visibleShapes}/${stats.totalShapes} shapes visible (${stats.cullPercentage}% culled)`,
+      );
+    }
+  }, [shapes.length, visibleShapes.length]);
 
   const remoteCursors = Array.from(presence.values()).filter(
     (participant) => participant.cursor,
@@ -1046,75 +1077,6 @@ export function Canvas({
     setIsCreatingText(true);
   };
 
-  // Handle export
-  const handleExport = (options: {
-    format: ExportFormat;
-    scope: ExportScope;
-    quality: ExportQuality;
-    filename: string;
-  }) => {
-    const stage = stageRef.current;
-    if (!stage) return;
-
-    let dataURL: string;
-
-    if (options.scope === "selection" && selectedShapeIds.length > 0) {
-      // Export selected shapes only
-      const selectedShapes = shapes.filter((s) =>
-        selectedShapeIds.includes(s.id),
-      );
-
-      // Calculate bounding box of selected shapes
-      const bounds = selectedShapes.map(getShapeBounds);
-      const minX = Math.min(...bounds.map((b) => b.left));
-      const minY = Math.min(...bounds.map((b) => b.top));
-      const maxX = Math.max(...bounds.map((b) => b.right));
-      const maxY = Math.max(...bounds.map((b) => b.bottom));
-
-      // Add padding
-      const padding = 20;
-      const exportWidth = maxX - minX + padding * 2;
-      const exportHeight = maxY - minY + padding * 2;
-
-      // Get the main layer
-      const layer = stage.findOne("Layer");
-      if (!layer) return;
-
-      // Export with cropping to selection
-      dataURL = layer.toDataURL({
-        x: minX - padding,
-        y: minY - padding,
-        width: exportWidth,
-        height: exportHeight,
-        pixelRatio: options.quality,
-      });
-    } else {
-      // Export entire canvas
-      dataURL = stage.toDataURL({
-        pixelRatio: options.quality,
-      });
-    }
-
-    // Trigger download
-    const link = document.createElement("a");
-    link.download = options.filename;
-    link.href = dataURL;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  // Expose export function via window for Toolbar to access
-  useEffect(() => {
-    (window as { openExportModal?: () => void }).openExportModal = () => {
-      setIsExportModalOpen(true);
-    };
-
-    return () => {
-      delete (window as { openExportModal?: () => void }).openExportModal;
-    };
-  }, []);
-
   return (
     <div ref={containerRef} className={styles.canvasWrapper}>
       {/* Zoom controls */}
@@ -1163,7 +1125,8 @@ export function Canvas({
         onWheel={handleWheel}
       >
         {/* Background grid layer */}
-        <Layer listening={false}>
+        {/* Performance: listening=false, perfectDrawEnabled=false for static grid */}
+        <Layer listening={false} perfectDrawEnabled={false}>
           {(() => {
             const gridSize = 20; // Grid cell size in canvas units
             const scaledGridSize = gridSize * scale;
@@ -1191,6 +1154,8 @@ export function Canvas({
                   width={1 / scale}
                   height={endY - startY}
                   fill="rgba(15, 23, 42, 0.05)"
+                  listening={false}
+                  perfectDrawEnabled={false}
                 />,
               );
             }
@@ -1205,6 +1170,8 @@ export function Canvas({
                   width={endX - startX}
                   height={1 / scale}
                   fill="rgba(15, 23, 42, 0.05)"
+                  listening={false}
+                  perfectDrawEnabled={false}
                 />,
               );
             }
@@ -1215,15 +1182,17 @@ export function Canvas({
 
         {/* Main content layer */}
         <Layer>
-          {/* Render persisted shapes from Yjs */}
+          {/* Render persisted shapes from Yjs (with viewport culling) */}
           <ShapeLayer
-            shapes={shapes}
+            shapes={visibleShapes}
             canEdit={canEdit}
             selectedTool={activeTool}
             selectedShapeIds={selectedShapeIds}
             userId={userId}
             locking={locking}
             snapToGrid={snap.snapEnabled ? snap.snapPoint : undefined}
+            onShapeUpdate={updateShape}
+            onBatchShapeUpdate={batchUpdateShapes}
             onShapeSelect={(shapeId, addToSelection) => {
               // Check if shape is locked by another user
               if (locking.isShapeLocked(shapeId, userId)) {
@@ -1245,7 +1214,6 @@ export function Canvas({
                 setSelectedShapeIds([shapeId]);
               }
             }}
-            onShapeUpdate={updateShape}
             onTextEdit={handleTextEdit}
             onDragMove={(screenX, screenY) => {
               // Adjust screen coordinates to canvas space for presence
@@ -1438,12 +1406,13 @@ export function Canvas({
       )}
 
       {/* Export Modal */}
-      <ExportModal
-        isOpen={isExportModalOpen}
-        hasSelection={selectedShapeIds.length > 0}
-        onClose={() => setIsExportModalOpen(false)}
-        onExport={handleExport}
-      />
+      {isExportModalOpen && (
+        <ExportModal
+          onClose={() => setIsExportModalOpen(false)}
+          onExport={handleExport}
+          hasSelection={selectedShapeIds.length > 0}
+        />
+      )}
     </div>
   );
 }
