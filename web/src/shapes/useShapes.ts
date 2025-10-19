@@ -41,7 +41,7 @@ export function useShapes(): UseShapesReturn {
     const updateShapes = () => {
       const newShapes: Shape[] = [];
 
-      for (const [id, value] of shapesMap.entries()) {
+      for (const [, value] of shapesMap.entries()) {
         // Y.Map stores values - could be Y.Map or plain object after serialization
         const shapeData =
           value instanceof Map ? Object.fromEntries(value.entries()) : value;
@@ -62,12 +62,7 @@ export function useShapes(): UseShapesReturn {
               ? shapeData.y
               : 0;
 
-          // Log warning if position was invalid
-          if (shapeData.x !== x || shapeData.y !== y) {
-            console.warn(
-              `[Shape] Invalid position for shape ${id}: x=${shapeData.x}, y=${shapeData.y}. Defaulting to (0, 0)`,
-            );
-          }
+          // Position validated and sanitized if invalid
 
           // Create validated shape with guaranteed valid position
           const validatedShape = {
@@ -77,9 +72,8 @@ export function useShapes(): UseShapesReturn {
           } as Shape;
 
           newShapes.push(validatedShape);
-        } else {
-          console.warn(`[Shapes] Invalid shape data for ${id}:`, shapeData);
         }
+        // Invalid shapes are skipped silently
       }
 
       setShapes(newShapes);
@@ -96,7 +90,6 @@ export function useShapes(): UseShapesReturn {
 
   const createShape = (shape: Shape) => {
     if (!isSignedIn) {
-      console.warn("[Shapes] Cannot create shape: user not signed in");
       return;
     }
 
@@ -190,7 +183,6 @@ export function useShapes(): UseShapesReturn {
    */
   const batchCreateShapes = (shapes: Shape[]) => {
     if (!isSignedIn) {
-      console.warn("[Shapes] Cannot create shapes: user not signed in");
       return;
     }
 

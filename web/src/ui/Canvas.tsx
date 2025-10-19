@@ -38,7 +38,6 @@ import {
 import {
   calculateViewportBounds,
   filterVisibleShapes,
-  getViewportStats,
 } from "../utils/viewport";
 import styles from "./Canvas.module.css";
 import type { ExportFormat, ExportQuality, ExportScope } from "./ExportModal";
@@ -958,15 +957,7 @@ export function Canvas({
     return [...selectedShapes, ...visibleUnselected];
   }, [shapes, selectedShapeIds, viewportBounds]);
 
-  // Log viewport culling stats in development (helps with performance debugging)
-  useEffect(() => {
-    if (import.meta.env.DEV && shapes.length > 50) {
-      const stats = getViewportStats(shapes.length, visibleShapes.length);
-      console.debug(
-        `[Viewport Culling] ${stats.visibleShapes}/${stats.totalShapes} shapes visible (${stats.cullPercentage}% culled)`,
-      );
-    }
-  }, [shapes.length, visibleShapes.length]);
+  // Viewport culling automatically applied for performance with 50+ shapes
 
   const remoteCursors = Array.from(presence.values()).filter(
     (participant) => participant.cursor,

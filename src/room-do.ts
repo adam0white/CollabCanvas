@@ -344,7 +344,6 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
           this.commandCache.delete(key);
           deleted++;
         }
-        console.log(`[RoomDO] 🧹 Pruned ${toDelete} old cache entries`);
       }
 
       return result;
