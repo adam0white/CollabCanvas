@@ -3,11 +3,7 @@
  */
 
 import { expect, test } from "./fixtures";
-import {
-  createRectangle,
-  navigateToMainCanvas,
-  waitForSync,
-} from "./helpers";
+import { createRectangle, navigateToMainCanvas, waitForSync } from "./helpers";
 
 test.describe("Alignment Tools", () => {
   test("should align shapes to the left with toolbar button", async ({
