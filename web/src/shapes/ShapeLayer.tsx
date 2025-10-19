@@ -12,7 +12,7 @@ import type Konva from "konva";
 import type { KonvaEventObject } from "konva/lib/Node";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Circle, Rect, Text, Transformer } from "react-konva";
-import { THROTTLE } from "../config/constants";
+import { getAdaptiveThrottleMs, THROTTLE } from "../config/constants";
 import type { LockingHook } from "../hooks/useLocking";
 import type { Shape } from "./types";
 import { isCircle, isRectangle, isText } from "./types";
@@ -122,7 +122,10 @@ export const ShapeLayer = memo(function ShapeLayer({
     const now = performance.now();
     const lastUpdate = lastDragUpdateRef.current[shape.id] ?? 0;
 
-    if (now - lastUpdate < THROTTLE.TRANSFORM_MS) return;
+    // Performance: Adaptive throttling based on selection size
+    const throttleMs = getAdaptiveThrottleMs(selectedShapeIds.length);
+
+    if (now - lastUpdate < throttleMs) return;
 
     lastDragUpdateRef.current[shape.id] = now;
 
@@ -254,11 +257,8 @@ export const ShapeLayer = memo(function ShapeLayer({
     }
 
     const now = performance.now();
-    // Use aggressive throttling for large selections (30+ shapes)
-    const throttleMs =
-      selectedShapeIds.length >= 30
-        ? THROTTLE.TRANSFORM_MS_LARGE_SELECTION
-        : THROTTLE.TRANSFORM_MS;
+    // Performance: Adaptive throttling based on selection size
+    const throttleMs = getAdaptiveThrottleMs(selectedShapeIds.length);
 
     if (now - lastTransformUpdateRef.current < throttleMs) {
       return;

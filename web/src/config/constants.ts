@@ -6,7 +6,8 @@
  */
 
 /**
- * Throttle configuration for real-time updates
+ * Adaptive throttle configuration for real-time updates
+ * Automatically adjusts based on operation complexity
  * Target: ≤20 msgs/sec per operation (cursor + transform = 40 msgs/sec max per client)
  */
 export const THROTTLE = {
@@ -14,11 +15,26 @@ export const THROTTLE = {
   PRESENCE_MS: 50,
   /** Transform operations (drag/resize/rotate) in milliseconds */
   TRANSFORM_MS: 50,
-  /** Aggressive throttling for large selections (30+ shapes) */
+  /** Aggressive throttling for medium selections (10-20 shapes) */
+  TRANSFORM_MS_MEDIUM_SELECTION: 100,
+  /** Aggressive throttling for large selections (20+ shapes) */
   TRANSFORM_MS_LARGE_SELECTION: 150,
+  /** Ultra-aggressive throttling for very large selections (50+ shapes) */
+  TRANSFORM_MS_XLARGE_SELECTION: 250,
   /** Color/style changes in milliseconds */
   COLOR_CHANGE_MS: 100,
 } as const;
+
+/**
+ * Get adaptive throttle delay based on selection size
+ * Performance: Larger selections = more aggressive throttling
+ */
+export function getAdaptiveThrottleMs(selectionSize: number): number {
+  if (selectionSize >= 50) return THROTTLE.TRANSFORM_MS_XLARGE_SELECTION;
+  if (selectionSize >= 20) return THROTTLE.TRANSFORM_MS_LARGE_SELECTION;
+  if (selectionSize >= 10) return THROTTLE.TRANSFORM_MS_MEDIUM_SELECTION;
+  return THROTTLE.TRANSFORM_MS;
+}
 
 /**
  * Target message rate per operation
