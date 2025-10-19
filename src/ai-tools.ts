@@ -1190,7 +1190,7 @@ export function createPattern(
       }
 
       case "row": {
-        const count = Math.min(params.count ?? 5, 50);
+        const count = Math.min(params.count ?? 5, 1000);
         for (let i = 0; i < count; i++) {
           shapes.push({
             ...params.shape,
@@ -1202,7 +1202,7 @@ export function createPattern(
       }
 
       case "column": {
-        const count = Math.min(params.count ?? 5, 50);
+        const count = Math.min(params.count ?? 5, 1000);
         for (let i = 0; i < count; i++) {
           shapes.push({
             ...params.shape,
@@ -1214,7 +1214,7 @@ export function createPattern(
       }
 
       case "circle_arrangement": {
-        const count = Math.min(params.count ?? 8, 50);
+        const count = Math.min(params.count ?? 8, 1000);
         const radius = params.radius ?? 200;
         const angleStep = (2 * Math.PI) / count;
 

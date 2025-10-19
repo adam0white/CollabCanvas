@@ -7,33 +7,38 @@
 
 /**
  * Adaptive throttle configuration for real-time updates
- * Automatically adjusts based on operation complexity
- * Target: ≤20 msgs/sec per operation (cursor + transform = 40 msgs/sec max per client)
+ * Dynamically scales based on operation complexity
+ * Target: Balance responsiveness with network efficiency
  */
 export const THROTTLE = {
+  /** Base throttle for single shape operations */
+  BASE_MS: 50,
   /** Cursor/presence updates in milliseconds */
   PRESENCE_MS: 50,
-  /** Transform operations (drag/resize/rotate) in milliseconds */
-  TRANSFORM_MS: 50,
-  /** Aggressive throttling for medium selections (10-20 shapes) */
-  TRANSFORM_MS_MEDIUM_SELECTION: 100,
-  /** Aggressive throttling for large selections (20+ shapes) */
-  TRANSFORM_MS_LARGE_SELECTION: 150,
-  /** Ultra-aggressive throttling for very large selections (50+ shapes) */
-  TRANSFORM_MS_XLARGE_SELECTION: 250,
+  /** Per-shape overhead in milliseconds (adds to base) */
+  PER_SHAPE_MS: 4,
+  /** Maximum throttle delay (cap at 500ms for UX) */
+  MAX_MS: 500,
   /** Color/style changes in milliseconds */
   COLOR_CHANGE_MS: 100,
 } as const;
 
 /**
- * Get adaptive throttle delay based on selection size
- * Performance: Larger selections = more aggressive throttling
+ * Calculate adaptive throttle delay based on selection size
+ *
+ * Formula: base + (perShape * selectionSize), capped at max
+ *
+ * Examples:
+ * - 1 shape:   50ms (20 updates/sec) - highly responsive
+ * - 10 shapes: 90ms (11 updates/sec) - smooth
+ * - 50 shapes: 250ms (4 updates/sec) - efficient
+ * - 100 shapes: 500ms (2 updates/sec) - maximum throttle
+ *
+ * Performance: Scales linearly with complexity, prevents network spam
  */
 export function getAdaptiveThrottleMs(selectionSize: number): number {
-  if (selectionSize >= 50) return THROTTLE.TRANSFORM_MS_XLARGE_SELECTION;
-  if (selectionSize >= 20) return THROTTLE.TRANSFORM_MS_LARGE_SELECTION;
-  if (selectionSize >= 10) return THROTTLE.TRANSFORM_MS_MEDIUM_SELECTION;
-  return THROTTLE.TRANSFORM_MS;
+  const calculated = THROTTLE.BASE_MS + THROTTLE.PER_SHAPE_MS * selectionSize;
+  return Math.min(calculated, THROTTLE.MAX_MS);
 }
 
 /**
@@ -53,8 +58,8 @@ export const LAYOUT = {
  * AI command limits
  */
 export const AI = {
-  /** Maximum shapes per AI command */
-  MAX_SHAPES_PER_COMMAND: 50,
+  /** Maximum shapes per AI command (increased from 50 to 1000 with optimizations) */
+  MAX_SHAPES_PER_COMMAND: 1000,
   /** Maximum prompt length in characters */
   MAX_PROMPT_LENGTH: 1000,
   /** AI command timeout in milliseconds */

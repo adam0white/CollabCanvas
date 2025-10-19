@@ -212,15 +212,40 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
       return cached.result;
     }
 
-    // Validate bounds: limit shapes per command
-    const MAX_SHAPES = 50;
-    const createToolCount = toolCalls.filter(
-      (t) => t.name === "createShape",
-    ).length;
-    if (createToolCount > MAX_SHAPES) {
+    // Validate bounds: With viewport culling and batching, we can handle much larger operations
+    // Increased from 50 to 1000 shapes per command thanks to performance optimizations
+    const MAX_SHAPES = 1000;
+
+    // Count total shapes being created across all tool calls
+    let totalShapesToCreate = 0;
+    for (const toolCall of toolCalls) {
+      if (
+        toolCall.name === "createShape" ||
+        toolCall.name === "createPattern"
+      ) {
+        if (
+          toolCall.name === "createShape" &&
+          "shapes" in toolCall.parameters
+        ) {
+          const shapes = toolCall.parameters.shapes as unknown[];
+          totalShapesToCreate += Array.isArray(shapes) ? shapes.length : 1;
+        } else if (toolCall.name === "createPattern") {
+          const params = toolCall.parameters as {
+            count?: number;
+            rows?: number;
+            columns?: number;
+          };
+          const count =
+            params.count ?? (params.rows ?? 1) * (params.columns ?? 1);
+          totalShapesToCreate += count;
+        }
+      }
+    }
+
+    if (totalShapesToCreate > MAX_SHAPES) {
       const result: AICommandResult = {
         success: false,
-        message: `Too many shapes requested: ${createToolCount}. Maximum is ${MAX_SHAPES}.`,
+        message: `Too many shapes requested: ${totalShapesToCreate}. Maximum is ${MAX_SHAPES} per command.`,
         error: "Exceeded shape limit",
         commandId,
       };
