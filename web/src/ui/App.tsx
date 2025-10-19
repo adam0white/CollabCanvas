@@ -6,15 +6,15 @@ import {
 } from "@clerk/clerk-react";
 import { useEffect, useRef, useState } from "react";
 import { usePresence } from "../hooks/usePresence";
-import { SelectionProvider, useSelection } from "../hooks/useSelection";
+import { SelectionProvider } from "../hooks/useSelection";
 import { ToolbarProvider } from "../hooks/useToolbar";
 import { useShapes } from "../shapes/useShapes";
 import { useConnectionStatus } from "../yjs/client";
 import { AIPanel } from "./AIPanel";
 import styles from "./App.module.css";
+import { AppContent } from "./AppContent";
 import { Canvas } from "./Canvas";
 import { Footer } from "./Footer";
-import { LayersPanel } from "./LayersPanel";
 import { PresenceBar } from "./PresenceBar";
 import { ShortcutsPanel } from "./ShortcutsPanel";
 import { Toolbar } from "./Toolbar";
@@ -28,13 +28,7 @@ export function App(): React.JSX.Element {
     new URL(window.location.href).searchParams.get("roomId") ?? "main";
   const presenceState = usePresence();
   const connectionStatus = useConnectionStatus();
-  const {
-    shapes,
-    updateShape,
-    canEdit,
-    isLoading: shapesLoading,
-  } = useShapes();
-  const { selectedShapeIds, setSelectedShapeIds } = useSelection();
+  const { isLoading: shapesLoading } = useShapes();
   const [isShortcutsPanelOpen, setIsShortcutsPanelOpen] = useState(false);
   const aiPanelRef = useRef<HTMLTextAreaElement>(null);
   const [defaultFillColor, setDefaultFillColor] = useState("#38bdf8");
@@ -145,18 +139,8 @@ export function App(): React.JSX.Element {
               <AIPanel ref={aiPanelRef} />
             </aside>
 
-            {/* Layers Panel */}
-            <LayersPanel
-              shapes={shapes}
-              selectedShapeIds={selectedShapeIds}
-              canEdit={canEdit}
-              onShapeSelect={(id) => setSelectedShapeIds([id])}
-              onVisibilityToggle={(id, visible) => updateShape(id, { visible })}
-              onLockToggle={(id, locked) => updateShape(id, { locked })}
-              onReorder={(shapeId, newZIndex) =>
-                updateShape(shapeId, { zIndex: newZIndex })
-              }
-            />
+            {/* Layers Panel - uses selection context */}
+            <AppContent />
           </main>
 
           <Footer />

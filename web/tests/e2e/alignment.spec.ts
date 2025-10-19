@@ -2,137 +2,103 @@
  * E2E tests for Alignment tools
  */
 
-import { expect, test } from "@playwright/test";
-import { createAuthenticatedPage } from "./helpers";
+import { expect, test } from "./fixtures";
+import {
+  createRectangle,
+  navigateToMainCanvas,
+  waitForSync,
+} from "./helpers";
 
 test.describe("Alignment Tools", () => {
   test("should align shapes to the left with toolbar button", async ({
-    page,
+    authenticatedPage,
   }) => {
-    const { page: authPage } = await createAuthenticatedPage(page);
+    await navigateToMainCanvas(authenticatedPage);
 
     // Create 3 rectangles at different X positions
-    await authPage.getByRole("button", { name: /rectangle/i }).click();
+    await createRectangle(authenticatedPage, 100, 100, 50, 50);
+    await waitForSync(authenticatedPage, 50);
 
-    await authPage
-      .locator('[data-tool="rectangle"]')
-      .click({ position: { x: 100, y: 100 } });
-    await authPage
-      .locator('[data-tool="rectangle"]')
-      .click({ position: { x: 150, y: 150 } });
-    await authPage.waitForTimeout(50);
+    await createRectangle(authenticatedPage, 200, 100, 50, 50);
+    await waitForSync(authenticatedPage, 50);
 
-    await authPage
-      .locator('[data-tool="rectangle"]')
-      .click({ position: { x: 200, y: 100 } });
-    await authPage
-      .locator('[data-tool="rectangle"]')
-      .click({ position: { x: 250, y: 150 } });
-    await authPage.waitForTimeout(50);
-
-    await authPage
-      .locator('[data-tool="rectangle"]')
-      .click({ position: { x: 300, y: 100 } });
-    await authPage
-      .locator('[data-tool="rectangle"]')
-      .click({ position: { x: 350, y: 150 } });
-    await authPage.waitForTimeout(50);
+    await createRectangle(authenticatedPage, 300, 100, 50, 50);
+    await waitForSync(authenticatedPage, 50);
 
     // Switch to select tool
-    await authPage.getByRole("button", { name: /^select/i }).click();
+    await authenticatedPage.getByRole("button", { name: /^select/i }).click();
 
     // Select all rectangles with Cmd+A
-    await authPage.keyboard.press("Meta+A");
-    await authPage.waitForTimeout(100);
+    await authenticatedPage.keyboard.press("Meta+A");
+    await waitForSync(authenticatedPage, 100);
 
     // Click align left button
-    await authPage.getByRole("button", { name: /^left$/i }).click();
+    await authenticatedPage.getByRole("button", { name: /^left$/i }).click();
 
     // Wait for alignment
-    await authPage.waitForTimeout(200);
-
-    // Verify operation completed
+    await waitForSync(authenticatedPage, 200);
   });
 
-  test("should distribute shapes horizontally", async ({ page }) => {
-    const { page: authPage } = await createAuthenticatedPage(page);
+  test("should distribute shapes horizontally", async ({
+    authenticatedPage,
+  }) => {
+    await navigateToMainCanvas(authenticatedPage);
 
     // Create 4 rectangles
-    await authPage.getByRole("button", { name: /rectangle/i }).click();
-
     for (let i = 0; i < 4; i++) {
       const x = 100 + i * 80;
-      await authPage
-        .locator('[data-tool="rectangle"]')
-        .click({ position: { x, y: 100 } });
-      await authPage
-        .locator('[data-tool="rectangle"]')
-        .click({ position: { x: x + 40, y: 140 } });
-      await authPage.waitForTimeout(50);
+      await createRectangle(authenticatedPage, x, 100, 40, 40);
+      await waitForSync(authenticatedPage, 50);
     }
 
     // Switch to select tool and select all
-    await authPage.getByRole("button", { name: /^select/i }).click();
-    await authPage.keyboard.press("Meta+A");
-    await authPage.waitForTimeout(100);
+    await authenticatedPage.getByRole("button", { name: /^select/i }).click();
+    await authenticatedPage.keyboard.press("Meta+A");
+    await waitForSync(authenticatedPage, 100);
 
     // Click distribute horizontally
-    await authPage.getByRole("button", { name: /h-dist/i }).click();
+    await authenticatedPage.getByRole("button", { name: /h-dist/i }).click();
 
     // Wait for distribution
-    await authPage.waitForTimeout(200);
-
-    // Verify operation completed
+    await waitForSync(authenticatedPage, 200);
   });
 
   test("should disable alignment buttons when less than 2 shapes selected", async ({
-    page,
+    authenticatedPage,
   }) => {
-    const { page: authPage } = await createAuthenticatedPage(page);
+    await navigateToMainCanvas(authenticatedPage);
 
     // Check that alignment buttons are disabled with no selection
     await expect(
-      authPage.getByRole("button", { name: /^left$/i }),
+      authenticatedPage.getByRole("button", { name: /^left$/i }),
     ).toBeDisabled();
     await expect(
-      authPage.getByRole("button", { name: /^center$/i }),
+      authenticatedPage.getByRole("button", { name: /^center$/i }),
     ).toBeDisabled();
     await expect(
-      authPage.getByRole("button", { name: /^right$/i }),
+      authenticatedPage.getByRole("button", { name: /^right$/i }),
     ).toBeDisabled();
   });
 
-  test("should align shapes with keyboard shortcut", async ({ page }) => {
-    const { page: authPage } = await createAuthenticatedPage(page);
+  test("should align shapes with keyboard shortcut", async ({
+    authenticatedPage,
+  }) => {
+    await navigateToMainCanvas(authenticatedPage);
 
     // Create 2 rectangles
-    await authPage.getByRole("button", { name: /rectangle/i }).click();
+    await createRectangle(authenticatedPage, 100, 100, 50, 50);
+    await waitForSync(authenticatedPage, 50);
 
-    await authPage
-      .locator('[data-tool="rectangle"]')
-      .click({ position: { x: 100, y: 100 } });
-    await authPage
-      .locator('[data-tool="rectangle"]')
-      .click({ position: { x: 150, y: 150 } });
-    await authPage.waitForTimeout(50);
-
-    await authPage
-      .locator('[data-tool="rectangle"]')
-      .click({ position: { x: 200, y: 200 } });
-    await authPage
-      .locator('[data-tool="rectangle"]')
-      .click({ position: { x: 250, y: 250 } });
-    await authPage.waitForTimeout(50);
+    await createRectangle(authenticatedPage, 200, 200, 50, 50);
+    await waitForSync(authenticatedPage, 50);
 
     // Select all
-    await authPage.getByRole("button", { name: /^select/i }).click();
-    await authPage.keyboard.press("Meta+A");
+    await authenticatedPage.getByRole("button", { name: /^select/i }).click();
+    await authenticatedPage.keyboard.press("Meta+A");
 
     // Use keyboard shortcut for align left
-    await authPage.keyboard.press("Meta+Shift+L");
+    await authenticatedPage.keyboard.press("Meta+Shift+L");
 
-    await authPage.waitForTimeout(200);
-
-    // Verify operation completed
+    await waitForSync(authenticatedPage, 200);
   });
 });
