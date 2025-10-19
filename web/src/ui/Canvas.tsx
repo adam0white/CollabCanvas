@@ -6,6 +6,7 @@ import { Circle, Group, Layer, Rect, Stage, Text } from "react-konva";
 import { useLocking } from "../hooks/useLocking";
 import type { PresenceState } from "../hooks/usePresence";
 import { useSelection } from "../hooks/useSelection";
+import { useSnapToGrid } from "../hooks/useSnapToGrid";
 import { useToolbar } from "../hooks/useToolbar";
 import { useUndoRedo } from "../hooks/useUndoRedo";
 import {
@@ -63,6 +64,7 @@ export function Canvas({
   const locking = useLocking(userId);
   const undoRedo = useUndoRedo();
   const { selectedShapeIds, setSelectedShapeIds } = useSelection();
+  const snap = useSnapToGrid();
 
   // State for rectangle creation (click-and-drag)
   const [isDrawing, setIsDrawing] = useState(false);
@@ -678,10 +680,13 @@ export function Canvas({
       if (!pos) return;
 
       // Adjust for current zoom and pan
-      const adjustedPos = {
+      let adjustedPos = {
         x: (pos.x - position.x) / scale,
         y: (pos.y - position.y) / scale,
       };
+
+      // Apply snap-to-grid if enabled
+      adjustedPos = snap.snapPoint(adjustedPos.x, adjustedPos.y);
 
       setIsDrawing(true);
       setNewRect({
@@ -699,10 +704,13 @@ export function Canvas({
       const pos = stage.getPointerPosition();
       if (!pos) return;
 
-      const adjustedPos = {
+      let adjustedPos = {
         x: (pos.x - position.x) / scale,
         y: (pos.y - position.y) / scale,
       };
+
+      // Apply snap-to-grid if enabled
+      adjustedPos = snap.snapPoint(adjustedPos.x, adjustedPos.y);
 
       setIsDrawing(true);
       setNewCircle({
@@ -719,10 +727,13 @@ export function Canvas({
       const pos = stage.getPointerPosition();
       if (!pos) return;
 
-      const adjustedPos = {
+      let adjustedPos = {
         x: (pos.x - position.x) / scale,
         y: (pos.y - position.y) / scale,
       };
+
+      // Apply snap-to-grid if enabled
+      adjustedPos = snap.snapPoint(adjustedPos.x, adjustedPos.y);
 
       setTextPosition(adjustedPos);
       setIsCreatingText(true);
@@ -879,10 +890,13 @@ export function Canvas({
         const normalizedWidth = Math.abs(width);
         const normalizedHeight = Math.abs(height);
 
+        // Apply snap-to-grid to final position
+        const snappedPos = snap.snapPoint(x, y);
+
         // Create the rectangle shape with current default color
         const rect = createRectangle(
-          x,
-          y,
+          snappedPos.x,
+          snappedPos.y,
           normalizedWidth,
           normalizedHeight,
           "user",
@@ -904,9 +918,11 @@ export function Canvas({
     if (isDrawing && activeTool === "circle" && newCircle) {
       // Only create if circle has minimum radius
       if (newCircle.radius > 5) {
+        // Apply snap-to-grid to final position
+        const snappedPos = snap.snapPoint(newCircle.x, newCircle.y);
         const circle = createCircle(
-          newCircle.x,
-          newCircle.y,
+          snappedPos.x,
+          snappedPos.y,
           newCircle.radius,
           "user",
         );
@@ -1207,6 +1223,7 @@ export function Canvas({
             selectedShapeIds={selectedShapeIds}
             userId={userId}
             locking={locking}
+            snapToGrid={snap.snapEnabled ? snap.snapPoint : undefined}
             onShapeSelect={(shapeId, addToSelection) => {
               // Check if shape is locked by another user
               if (locking.isShapeLocked(shapeId, userId)) {

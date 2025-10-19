@@ -25,6 +25,7 @@ type ShapeLayerProps = {
   selectedShapeIds: string[];
   userId: string;
   locking: LockingHook;
+  snapToGrid?: (x: number, y: number) => { x: number; y: number };
   onShapeSelect: (id: string, addToSelection: boolean) => void;
   onShapeUpdate: (id: string, updates: Partial<Shape>) => void;
   onDragMove?: (x: number, y: number) => void;
@@ -42,6 +43,7 @@ export function ShapeLayer({
   selectedShapeIds,
   userId,
   locking,
+  snapToGrid,
   onShapeSelect,
   onShapeUpdate,
   onDragMove,
@@ -133,19 +135,29 @@ export function ShapeLayer({
         for (const shapeId of selectedShapeIds) {
           const startPosition = dragStartPositionsRef.current[shapeId];
           if (startPosition) {
-            onShapeUpdate(shapeId, {
+            let newPos = {
               x: startPosition.x + dx,
               y: startPosition.y + dy,
-            });
+            };
+            // Apply snap-to-grid if enabled
+            if (snapToGrid) {
+              newPos = snapToGrid(newPos.x, newPos.y);
+            }
+            onShapeUpdate(shapeId, newPos);
           }
         }
       }
     } else {
       // Single shape drag
-      onShapeUpdate(shape.id, {
+      let newPos = {
         x: node.x(),
         y: node.y(),
-      });
+      };
+      // Apply snap-to-grid if enabled
+      if (snapToGrid) {
+        newPos = snapToGrid(newPos.x, newPos.y);
+      }
+      onShapeUpdate(shape.id, newPos);
     }
   };
 
@@ -170,10 +182,15 @@ export function ShapeLayer({
         for (const shapeId of selectedShapeIds) {
           const startPosition = dragStartPositionsRef.current[shapeId];
           if (startPosition) {
-            onShapeUpdate(shapeId, {
+            let newPos = {
               x: startPosition.x + dx,
               y: startPosition.y + dy,
-            });
+            };
+            // Apply snap-to-grid if enabled
+            if (snapToGrid) {
+              newPos = snapToGrid(newPos.x, newPos.y);
+            }
+            onShapeUpdate(shapeId, newPos);
           }
         }
       }
@@ -182,10 +199,15 @@ export function ShapeLayer({
       dragStartPositionsRef.current = {};
     } else {
       // Single shape drag end
-      onShapeUpdate(shape.id, {
+      let newPos = {
         x: node.x(),
         y: node.y(),
-      });
+      };
+      // Apply snap-to-grid if enabled
+      if (snapToGrid) {
+        newPos = snapToGrid(newPos.x, newPos.y);
+      }
+      onShapeUpdate(shape.id, newPos);
     }
 
     // Clear throttle tracking for this shape

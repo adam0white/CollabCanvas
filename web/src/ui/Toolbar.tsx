@@ -2,6 +2,8 @@ import { useAuth } from "@clerk/clerk-react";
 import clsx from "clsx";
 import { useState } from "react";
 import { useSelection } from "../hooks/useSelection";
+import type { GridSize } from "../hooks/useSnapToGrid";
+import { useSnapToGrid } from "../hooks/useSnapToGrid";
 import { useToolbar } from "../hooks/useToolbar";
 import { useUndoRedo } from "../hooks/useUndoRedo";
 import {
@@ -42,6 +44,7 @@ export function Toolbar({
   const { canUndo, canRedo, undo, redo } = useUndoRedo();
   const { shapes, updateShape, canEdit } = useShapes();
   const { selectedShapeIds } = useSelection();
+  const snap = useSnapToGrid();
   const [internalDefaultColor, setInternalDefaultColor] =
     useState(defaultColor);
 
@@ -484,6 +487,35 @@ export function Toolbar({
         <span aria-hidden>⬍</span>
         V-Dist
       </button>
+
+      <div className={styles.toolDivider} />
+
+      {/* Snap-to-grid toggle */}
+      <button
+        type="button"
+        className={clsx(styles.toolButton, {
+          [styles.toolButtonActive]: snap.snapEnabled,
+        })}
+        onClick={snap.toggleSnap}
+        title={`Snap to Grid ${snap.snapEnabled ? "ON" : "OFF"} (${snap.gridSize}px)`}
+      >
+        <span aria-hidden>🧲</span>
+        Snap
+      </button>
+
+      {/* Grid size selector */}
+      <select
+        className={styles.gridSizeSelect}
+        value={snap.gridSize}
+        onChange={(e) =>
+          snap.updateGridSize(Number.parseInt(e.target.value) as GridSize)
+        }
+        title="Grid size"
+      >
+        <option value="10">10px</option>
+        <option value="20">20px</option>
+        <option value="50">50px</option>
+      </select>
 
       <div className={styles.toolDivider} />
 
