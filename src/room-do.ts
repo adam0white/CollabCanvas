@@ -323,6 +323,10 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
         );
         toolResults.push(result);
 
+        // Small delay after tool execution to allow Yjs update to be sent
+        // This ensures clients receive the shape update before the next cursor movement
+        await this.sleep(30);
+
         if (result.success) {
           // Prefer shapeIds array over single shapeId to avoid duplicates
           if (result.shapeIds && result.shapeIds.length > 0) {
@@ -596,11 +600,12 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
    * 
    * @param clientId - The client ID to set state for
    * @param state - The state object, or null to remove the client
+   * @returns Promise that resolves after a small delay to allow message delivery
    */
-  private setAwarenessState(
+  private async setAwarenessState(
     clientId: number,
     state: Record<string, unknown> | null,
-  ): void {
+  ): Promise<void> {
     // Directly manipulate awareness states
     if (state === null) {
       // Remove the client state
@@ -628,14 +633,28 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
 
     const message = toUint8Array(encoder);
 
+    console.log(
+      `[RoomDO] Broadcasting awareness update for client ${clientId}, message size: ${message.byteLength} bytes`,
+    );
+
     // Broadcast to all connected sockets
+    let sentCount = 0;
     for (const ws of this.sockets) {
       try {
         ws.send(message);
+        sentCount++;
       } catch (error) {
         console.error("[RoomDO] Failed to send awareness update:", error);
       }
     }
+
+    console.log(
+      `[RoomDO] Awareness update sent to ${sentCount}/${this.sockets.size} clients`,
+    );
+
+    // Small delay to allow WebSocket messages to be sent before next operation
+    // This ensures clients receive and process this update before the next one arrives
+    await this.sleep(30);
   }
 }
 
