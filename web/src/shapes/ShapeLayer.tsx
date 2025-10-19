@@ -85,7 +85,7 @@ function ShapeLayerImpl({
 
   const handleDragStart = (_e: KonvaEventObject<DragEvent>, shape: Shape) => {
     // Store initial positions of all selected shapes for group dragging
-    if (selectedShapeIds.includes(shape.id) && selectedShapeIds.length > 1) {
+    if (selectedSet.has(shape.id) && selectedShapeIds.length > 1) {
       dragStartPositionsRef.current = {};
       for (const shapeId of selectedShapeIds) {
         const targetShape = shapes.find((s) => s.id === shapeId);
@@ -353,7 +353,7 @@ function ShapeLayerImpl({
     <>
       {shapes.map((shape) => {
         const isHovered = hoveredShapeId === shape.id;
-        const isSelected = selectedShapeIds.includes(shape.id);
+        const isSelected = selectedSet.has(shape.id);
         const isTransforming = transformingShapeId === shape.id;
         const lockOwner = locking.getLockOwner(shape.id);
         const isLockedByOther =
