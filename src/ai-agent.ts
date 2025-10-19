@@ -117,10 +117,11 @@ export class AIAgent extends Agent {
       }
 
       // Call AI via Gateway to generate tool calls
-      const toolCalls = await this.generateToolCallsWithAI(
-        prompt,
-        body.context ?? {},
-      );
+      const toolCalls = await this.generateToolCallsWithAI(prompt, {
+        ...body.context,
+        userId,
+        userName,
+      });
 
       if (toolCalls.length === 0) {
         return Response.json(
@@ -224,6 +225,8 @@ export class AIAgent extends Agent {
     context: {
       selectedShapeIds?: string[];
       viewportCenter?: { x: number; y: number };
+      userId?: string;
+      userName?: string;
     },
   ): Promise<ToolCall[]> {
     const centerX = context.viewportCenter?.x ?? 1000;
@@ -267,8 +270,8 @@ export class AIAgent extends Agent {
             skipCache: true,
             // Metadata for observability in AI Gateway dashboard
             metadata: {
-              userId,
-              userName,
+              userId: context.userId ?? "anonymous",
+              userName: context.userName ?? "Anonymous",
               promptLength: prompt.length,
               hasSelection: (context.selectedShapeIds?.length ?? 0) > 0,
             },

@@ -21,6 +21,11 @@ type UseShapesReturn = {
   createShape: (shape: Shape) => void;
   updateShape: (id: string, updates: Partial<Shape>) => void;
   deleteShape: (id: string) => void;
+  batchCreateShapes: (shapes: Shape[]) => void;
+  batchUpdateShapes: (
+    updates: Array<{ id: string; updates: Partial<Shape> }>,
+  ) => void;
+  batchDeleteShapes: (ids: string[]) => void;
 };
 
 export function useShapes(): UseShapesReturn {

@@ -11,7 +11,7 @@
  * - Support all shape types (rectangle, circle, text)
  */
 
-import type { Circle, Rectangle, Shape, Text } from "../shapes/types";
+import type { Circle, Rectangle, Shape } from "../shapes/types";
 import { isCircle, isRectangle, isText } from "../shapes/types";
 
 export type ViewportBounds = {
@@ -107,12 +107,17 @@ function getShapeBounds(shape: Shape): {
     return getTextBounds(shape);
   }
 
-  // Fallback for unknown shape types
+  // This should never happen since we check all shape types above
+  // TypeScript exhaustiveness check - should be unreachable
+  const _exhaustiveCheck: never = shape;
+  console.warn("[Viewport] Unknown shape type:", _exhaustiveCheck);
+
+  // Fallback that won't be reached in practice
   return {
-    minX: shape.x,
-    maxX: shape.x + 100,
-    minY: shape.y,
-    maxY: shape.y + 50,
+    minX: 0,
+    maxX: 100,
+    minY: 0,
+    maxY: 50,
   };
 }
 
@@ -174,7 +179,7 @@ function getCircleBounds(shape: Circle): {
 /**
  * Get bounding box for text
  */
-function getTextBounds(shape: Text): {
+function getTextBounds(shape: Extract<Shape, { type: "text" }>): {
   minX: number;
   maxX: number;
   minY: number;

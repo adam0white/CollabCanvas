@@ -151,21 +151,20 @@ export const ShapeLayer = memo(function ShapeLayer({
 
           // Performance: Use batch update for group drag (single Yjs transaction)
           if (onBatchShapeUpdate) {
-            const updates = selectedShapeIds
-              .map((shapeId) => {
-                const startPosition = dragStartPositionsRef.current[shapeId];
-                if (!startPosition) return null;
-                return {
+            const updates: Array<{ id: string; updates: Partial<Shape> }> = [];
+
+            for (const shapeId of selectedShapeIds) {
+              const startPosition = dragStartPositionsRef.current[shapeId];
+              if (startPosition) {
+                updates.push({
                   id: shapeId,
                   updates: {
                     x: startPosition.x + dx,
                     y: startPosition.y + dy,
                   },
-                };
-              })
-              .filter(
-                (u): u is { id: string; updates: Partial<Shape> } => u !== null,
-              );
+                });
+              }
+            }
 
             if (updates.length > 0) {
               onBatchShapeUpdate(updates);
@@ -221,21 +220,20 @@ export const ShapeLayer = memo(function ShapeLayer({
 
           // Performance: Use batch update for final position (single Yjs transaction)
           if (onBatchShapeUpdate) {
-            const updates = selectedShapeIds
-              .map((shapeId) => {
-                const startPosition = dragStartPositionsRef.current[shapeId];
-                if (!startPosition) return null;
-                return {
+            const updates: Array<{ id: string; updates: Partial<Shape> }> = [];
+
+            for (const shapeId of selectedShapeIds) {
+              const startPosition = dragStartPositionsRef.current[shapeId];
+              if (startPosition) {
+                updates.push({
                   id: shapeId,
                   updates: {
                     x: startPosition.x + dx,
                     y: startPosition.y + dy,
                   },
-                };
-              })
-              .filter(
-                (u): u is { id: string; updates: Partial<Shape> } => u !== null,
-              );
+                });
+              }
+            }
 
             if (updates.length > 0) {
               onBatchShapeUpdate(updates);
