@@ -78,7 +78,7 @@ export const test = base.extend<TestFixtures>({
   multiUserContext: async ({ browser, browserName }, use) => {
     // Create two separate browser contexts with the same auth state
     // (simulating two users logged in as the same account)
-    const contextOptions: any = {
+    const contextOptions: { storageState: string; permissions?: string[] } = {
       storageState: authFile,
     };
 
