@@ -261,8 +261,17 @@ export class AIAgent extends Agent {
         {
           gateway: {
             id: "aw-cf-ai",
-            // Skip LLM cache for dynamic prompts with viewport coordinates
+            // Performance: Skip LLM cache for dynamic prompts
+            // Viewport coordinates change frequently, making cache hits unlikely
+            // Saves Gateway overhead of cache lookup
             skipCache: true,
+            // Metadata for observability in AI Gateway dashboard
+            metadata: {
+              userId,
+              userName,
+              promptLength: prompt.length,
+              hasSelection: (context.selectedShapeIds?.length ?? 0) > 0,
+            },
           },
         },
       );
