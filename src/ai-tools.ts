@@ -20,7 +20,7 @@ export const AI_TOOLS = [
   {
     name: "createShape",
     description:
-      "Create shapes on canvas. Pass JSON array in shapes parameter.",
+      "Create new shapes on canvas. Pass JSON array in shapes parameter. Use this for creating shapes at specific positions.",
     parameters: {
       type: "object",
       properties: {
@@ -53,6 +53,117 @@ export const AI_TOOLS = [
         },
       },
       required: ["shapes"],
+    },
+  },
+  {
+    name: "moveShape",
+    description:
+      "Move an existing shape to a new position. Use shape IDs from context (selected shapes or nearby shapes).",
+    parameters: {
+      type: "object",
+      properties: {
+        shapeId: {
+          type: "string",
+          description: "ID of shape to move (from selected or nearby shapes)",
+        },
+        x: { type: "number", description: "New X coordinate" },
+        y: { type: "number", description: "New Y coordinate" },
+      },
+      required: ["shapeId", "x", "y"],
+    },
+  },
+  {
+    name: "updateShapeStyle",
+    description:
+      "Change the color or style of an existing shape. Use shape IDs from context.",
+    parameters: {
+      type: "object",
+      properties: {
+        shapeId: {
+          type: "string",
+          description: "ID of shape to update",
+        },
+        fill: {
+          type: "string",
+          description: "Fill color in hex (#FF0000)",
+        },
+        stroke: {
+          type: "string",
+          description: "Stroke color in hex",
+        },
+        strokeWidth: {
+          type: "number",
+          description: "Stroke width in pixels",
+        },
+      },
+      required: ["shapeId"],
+    },
+  },
+  {
+    name: "deleteShape",
+    description:
+      "Delete an existing shape. Use shape IDs from context.",
+    parameters: {
+      type: "object",
+      properties: {
+        shapeId: {
+          type: "string",
+          description: "ID of shape to delete",
+        },
+      },
+      required: ["shapeId"],
+    },
+  },
+  {
+    name: "arrangeShapes",
+    description:
+      "Arrange multiple shapes in a layout (horizontal, vertical, or grid). Works great with selected shapes.",
+    parameters: {
+      type: "object",
+      properties: {
+        shapeIds: {
+          type: "array",
+          items: { type: "string" },
+          description: "Array of shape IDs to arrange",
+        },
+        layout: {
+          type: "string",
+          enum: ["horizontal", "vertical", "grid"],
+          description: "Layout type",
+        },
+        spacing: {
+          type: "number",
+          description: "Spacing between shapes (default: 20)",
+        },
+        columns: {
+          type: "number",
+          description: "Number of columns for grid layout",
+        },
+      },
+      required: ["shapeIds", "layout"],
+    },
+  },
+  {
+    name: "findShapes",
+    description:
+      "Search for shapes on canvas by type, color, or text content. Returns shape IDs.",
+    parameters: {
+      type: "object",
+      properties: {
+        type: {
+          type: "string",
+          enum: ["rectangle", "circle", "text"],
+          description: "Filter by shape type",
+        },
+        color: {
+          type: "string",
+          description: "Filter by color (hex or name)",
+        },
+        contains: {
+          type: "string",
+          description: "Filter text shapes containing this string",
+        },
+      },
     },
   },
   {
