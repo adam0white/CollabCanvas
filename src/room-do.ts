@@ -75,10 +75,14 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
     this.awareness.setLocalState({});
 
     this.awareness.on("update", () => {
+      // Awareness is ephemeral; avoid storage writes if only presence changed
+      // y-durableobjects persists document updates automatically; still debounce
       this.commitScheduler.schedule();
     });
 
-    this.doc.on("update", () => {
+    this.doc.on("update", (update: Uint8Array, _origin: unknown) => {
+      // Skip scheduling if update payload is empty (no-op)
+      if (!update || update.length === 0) return;
       this.commitScheduler.schedule();
     });
   }
