@@ -129,7 +129,13 @@ export function App(): React.JSX.Element {
 
             {/* AI Panel */}
             <aside className={styles.aiPanel}>
-              <AIPanel ref={aiPanelRef} />
+              <AIPanel
+                ref={aiPanelRef}
+                canvasViewport={{
+                  center: { x: 1000, y: 1000 }, // Default canvas center
+                  bounds: { x: 0, y: 0, width: 2000, height: 2000 }, // Full canvas
+                }}
+              />
             </aside>
           </main>
 

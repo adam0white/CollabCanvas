@@ -7,19 +7,31 @@
  * - Error display
  * - History panel showing all AI interactions
  * - Guest users see history but cannot send commands
+ * - Context-aware: gathers selected shapes, viewport, and canvas stats
  */
 
 import { useUser } from "@clerk/clerk-react";
 import React, { useCallback, useRef, useState } from "react";
 import { useAI } from "../hooks/useAI";
+import { useSelection } from "../hooks/useSelection";
+import { useShapes } from "../shapes/useShapes";
 import styles from "./AIPanel.module.css";
 
-export const AIPanel = React.forwardRef<HTMLTextAreaElement>(
-  function AIPanel(_, ref): React.JSX.Element {
+type AIPanelProps = {
+  canvasViewport?: {
+    center: { x: number; y: number };
+    bounds: { x: number; y: number; width: number; height: number };
+  };
+};
+
+export const AIPanel = React.forwardRef<HTMLTextAreaElement, AIPanelProps>(
+  function AIPanel({ canvasViewport }, ref): React.JSX.Element {
     const { history, isLoading, error, sendCommand, canUseAI } = useAI();
     const { user } = useUser();
     const [prompt, setPrompt] = useState("");
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const { selectedShapeIds } = useSelection();
+    const { shapes } = useShapes();
 
     // Merge external ref with internal ref
     React.useImperativeHandle(
@@ -38,13 +50,57 @@ export const AIPanel = React.forwardRef<HTMLTextAreaElement>(
         if (!trimmedPrompt) return;
 
         try {
-          await sendCommand(trimmedPrompt);
+          // Gather canvas context for AI
+          const selectedShapes = shapes
+            .filter((s) => selectedShapeIds.includes(s.id))
+            .map((s) => ({
+              id: s.id,
+              type: s.type,
+              x: s.x,
+              y: s.y,
+              ...(s.type === "rectangle" && {
+                width: (s as { width: number }).width,
+                height: (s as { height: number }).height,
+              }),
+              ...(s.type === "circle" && {
+                radius: (s as { radius: number }).radius,
+              }),
+              ...(s.type === "text" && {
+                text: (s as { text: string }).text,
+              }),
+              fill: s.fill,
+            }));
+
+          // Calculate canvas statistics
+          const shapeTypes: Record<string, number> = {};
+          for (const shape of shapes) {
+            shapeTypes[shape.type] = (shapeTypes[shape.type] || 0) + 1;
+          }
+
+          const context = {
+            selectedShapeIds,
+            selectedShapes,
+            viewportCenter: canvasViewport?.center ?? { x: 1000, y: 1000 },
+            viewportBounds: canvasViewport?.bounds ?? {
+              x: 0,
+              y: 0,
+              width: 2000,
+              height: 2000,
+            },
+            canvasStats: {
+              totalShapes: shapes.length,
+              shapeTypes,
+              visibleShapes: shapes.length, // TODO: Calculate actual visible shapes
+            },
+          };
+
+          await sendCommand(trimmedPrompt, context);
           setPrompt(""); // Clear input on success
         } catch {
           // Error is already handled by useAI hook
         }
       },
-      [prompt, sendCommand],
+      [prompt, sendCommand, selectedShapeIds, shapes, canvasViewport],
     );
 
     const handleKeyDown = useCallback(
