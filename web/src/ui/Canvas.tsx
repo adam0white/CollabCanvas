@@ -42,8 +42,15 @@ export function Canvas({
   const stageRef = useRef<Konva.Stage | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { activeTool, setActiveTool } = useToolbar();
-  const { shapes, canEdit, createShape, updateShape, deleteShape } =
-    useShapes();
+  const {
+    shapes,
+    canEdit,
+    createShape,
+    updateShape,
+    deleteShape,
+    batchDeleteShapes,
+    batchUpdateShapes,
+  } = useShapes();
   const { user } = useUser();
   const userId = user?.id ?? "guest";
   const locking = useLocking(userId);
@@ -190,10 +197,8 @@ export function Canvas({
         canEdit
       ) {
         e.preventDefault();
-        // Delete all selected shapes
-        for (const shapeId of selectedShapeIds) {
-          deleteShape(shapeId);
-        }
+        // Batch delete for performance (single Yjs transaction)
+        batchDeleteShapes(selectedShapeIds);
         setSelectedShapeIds([]);
       }
 
@@ -363,14 +368,14 @@ export function Canvas({
   }, [
     selectedShapeIds,
     canEdit,
-    deleteShape,
     shapes,
     createShape,
     undoRedo,
     setActiveTool,
     updateShape,
     clipboard,
-    pasteCount, // Select pasted shapes
+    pasteCount,
+    batchDeleteShapes,
     setSelectedShapeIds,
   ]);
 
@@ -957,6 +962,8 @@ export function Canvas({
             selectedShapeIds={selectedShapeIds}
             userId={userId}
             locking={locking}
+            onShapeUpdate={updateShape}
+            onBatchShapeUpdate={batchUpdateShapes}
             onShapeSelect={(shapeId, addToSelection) => {
               // Check if shape is locked by another user
               if (locking.isShapeLocked(shapeId, userId)) {
@@ -978,7 +985,6 @@ export function Canvas({
                 setSelectedShapeIds([shapeId]);
               }
             }}
-            onShapeUpdate={updateShape}
             onTextEdit={handleTextEdit}
             onDragMove={(screenX, screenY) => {
               // Adjust screen coordinates to canvas space for presence

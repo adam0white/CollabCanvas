@@ -26,6 +26,7 @@ type ShapeLayerProps = {
   locking: LockingHook;
   onShapeSelect: (id: string, addToSelection: boolean) => void;
   onShapeUpdate: (id: string, updates: Partial<Shape>) => void;
+  onBatchShapeUpdate?: (updates: Array<{ id: string; updates: Partial<Shape> }>) => void;
   onDragMove?: (x: number, y: number) => void;
   onTextEdit?: (
     shapeId: string,
@@ -43,6 +44,7 @@ export function ShapeLayer({
   locking,
   onShapeSelect,
   onShapeUpdate,
+  onBatchShapeUpdate,
   onDragMove,
   onTextEdit,
 }: ShapeLayerProps): React.JSX.Element {
@@ -135,14 +137,35 @@ export function ShapeLayer({
         const dx = node.x() - startPos.x;
         const dy = node.y() - startPos.y;
 
-        // Apply the same offset to all selected shapes
-        for (const shapeId of selectedShapeIds) {
-          const startPosition = dragStartPositionsRef.current[shapeId];
-          if (startPosition) {
-            onShapeUpdate(shapeId, {
-              x: startPosition.x + dx,
-              y: startPosition.y + dy,
-            });
+        // Performance: Use batch update for group drag (single Yjs transaction)
+        if (onBatchShapeUpdate) {
+          const updates = selectedShapeIds
+            .map((shapeId) => {
+              const startPosition = dragStartPositionsRef.current[shapeId];
+              if (!startPosition) return null;
+              return {
+                id: shapeId,
+                updates: {
+                  x: startPosition.x + dx,
+                  y: startPosition.y + dy,
+                },
+              };
+            })
+            .filter((u): u is { id: string; updates: Partial<Shape> } => u !== null);
+
+          if (updates.length > 0) {
+            onBatchShapeUpdate(updates);
+          }
+        } else {
+          // Fallback: individual updates if batch not available
+          for (const shapeId of selectedShapeIds) {
+            const startPosition = dragStartPositionsRef.current[shapeId];
+            if (startPosition) {
+              onShapeUpdate(shapeId, {
+                x: startPosition.x + dx,
+                y: startPosition.y + dy,
+              });
+            }
           }
         }
       }
@@ -172,14 +195,35 @@ export function ShapeLayer({
         const dx = node.x() - startPos.x;
         const dy = node.y() - startPos.y;
 
-        // Apply final position to all selected shapes
-        for (const shapeId of selectedShapeIds) {
-          const startPosition = dragStartPositionsRef.current[shapeId];
-          if (startPosition) {
-            onShapeUpdate(shapeId, {
-              x: startPosition.x + dx,
-              y: startPosition.y + dy,
-            });
+        // Performance: Use batch update for final position (single Yjs transaction)
+        if (onBatchShapeUpdate) {
+          const updates = selectedShapeIds
+            .map((shapeId) => {
+              const startPosition = dragStartPositionsRef.current[shapeId];
+              if (!startPosition) return null;
+              return {
+                id: shapeId,
+                updates: {
+                  x: startPosition.x + dx,
+                  y: startPosition.y + dy,
+                },
+              };
+            })
+            .filter((u): u is { id: string; updates: Partial<Shape> } => u !== null);
+
+          if (updates.length > 0) {
+            onBatchShapeUpdate(updates);
+          }
+        } else {
+          // Fallback: individual updates if batch not available
+          for (const shapeId of selectedShapeIds) {
+            const startPosition = dragStartPositionsRef.current[shapeId];
+            if (startPosition) {
+              onShapeUpdate(shapeId, {
+                x: startPosition.x + dx,
+                y: startPosition.y + dy,
+              });
+            }
           }
         }
       }
