@@ -212,6 +212,15 @@ test.describe("Edge Cases & Error Handling", () => {
       });
       await waitForSync(authenticatedPage, 500);
 
+      // Wait for auth to load and button to be enabled
+      await authenticatedPage
+        .getByRole("button", { name: /rectangle/i })
+        .waitFor({ state: "visible", timeout: 8000 });
+      await authenticatedPage
+        .getByRole("button", { name: /rectangle/i })
+        .isEnabled({ timeout: 8000 });
+      await waitForSync(authenticatedPage, 500);
+
       // Try to create a shape with negative dimensions
       await authenticatedPage
         .getByRole("button", { name: /rectangle/i })

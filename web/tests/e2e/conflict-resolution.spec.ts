@@ -349,6 +349,9 @@ test.describe("Conflict Resolution & State Management", () => {
 
       await navigateToSharedRoom(user1, user2, roomId);
 
+      // Additional wait to ensure buttons are fully enabled
+      await waitForSync(user1, 1000);
+
       // Both users create multiple shapes rapidly
       const createPromises: Promise<void>[] = [];
 
@@ -459,6 +462,9 @@ test.describe("Conflict Resolution & State Management", () => {
       const { user1, user2 } = multiUserContext;
 
       await navigateToSharedRoom(user1, user2, roomId);
+
+      // Additional wait to ensure full auth and button enablement
+      await waitForSync(user1, 1000);
 
       // User 1 rapidly creates and deletes shapes
       for (let i = 0; i < 5; i++) {
