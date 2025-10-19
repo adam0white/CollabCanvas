@@ -1257,8 +1257,14 @@ export function Canvas({
           {/* Render visible remote cursors with labels */}
           {visibleCursors.map((participant) => {
             if (!participant.cursor) return null;
-            const labelText = participant.displayName;
-            const labelWidth = labelText.length * 8 + 12; // Approximate width
+            
+            // Special handling for AI agent cursors
+            const isAI = participant.isAIAgent === true;
+            const labelText = isAI 
+              ? `🤖 Agent${participant.aiAgentOwner ? ' by ' + participant.displayName : ''}`
+              : participant.displayName;
+            const labelWidth = labelText.length * (isAI ? 9 : 8) + 12; // Approximate width
+            const cursorColor = isAI ? "#8b5cf6" : participant.color; // Purple for AI
 
             // Inverse scale to keep cursor/label at consistent size across zoom levels
             const inverseScale = 1 / scale;
@@ -1271,22 +1277,25 @@ export function Canvas({
                 scaleX={inverseScale}
                 scaleY={inverseScale}
               >
-                {/* Cursor dot */}
+                {/* Cursor dot - larger and animated for AI */}
                 <Rect
                   x={0}
                   y={0}
-                  width={12}
-                  height={12}
-                  fill={participant.color}
-                  cornerRadius={4}
+                  width={isAI ? 14 : 12}
+                  height={isAI ? 14 : 12}
+                  fill={cursorColor}
+                  cornerRadius={isAI ? 6 : 4}
+                  shadowColor={isAI ? "rgba(139, 92, 246, 0.6)" : "rgba(0, 0, 0, 0.3)"}
+                  shadowBlur={isAI ? 8 : 4}
+                  shadowOffsetY={2}
                 />
                 {/* Label background */}
                 <Rect
                   x={16}
                   y={-2}
                   width={labelWidth}
-                  height={20}
-                  fill={participant.color}
+                  height={isAI ? 24 : 20}
+                  fill={cursorColor}
                   cornerRadius={4}
                   shadowColor="rgba(0, 0, 0, 0.3)"
                   shadowBlur={4}
@@ -1297,12 +1306,25 @@ export function Canvas({
                   x={22}
                   y={2}
                   text={labelText}
-                  fontSize={12}
+                  fontSize={isAI ? 11 : 12}
                   fontFamily="system-ui, -apple-system, sans-serif"
+                  fontStyle={isAI ? "bold" : "normal"}
                   fill="#fff"
                   shadowColor="rgba(0, 0, 0, 0.5)"
                   shadowBlur={2}
                 />
+                {/* Progress indicator for AI */}
+                {isAI && participant.aiProgress && (
+                  <Text
+                    x={22}
+                    y={16}
+                    text={`${participant.aiProgress.current}/${participant.aiProgress.total} ${participant.aiProgress.message}`}
+                    fontSize={9}
+                    fontFamily="system-ui, -apple-system, sans-serif"
+                    fill="#fff"
+                    opacity={0.9}
+                  />
+                )}
               </Group>
             );
           })}
