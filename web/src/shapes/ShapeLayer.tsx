@@ -374,6 +374,7 @@ function ShapeLayerImpl({
               height={shape.height}
               rotation={shape.rotation ?? 0}
               fill={shape.fill}
+              perfectDrawEnabled={false}
               stroke={
                 isLockedByOther
                   ? lockOwner.color
@@ -433,6 +434,7 @@ function ShapeLayerImpl({
               radius={shape.radius}
               rotation={shape.rotation ?? 0}
               fill={shape.fill}
+              perfectDrawEnabled={false}
               stroke={
                 isLockedByOther
                   ? lockOwner.color
@@ -495,6 +497,7 @@ function ShapeLayerImpl({
               width={shape.width}
               rotation={shape.rotation ?? 0}
               fill={shape.fill}
+              perfectDrawEnabled={false}
               stroke={
                 isSelected
                   ? "#0ea5e9"
