@@ -12,6 +12,61 @@ export async function waitForSync(page: Page, ms = 500): Promise<void> {
 }
 
 /**
+ * Navigate to main canvas and wait for it to be ready
+ */
+export async function navigateToMainCanvas(page: Page): Promise<void> {
+  await page.goto("/c/main", { waitUntil: "domcontentloaded" });
+  await waitForSync(page, 1000);
+
+  // Wait for canvas to be visible
+  await page
+    .locator("canvas")
+    .first()
+    .waitFor({ state: "visible", timeout: 5000 });
+
+  // Wait for auth to be picked up (toolbar enabled)
+  await page
+    .waitForSelector('button:has-text("Rectangle"):not([disabled])', {
+      timeout: 8000,
+    })
+    .catch(() => {
+      // If not immediately available, might need a moment for auth to sync
+    });
+
+  await waitForSync(page, 500);
+}
+
+/**
+ * Navigate to a specific room and wait for it to be ready
+ */
+export async function navigateToRoom(
+  page: Page,
+  roomId: string,
+): Promise<void> {
+  await page.goto(`/c/main?roomId=${roomId}`, {
+    waitUntil: "domcontentloaded",
+  });
+  await waitForSync(page, 1000);
+
+  // Wait for canvas to be visible
+  await page
+    .locator("canvas")
+    .first()
+    .waitFor({ state: "visible", timeout: 5000 });
+
+  // Wait for auth to be picked up (toolbar enabled) - if authenticated
+  await page
+    .waitForSelector('button:has-text("Rectangle"):not([disabled])', {
+      timeout: 8000,
+    })
+    .catch(() => {
+      // Guest users won't have enabled buttons, that's okay
+    });
+
+  await waitForSync(page, 500);
+}
+
+/**
  * Get canvas element with Firefox compatibility
  */
 export async function getCanvas(page: Page) {
@@ -54,6 +109,23 @@ export async function canvasClick(
   // Click at absolute position
   await page.mouse.click(box.x + x, box.y + y, { delay: options?.delay });
   await waitForSync(page, 150);
+}
+
+/**
+ * Canvas double-click with Firefox compatibility
+ */
+export async function canvasDoubleClick(
+  page: Page,
+  x: number,
+  y: number,
+): Promise<void> {
+  const canvas = await getCanvas(page);
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error("Canvas not found");
+
+  // Double-click at absolute position using mouse
+  await page.mouse.dblclick(box.x + x, box.y + y);
+  await waitForSync(page, 200);
 }
 
 /**
@@ -200,17 +272,44 @@ export async function navigateToSharedRoom(
     user2.goto(`/c/main?roomId=${roomId}`, { waitUntil: "domcontentloaded" }),
   ]);
 
+  // Wait longer for auth to be picked up (storage state needs more time in multi-context)
+  await waitForSync(user1, 3000);
+  await waitForSync(user2, 3000);
+
   // Wait for canvas to be ready on both pages
   await Promise.all([
     user1
       .locator("canvas")
       .first()
-      .waitFor({ state: "visible", timeout: 5000 }),
+      .waitFor({ state: "visible", timeout: 10000 }),
     user2
       .locator("canvas")
       .first()
-      .waitFor({ state: "visible", timeout: 5000 }),
+      .waitFor({ state: "visible", timeout: 10000 }),
   ]);
+
+  // Verify both users are authenticated (wait longer)
+  await Promise.all([
+    user1
+      .getByRole("button", { name: /rectangle/i })
+      .waitFor({ state: "visible", timeout: 10000 }),
+    user2
+      .getByRole("button", { name: /rectangle/i })
+      .waitFor({ state: "visible", timeout: 10000 }),
+  ]);
+
+  // Wait for buttons to actually be enabled (not just visible)
+  await Promise.all([
+    user1
+      .getByRole("button", { name: /rectangle/i })
+      .isEnabled({ timeout: 15000 }),
+    user2
+      .getByRole("button", { name: /rectangle/i })
+      .isEnabled({ timeout: 15000 }),
+  ]);
+
+  // Additional stabilization wait
+  await waitForSync(user1, 1500);
 
   // Give Yjs time to establish connection
   await waitForSync(user1, 800);

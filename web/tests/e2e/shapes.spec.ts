@@ -11,10 +11,12 @@
 import { expect, test } from "./fixtures";
 import {
   canvasClick,
+  canvasDoubleClick,
   canvasDrag,
   createCircle,
   createRectangle,
   createText,
+  navigateToMainCanvas,
   selectShape,
   switchToSelectMode,
   waitForSync,
@@ -25,6 +27,7 @@ test.describe("Shape Creation & Editing", () => {
     test("create rectangle with click-and-drag", async ({
       authenticatedPage,
     }) => {
+      await navigateToMainCanvas(authenticatedPage);
       // Create rectangle using helper
       await createRectangle(authenticatedPage, 200, 200, 200, 150);
 
@@ -40,6 +43,7 @@ test.describe("Shape Creation & Editing", () => {
     test("small rectangles (<10px) are not created", async ({
       authenticatedPage,
     }) => {
+      await navigateToMainCanvas(authenticatedPage);
       await authenticatedPage
         .getByRole("button", { name: /rectangle/i })
         .click();
@@ -52,6 +56,7 @@ test.describe("Shape Creation & Editing", () => {
     });
 
     test("drag rectangle to move", async ({ authenticatedPage }) => {
+      await navigateToMainCanvas(authenticatedPage);
       // Create a rectangle
       await createRectangle(authenticatedPage, 200, 200, 150, 100);
 
@@ -63,6 +68,7 @@ test.describe("Shape Creation & Editing", () => {
     });
 
     test("delete rectangle with Delete key", async ({ authenticatedPage }) => {
+      await navigateToMainCanvas(authenticatedPage);
       // Create rectangle
       await createRectangle(authenticatedPage, 200, 200, 150, 100);
 
@@ -77,6 +83,7 @@ test.describe("Shape Creation & Editing", () => {
     test("create circle with click-and-drag from center", async ({
       authenticatedPage,
     }) => {
+      await navigateToMainCanvas(authenticatedPage);
       // Create circle with 70px radius
       await createCircle(authenticatedPage, 300, 300, 70);
     });
@@ -84,11 +91,13 @@ test.describe("Shape Creation & Editing", () => {
     test("small circles (<5px radius) are not created", async ({
       authenticatedPage,
     }) => {
+      await navigateToMainCanvas(authenticatedPage);
       // Attempt to create very small circle (should not be created)
       await createCircle(authenticatedPage, 300, 300, 4);
     });
 
     test("move and delete circle", async ({ authenticatedPage }) => {
+      await navigateToMainCanvas(authenticatedPage);
       // Create circle
       await createCircle(authenticatedPage, 300, 300, 60);
 
@@ -106,10 +115,12 @@ test.describe("Shape Creation & Editing", () => {
     test("create text shape by clicking canvas", async ({
       authenticatedPage,
     }) => {
+      await navigateToMainCanvas(authenticatedPage);
       await createText(authenticatedPage, 400, 300, "Hello World");
     });
 
     test("cancel text creation with Escape", async ({ authenticatedPage }) => {
+      await navigateToMainCanvas(authenticatedPage);
       await authenticatedPage.getByRole("button", { name: /text/i }).click();
       await waitForSync(authenticatedPage, 200);
 
@@ -135,6 +146,7 @@ test.describe("Shape Creation & Editing", () => {
     });
 
     test("empty text is not created", async ({ authenticatedPage }) => {
+      await navigateToMainCanvas(authenticatedPage);
       await authenticatedPage.getByRole("button", { name: /text/i }).click();
       await waitForSync(authenticatedPage, 200);
 
@@ -157,6 +169,7 @@ test.describe("Shape Creation & Editing", () => {
     });
 
     test("double-click text to edit", async ({ authenticatedPage }) => {
+      await navigateToMainCanvas(authenticatedPage);
       // Create a text shape
       await createText(authenticatedPage, 400, 300, "Original Text");
 
@@ -164,10 +177,7 @@ test.describe("Shape Creation & Editing", () => {
       await switchToSelectMode(authenticatedPage);
 
       // Double-click the text to edit
-      await authenticatedPage
-        .locator("canvas")
-        .first()
-        .dblclick({ position: { x: 400, y: 300 } });
+      await canvasDoubleClick(authenticatedPage, 400, 300);
       await waitForSync(authenticatedPage, 300);
 
       // Text input should appear again
@@ -185,6 +195,7 @@ test.describe("Shape Creation & Editing", () => {
 
   test.describe("Shape Properties", () => {
     test("deselect with Escape key", async ({ authenticatedPage }) => {
+      await navigateToMainCanvas(authenticatedPage);
       // Create and select a rectangle
       await createRectangle(authenticatedPage, 200, 200, 150, 100);
       await selectShape(authenticatedPage, 275, 250);
@@ -199,6 +210,7 @@ test.describe("Shape Creation & Editing", () => {
     test("click empty canvas deselects shape", async ({
       authenticatedPage,
     }) => {
+      await navigateToMainCanvas(authenticatedPage);
       // Create and select a rectangle
       await createRectangle(authenticatedPage, 200, 200, 150, 100);
       await selectShape(authenticatedPage, 275, 250);

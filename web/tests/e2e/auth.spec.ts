@@ -24,6 +24,9 @@ test.describe("Authentication & Authorization", () => {
   test("guest user cannot create shapes (toolbar buttons disabled)", async ({
     guestPage,
   }) => {
+    await guestPage.goto("/c/main", { waitUntil: "domcontentloaded" });
+    await waitForSync(guestPage, 1000);
+
     // Rectangle button should be disabled
     const rectangleButton = guestPage.getByRole("button", {
       name: /rectangle/i,
@@ -48,6 +51,9 @@ test.describe("Authentication & Authorization", () => {
   });
 
   test("guest user cannot use AI assistant", async ({ guestPage }) => {
+    await guestPage.goto("/c/main", { waitUntil: "domcontentloaded" });
+    await waitForSync(guestPage, 1000);
+
     // AI textarea should be disabled
     const aiTextarea = guestPage.getByPlaceholder(/sign in to use AI/i);
     await expect(aiTextarea).toBeVisible();
@@ -60,13 +66,14 @@ test.describe("Authentication & Authorization", () => {
 
   test("guest user can pan and zoom canvas", async ({ page }) => {
     await page.goto("/c/main", { waitUntil: "domcontentloaded" });
-    await waitForSync(page, 500);
+    await waitForSync(page, 1000);
 
     // Click select tool
     await page.getByRole("button", { name: /select/i }).click();
+    await waitForSync(page, 300);
 
     // Get zoom percentage button
-    const zoomButton = page.getByRole("button", { name: /100%/i });
+    const zoomButton = page.locator('button[class*="zoomButton"]').nth(1);
     await expect(zoomButton).toBeVisible();
 
     // Zoom in
@@ -182,6 +189,9 @@ test.describe("Authentication & Authorization", () => {
   test("authenticated user can create shapes", async ({
     authenticatedPage,
   }) => {
+    await authenticatedPage.goto("/c/main", { waitUntil: "domcontentloaded" });
+    await waitForSync(authenticatedPage, 1000);
+
     // Rectangle button should be enabled
     await expect(
       authenticatedPage.getByRole("button", { name: /rectangle/i }),
@@ -194,6 +204,9 @@ test.describe("Authentication & Authorization", () => {
   test("authenticated user can use AI assistant", async ({
     authenticatedPage,
   }) => {
+    await authenticatedPage.goto("/c/main", { waitUntil: "domcontentloaded" });
+    await waitForSync(authenticatedPage, 1000);
+
     // AI textarea should be enabled
     const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
     await expect(aiTextarea).toBeVisible();
@@ -209,7 +222,13 @@ test.describe("Authentication & Authorization", () => {
 
   test("session persists across page refresh", async ({
     authenticatedPage,
+    roomId,
   }) => {
+    await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+      waitUntil: "domcontentloaded",
+    });
+    await waitForSync(authenticatedPage, 1000);
+
     // Verify user is signed in
     await expect(
       authenticatedPage.getByRole("button", { name: /rectangle/i }),

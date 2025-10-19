@@ -13,6 +13,7 @@ import {
   canvasDrag,
   createRectangle,
   getCanvas,
+  navigateToMainCanvas,
   selectShape,
   waitForSync,
 } from "./helpers";
@@ -20,6 +21,7 @@ import {
 test.describe("Canvas Interactions", () => {
   test.describe("Pan & Zoom", () => {
     test("mouse wheel zooms in and out", async ({ authenticatedPage }) => {
+      await navigateToMainCanvas(authenticatedPage);
       const canvas = await getCanvas(authenticatedPage);
       const zoomButton = authenticatedPage
         .locator('button[class*="zoomButton"]')
@@ -43,6 +45,7 @@ test.describe("Canvas Interactions", () => {
     });
 
     test("zoom controls buttons work", async ({ authenticatedPage }) => {
+      await navigateToMainCanvas(authenticatedPage);
       const zoomButton = authenticatedPage
         .locator('button[class*="zoomButton"]')
         .nth(1);
@@ -68,6 +71,7 @@ test.describe("Canvas Interactions", () => {
     });
 
     test("reset zoom button returns to 100%", async ({ authenticatedPage }) => {
+      await navigateToMainCanvas(authenticatedPage);
       const zoomButton = authenticatedPage
         .locator('button[class*="zoomButton"]')
         .nth(1);
@@ -112,6 +116,7 @@ test.describe("Canvas Interactions", () => {
     test("authenticated user can pan with click-drag in select mode", async ({
       authenticatedPage,
     }) => {
+      await navigateToMainCanvas(authenticatedPage);
       // Click select tool
       await authenticatedPage.getByRole("button", { name: /select/i }).click();
 
@@ -120,7 +125,8 @@ test.describe("Canvas Interactions", () => {
     });
 
     test("guest user can pan", async ({ guestPage }) => {
-      await waitForSync(guestPage, 500);
+      await guestPage.goto("/c/main", { waitUntil: "domcontentloaded" });
+      await waitForSync(guestPage, 1000);
 
       // Guest users should be able to pan
       await canvasDrag(guestPage, 400, 300, 300, 200);
@@ -128,7 +134,12 @@ test.describe("Canvas Interactions", () => {
   });
 
   test.describe("Selection", () => {
-    test("click shape to select", async ({ authenticatedPage }) => {
+    test("click shape to select", async ({ authenticatedPage, roomId }) => {
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
+      await waitForSync(authenticatedPage, 1000);
+
       // Create a rectangle
       await createRectangle(authenticatedPage, 200, 200, 150, 100);
 
@@ -137,6 +148,7 @@ test.describe("Canvas Interactions", () => {
     });
 
     test("click empty canvas deselects", async ({ authenticatedPage }) => {
+      await navigateToMainCanvas(authenticatedPage);
       // Create and select a shape
       await createRectangle(authenticatedPage, 200, 200, 150, 100);
       await selectShape(authenticatedPage, 275, 250);
@@ -149,6 +161,7 @@ test.describe("Canvas Interactions", () => {
     });
 
     test("Escape key deselects", async ({ authenticatedPage }) => {
+      await navigateToMainCanvas(authenticatedPage);
       // Create and select a shape
       await createRectangle(authenticatedPage, 200, 200, 150, 100);
       await selectShape(authenticatedPage, 275, 250);
@@ -161,6 +174,7 @@ test.describe("Canvas Interactions", () => {
 
   test.describe("Keyboard Shortcuts", () => {
     test("Delete key removes selected shape", async ({ authenticatedPage }) => {
+      await navigateToMainCanvas(authenticatedPage);
       // Create a rectangle
       await createRectangle(authenticatedPage, 200, 200, 150, 100);
 
@@ -175,6 +189,7 @@ test.describe("Canvas Interactions", () => {
     test("Backspace key removes selected shape", async ({
       authenticatedPage,
     }) => {
+      await navigateToMainCanvas(authenticatedPage);
       // Create a circle
       await authenticatedPage.getByRole("button", { name: /circle/i }).click();
       await canvasDrag(authenticatedPage, 300, 300, 360, 360);
@@ -190,6 +205,7 @@ test.describe("Canvas Interactions", () => {
     test("shortcuts disabled when typing in text input", async ({
       authenticatedPage,
     }) => {
+      await navigateToMainCanvas(authenticatedPage);
       // Focus AI textarea
       const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
       await aiTextarea.click();

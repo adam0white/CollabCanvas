@@ -1,6 +1,10 @@
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig, devices } from "@playwright/test";
 import { config } from "dotenv";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Load .env from workspace root (works whether running from root or web/ directory)
 const envPath = path.resolve(process.cwd(), "../.env");
@@ -56,13 +60,13 @@ export default defineConfig({
 
   // Web server configuration
   webServer: {
-    command: "cd .. && npm run dev",
+    command: "npm run dev",
     url: "http://localhost:8787",
     reuseExistingServer: !process.env.CI,
     timeout: 120000, // 2 minutes to start
     stdout: "pipe",
     stderr: "pipe",
-    cwd: path.resolve(process.cwd(), ".."),
+    cwd: path.resolve(__dirname, ".."),
   },
 
   // Browser projects

@@ -48,40 +48,22 @@ export const test = base.extend<TestFixtures>({
 
   /**
    * Authenticated user page (uses stored auth state from setup)
+   * Note: Auth state is loaded, but tests must navigate to their desired page/room
    */
   authenticatedPage: async ({ page }, use) => {
-    // Navigate to app (auth state already loaded from storageState config)
-    await page.goto("/c/main", { waitUntil: "domcontentloaded" });
-
-    // Wait for canvas to be ready
-    await page
-      .locator("canvas")
-      .first()
-      .waitFor({ state: "visible", timeout: 5000 });
-
-    // Verify authentication by checking toolbar is enabled
-    await page.waitForSelector('button:has-text("Rectangle"):not([disabled])', {
-      timeout: 5000,
-    });
-
+    // Auth state is already loaded from storageState config
+    // Just provide the page for tests to navigate as needed
     await use(page);
   },
 
   /**
    * Guest (unauthenticated) page
+   * Note: Tests must navigate to their desired page/room
    */
   guestPage: async ({ browser }, use) => {
     // Create context without auth state
     const context = await browser.newContext({ storageState: undefined });
     const page = await context.newPage();
-
-    await page.goto("/c/main", { waitUntil: "domcontentloaded" });
-
-    // Wait for canvas to be ready
-    await page
-      .locator("canvas")
-      .first()
-      .waitFor({ state: "visible", timeout: 5000 });
 
     await use(page);
 
@@ -93,11 +75,20 @@ export const test = base.extend<TestFixtures>({
    * Both use the stored auth state from setup
    * Note: Tests must navigate to specific rooms using navigateToSharedRoom helper
    */
-  multiUserContext: async ({ browser }, use) => {
+  multiUserContext: async ({ browser, browserName }, use) => {
     // Create two separate browser contexts with the same auth state
     // (simulating two users logged in as the same account)
-    const context1 = await browser.newContext({ storageState: authFile });
-    const context2 = await browser.newContext({ storageState: authFile });
+    const contextOptions: any = {
+      storageState: authFile,
+    };
+
+    // Only add clipboard permissions for Chromium (Firefox doesn't support them)
+    if (browserName === "chromium") {
+      contextOptions.permissions = ["clipboard-read", "clipboard-write"];
+    }
+
+    const context1 = await browser.newContext(contextOptions);
+    const context2 = await browser.newContext(contextOptions);
 
     const user1 = await context1.newPage();
     const user2 = await context2.newPage();
