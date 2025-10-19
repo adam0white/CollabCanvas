@@ -179,10 +179,12 @@ test.describe("Authentication & Authorization", () => {
 
     // Verify toolbar buttons are enabled
     await expect(
-      page.getByRole("button", { name: /rectangle/i }),
+      page.getByRole("button", { name: "Rectangle tool" }),
     ).toBeEnabled();
-    await expect(page.getByRole("button", { name: /circle/i })).toBeEnabled();
-    await expect(page.getByRole("button", { name: /text/i })).toBeEnabled();
+    await expect(
+      page.getByRole("button", { name: "Circle tool" }),
+    ).toBeEnabled();
+    await expect(page.getByRole("button", { name: "Text tool" })).toBeEnabled();
 
     // Cleanup
     await context.close();
@@ -196,7 +198,7 @@ test.describe("Authentication & Authorization", () => {
 
     // Rectangle button should be enabled
     await expect(
-      authenticatedPage.getByRole("button", { name: /rectangle/i }),
+      authenticatedPage.getByRole("button", { name: "Rectangle tool" }),
     ).toBeEnabled();
 
     // Create a rectangle using helper

@@ -82,12 +82,13 @@ test.describe("Layers Panel", () => {
   test("should show layer count", async ({ authenticatedPage }) => {
     await navigateToMainCanvas(authenticatedPage);
 
-    // Expand layers panel for this test
-    await authenticatedPage.evaluate(() => {
-      localStorage.setItem("layersPanelCollapsed", "false");
+    // Expand layers panel by clicking toggle button
+    const toggleButton = authenticatedPage.getByRole("button", {
+      name: "Toggle layers panel",
     });
-    await authenticatedPage.reload({ waitUntil: "domcontentloaded" });
-    await waitForSync(authenticatedPage, 1000);
+    await toggleButton.waitFor({ state: "visible", timeout: 5000 });
+    await toggleButton.click();
+    await waitForSync(authenticatedPage, 500);
 
     // Create 3 shapes
     for (let i = 0; i < 3; i++) {
