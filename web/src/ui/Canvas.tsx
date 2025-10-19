@@ -76,7 +76,7 @@ export function Canvas({
   const undoRedo = useUndoRedo();
   const { selectedShapeIds, setSelectedShapeIds } = useSelection();
   const snap = useSnapToGrid();
-  const { viewport, setViewport } = useViewport();
+  const { setViewport } = useViewport();
 
   // State for rectangle creation (click-and-drag)
   const [isDrawing, setIsDrawing] = useState(false);
@@ -108,18 +108,10 @@ export function Canvas({
     null,
   );
 
-  // Use viewport context for pan and zoom
-  const scale = viewport.scale;
-  const position = viewport.position;
+  // Use local state for pan/zoom (viewport context is read-only for AI)
+  const [scale, setScale] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
-  
-  // Helper functions to update viewport
-  const setScale = (newScale: number) => {
-    setViewport({ scale: newScale });
-  };
-  const setPosition = (newPosition: { x: number; y: number }) => {
-    setViewport({ position: newPosition });
-  };
 
   // State for responsive canvas size
   const [canvasSize, setCanvasSize] = useState({ width: 960, height: 600 });
@@ -147,7 +139,7 @@ export function Canvas({
     }
   }, [selectedShapeIds, canEdit, locking]);
 
-  // Update viewport context when scale/position/canvasSize changes
+  // Update viewport context when scale/position/canvasSize changes (for AI awareness)
   useEffect(() => {
     const bounds = calculateViewportBounds(
       canvasSize.width,

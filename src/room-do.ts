@@ -19,9 +19,18 @@
  */
 
 import { createDecoder, readVarUint, readVarUint8Array } from "lib0/decoding";
+import {
+  createEncoder,
+  toUint8Array,
+  writeVarUint,
+  writeVarUint8Array,
+} from "lib0/encoding";
 import { YDurableObjects } from "y-durableobjects";
 import type { Awareness } from "y-protocols/awareness";
-import { applyAwarenessUpdate } from "y-protocols/awareness";
+import {
+  applyAwarenessUpdate,
+  encodeAwarenessUpdate,
+} from "y-protocols/awareness";
 import { dispatchTool, type ToolCall, type ToolResult } from "./ai-tools";
 import {
   createDebouncedCommit,
@@ -256,33 +265,19 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
           1000000,
       ) + 1000000; // Large positive ID to avoid collision
 
-      const agentPresence: {
-        presence: {
-          userId: string;
-          displayName: string;
-          color: string;
-          cursor: { x: number; y: number };
-          isAIAgent: boolean;
-          aiAgentOwner: string;
-          aiAgentStatus: "thinking" | "working" | "idle";
-        };
-      } = {
-        presence: {
-          userId: `ai-agent-${userId}`,
-          displayName: `🤖 Agent by ${userName}`,
-          color: "#9333ea", // Purple color for AI agent
-          cursor: { x: 1000, y: 1000 }, // Start at canvas center
-          isAIAgent: true,
-          aiAgentOwner: userId,
-          aiAgentStatus: "thinking",
-        },
+      const agentPresence = {
+        userId: `ai-agent-${userId}`,
+        displayName: `🤖 Agent by ${userName}`,
+        color: "#9333ea", // Purple color for AI agent
+        cursor: { x: 1000, y: 1000 }, // Start at canvas center
+        isAIAgent: true,
+        aiAgentOwner: userId,
+        aiAgentStatus: "thinking" as "thinking" | "working" | "idle",
       };
 
-      // Set AI agent presence in awareness with a dedicated client ID
-      this.awareness.setLocalState(agentPresence);
-      
-      // Store agent client ID for updates and cleanup
-      const agentState = agentPresence;
+      // Manually inject AI agent state into awareness and broadcast
+      // We can't use setLocalState because that only affects the DO's own client ID
+      this.setAwarenessState(agentClientId, { presence: agentPresence });
 
       const shapesCreated: string[] = [];
       const shapesAffected: string[] = [];
@@ -296,9 +291,9 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
         const cursorPos = this.calculateCursorPosition(toolCall, this.doc);
 
         // Update AI agent status to "working" and move cursor
-        agentState.presence.aiAgentStatus = "working";
-        agentState.presence.cursor = cursorPos;
-        this.awareness.setLocalState(agentState);
+        agentPresence.aiAgentStatus = "working";
+        agentPresence.cursor = cursorPos;
+        this.setAwarenessState(agentClientId, { presence: agentPresence });
 
         // Delay before executing (simulate "thinking" time)
         await this.sleep(this.getDelayForTool(toolCall));
@@ -337,7 +332,7 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
       }
 
       // Remove AI agent cursor by setting state to null
-      this.awareness.setLocalState(null);
+      this.setAwarenessState(agentClientId, null);
 
       // Append to AI history
       this.doc.transact(() => {
@@ -407,7 +402,12 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
       return result;
     } catch (error) {
       // Make sure to remove AI agent cursor on error
-      this.awareness.setLocalState(null);
+      // Use a fallback client ID in case agentClientId is not in scope
+      const fallbackAgentClientId = Math.abs(
+        Array.from(userId).reduce((acc, c) => acc + c.charCodeAt(0), 0) %
+          1000000,
+      ) + 1000000;
+      this.setAwarenessState(fallbackAgentClientId, null);
 
       console.error("[RoomDO] ✗ executeAICommand error:", error);
       console.error(
@@ -542,6 +542,54 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
    */
   private sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Set awareness state for a specific client ID and broadcast to all connected clients
+   * This is used to create "virtual" clients like AI agents that appear in awareness
+   * 
+   * @param clientId - The client ID to set state for
+   * @param state - The state object, or null to remove the client
+   */
+  private setAwarenessState(
+    clientId: number,
+    state: Record<string, unknown> | null,
+  ): void {
+    // Directly manipulate awareness states
+    if (state === null) {
+      // Remove the client state
+      this.awareness.states.delete(clientId);
+      this.awareness.meta.delete(clientId);
+    } else {
+      // Set the client state
+      this.awareness.states.set(clientId, state);
+      // Update meta with current timestamp and clock
+      const existingMeta = this.awareness.meta.get(clientId);
+      this.awareness.meta.set(clientId, {
+        clock: (existingMeta?.clock ?? 0) + 1,
+        lastUpdated: Date.now(),
+      });
+    }
+
+    // Encode and broadcast the awareness update
+    const update = encodeAwarenessUpdate(this.awareness, [clientId]);
+
+    // Broadcast to all connected clients via WebSocket
+    // We need to wrap it in the Yjs message format (MessageType.Awareness = 1)
+    const encoder = createEncoder();
+    writeVarUint(encoder, 1); // MessageType.Awareness
+    writeVarUint8Array(encoder, update);
+
+    const message = toUint8Array(encoder);
+
+    // Broadcast to all connected sockets
+    for (const ws of this.sockets) {
+      try {
+        ws.send(message);
+      } catch (error) {
+        console.error("[RoomDO] Failed to send awareness update:", error);
+      }
+    }
   }
 }
 
