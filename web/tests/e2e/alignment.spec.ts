@@ -50,15 +50,20 @@ test.describe("Alignment Tools", () => {
     await waitForSync(authenticatedPage, 500);
 
     // Switch to select tool and select all
-    await authenticatedPage.getByRole("button", { name: /^select$/i }).first().click();
+    await authenticatedPage
+      .getByRole("button", { name: /^select$/i })
+      .first()
+      .click();
     await waitForSync(authenticatedPage, 200);
     await authenticatedPage.keyboard.press("Meta+A");
     await waitForSync(authenticatedPage, 500);
 
     // Verify button is enabled
-    const distributeButton = authenticatedPage.getByRole("button", { name: /Distribute Horizontally/i });
+    const distributeButton = authenticatedPage.getByRole("button", {
+      name: /Distribute Horizontally/i,
+    });
     await expect(distributeButton).toBeEnabled({ timeout: 5000 });
-    
+
     // Click distribute horizontally
     await distributeButton.click();
 

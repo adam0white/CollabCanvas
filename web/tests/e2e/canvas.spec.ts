@@ -108,7 +108,7 @@ test.describe("Canvas Interactions", () => {
       await page.goto("/c/main", { waitUntil: "domcontentloaded" });
       await waitForSync(page, 500);
 
-      const zoomOutButton = page.getByRole("button", { name: "−" });
+      const zoomOutButton = page.getByRole("button", { name: "Zoom out" });
 
       // Try to zoom out many times
       for (let i = 0; i < 20; i++) {
