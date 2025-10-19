@@ -12,7 +12,7 @@ import type Konva from "konva";
 import type { KonvaEventObject } from "konva/lib/Node";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Circle, Rect, Text, Transformer } from "react-konva";
-import { getAdaptiveThrottleMs, THROTTLE } from "../config/constants";
+import { getAdaptiveThrottleMs } from "../config/constants";
 import type { LockingHook } from "../hooks/useLocking";
 import type { Shape } from "./types";
 import { isCircle, isRectangle, isText } from "./types";
@@ -26,7 +26,9 @@ type ShapeLayerProps = {
   locking: LockingHook;
   onShapeSelect: (id: string, addToSelection: boolean) => void;
   onShapeUpdate: (id: string, updates: Partial<Shape>) => void;
-  onBatchShapeUpdate?: (updates: Array<{ id: string; updates: Partial<Shape> }>) => void;
+  onBatchShapeUpdate?: (
+    updates: Array<{ id: string; updates: Partial<Shape> }>,
+  ) => void;
   onDragMove?: (x: number, y: number) => void;
   onTextEdit?: (
     shapeId: string,
@@ -88,188 +90,30 @@ export const ShapeLayer = memo(function ShapeLayer({
   }, [selectedShapeIds]);
 
   // Memoize event handlers to prevent re-creating functions on every render
-  const handleDragStart = useCallback((_e: KonvaEventObject<DragEvent>, shape: Shape) => {
-    // Store initial positions of all selected shapes for group dragging
-    if (selectedShapeIds.includes(shape.id) && selectedShapeIds.length > 1) {
-      dragStartPositionsRef.current = {};
-      for (const shapeId of selectedShapeIds) {
-        const targetShape = shapes.find((s) => s.id === shapeId);
-        if (targetShape) {
-          dragStartPositionsRef.current[shapeId] = {
-            x: targetShape.x,
-            y: targetShape.y,
-          };
-        }
-      }
-    }
-  }, [selectedShapeIds, shapes]);
-
-  const handleDragMove = useCallback((e: KonvaEventObject<DragEvent>, shape: Shape) => {
-    // Update cursor position for presence
-    if (onDragMove) {
-      const stage = e.target.getStage();
-      if (stage) {
-        const pos = stage.getPointerPosition();
-        if (pos) {
-          onDragMove(pos.x, pos.y);
-        }
-      }
-    }
-
-    // Throttled shape position broadcast during drag
-    if (!canEdit || selectedTool !== "select") return;
-
-    const now = performance.now();
-    const lastUpdate = lastDragUpdateRef.current[shape.id] ?? 0;
-
-    // Performance: Adaptive throttling based on selection size
-    const throttleMs = getAdaptiveThrottleMs(selectedShapeIds.length);
-
-    if (now - lastUpdate < throttleMs) return;
-
-    lastDragUpdateRef.current[shape.id] = now;
-
-    const node = e.target as Konva.Shape;
-    const draggedShapeId = shape.id;
-
-    // If multiple shapes are selected and this is one of them, move all selected shapes
-    if (
-      selectedShapeIds.includes(draggedShapeId) &&
-      selectedShapeIds.length > 1
-    ) {
-      const startPos = dragStartPositionsRef.current[draggedShapeId];
-      if (startPos) {
-        // Calculate the offset from the original position
-        const dx = node.x() - startPos.x;
-        const dy = node.y() - startPos.y;
-
-        // Performance: Use batch update for group drag (single Yjs transaction)
-        if (onBatchShapeUpdate) {
-          const updates = selectedShapeIds
-            .map((shapeId) => {
-              const startPosition = dragStartPositionsRef.current[shapeId];
-              if (!startPosition) return null;
-              return {
-                id: shapeId,
-                updates: {
-                  x: startPosition.x + dx,
-                  y: startPosition.y + dy,
-                },
-              };
-            })
-            .filter((u): u is { id: string; updates: Partial<Shape> } => u !== null);
-
-          if (updates.length > 0) {
-            onBatchShapeUpdate(updates);
-          }
-        } else {
-          // Fallback: individual updates if batch not available
-          for (const shapeId of selectedShapeIds) {
-            const startPosition = dragStartPositionsRef.current[shapeId];
-            if (startPosition) {
-              onShapeUpdate(shapeId, {
-                x: startPosition.x + dx,
-                y: startPosition.y + dy,
-              });
-            }
+  const handleDragStart = useCallback(
+    (_e: KonvaEventObject<DragEvent>, shape: Shape) => {
+      // Store initial positions of all selected shapes for group dragging
+      if (selectedShapeIds.includes(shape.id) && selectedShapeIds.length > 1) {
+        dragStartPositionsRef.current = {};
+        for (const shapeId of selectedShapeIds) {
+          const targetShape = shapes.find((s) => s.id === shapeId);
+          if (targetShape) {
+            dragStartPositionsRef.current[shapeId] = {
+              x: targetShape.x,
+              y: targetShape.y,
+            };
           }
         }
       }
-    } else {
-      // Single shape drag
-      onShapeUpdate(shape.id, {
-        x: node.x(),
-        y: node.y(),
-      });
-    }
-  }, [canEdit, selectedTool, selectedShapeIds, onShapeUpdate, onBatchShapeUpdate, onDragMove]);
+    },
+    [selectedShapeIds, shapes],
+  );
 
-  const handleDragEnd = useCallback((e: KonvaEventObject<DragEvent>, shape: Shape) => {
-    if (!canEdit || selectedTool !== "select") return;
-
-    const node = e.target as Konva.Shape;
-    const draggedShapeId = shape.id;
-
-    // If multiple shapes are selected and this is one of them, finalize positions for all
-    if (
-      selectedShapeIds.includes(draggedShapeId) &&
-      selectedShapeIds.length > 1
-    ) {
-      const startPos = dragStartPositionsRef.current[draggedShapeId];
-      if (startPos) {
-        // Calculate the final offset
-        const dx = node.x() - startPos.x;
-        const dy = node.y() - startPos.y;
-
-        // Performance: Use batch update for final position (single Yjs transaction)
-        if (onBatchShapeUpdate) {
-          const updates = selectedShapeIds
-            .map((shapeId) => {
-              const startPosition = dragStartPositionsRef.current[shapeId];
-              if (!startPosition) return null;
-              return {
-                id: shapeId,
-                updates: {
-                  x: startPosition.x + dx,
-                  y: startPosition.y + dy,
-                },
-              };
-            })
-            .filter((u): u is { id: string; updates: Partial<Shape> } => u !== null);
-
-          if (updates.length > 0) {
-            onBatchShapeUpdate(updates);
-          }
-        } else {
-          // Fallback: individual updates if batch not available
-          for (const shapeId of selectedShapeIds) {
-            const startPosition = dragStartPositionsRef.current[shapeId];
-            if (startPosition) {
-              onShapeUpdate(shapeId, {
-                x: startPosition.x + dx,
-                y: startPosition.y + dy,
-              });
-            }
-          }
-        }
-      }
-
-      // Clear drag start positions
-      dragStartPositionsRef.current = {};
-    } else {
-      // Single shape drag end
-      onShapeUpdate(shape.id, {
-        x: node.x(),
-        y: node.y(),
-      });
-    }
-
-    // Clear throttle tracking for this shape
-    delete lastDragUpdateRef.current[shape.id];
-  }, [canEdit, selectedTool, selectedShapeIds, onShapeUpdate, onBatchShapeUpdate]);
-
-  const handleTransform = useCallback((shape: Shape) => {
-    if (!canEdit || selectedTool !== "select") return;
-
-    // Set visual indicator
-    if (transformingShapeId !== shape.id) {
-      setTransformingShapeId(shape.id);
-    }
-
-    const now = performance.now();
-    // Performance: Adaptive throttling based on selection size
-    const throttleMs = getAdaptiveThrottleMs(selectedShapeIds.length);
-
-    if (now - lastTransformUpdateRef.current < throttleMs) {
-      return;
-    }
-    lastTransformUpdateRef.current = now;
-
-    // Skip cursor updates for large selections to improve performance
-    if (selectedShapeIds.length < 20 && onDragMove) {
-      const transformer = transformerRef.current;
-      if (transformer) {
-        const stage = transformer.getStage();
+  const handleDragMove = useCallback(
+    (e: KonvaEventObject<DragEvent>, shape: Shape) => {
+      // Update cursor position for presence
+      if (onDragMove) {
+        const stage = e.target.getStage();
         if (stage) {
           const pos = stage.getPointerPosition();
           if (pos) {
@@ -277,127 +121,330 @@ export const ShapeLayer = memo(function ShapeLayer({
           }
         }
       }
-    }
 
-    // Broadcast throttled transform updates
-    const node = shapeRefs.current[shape.id];
-    if (!node) return;
+      // Throttled shape position broadcast during drag
+      if (!canEdit || selectedTool !== "select") return;
 
-    const scaleX = node.scaleX();
-    const scaleY = node.scaleY();
+      const now = performance.now();
+      const lastUpdate = lastDragUpdateRef.current[shape.id] ?? 0;
 
-    // Prepare updates based on shape type
-    if (isCircle(shape)) {
-      const avgScale = (scaleX + scaleY) / 2;
-      const currentRadius = (node as Konva.Circle).radius();
-      onShapeUpdate(shape.id, {
-        x: node.x(),
-        y: node.y(),
-        radius: Math.max(5, currentRadius * avgScale),
-        rotation: node.rotation(),
-      });
-      // Reset scale after broadcasting
+      // Performance: Adaptive throttling based on selection size
+      const throttleMs = getAdaptiveThrottleMs(selectedShapeIds.length);
+
+      if (now - lastUpdate < throttleMs) return;
+
+      lastDragUpdateRef.current[shape.id] = now;
+
+      const node = e.target as Konva.Shape;
+      const draggedShapeId = shape.id;
+
+      // If multiple shapes are selected and this is one of them, move all selected shapes
+      if (
+        selectedShapeIds.includes(draggedShapeId) &&
+        selectedShapeIds.length > 1
+      ) {
+        const startPos = dragStartPositionsRef.current[draggedShapeId];
+        if (startPos) {
+          // Calculate the offset from the original position
+          const dx = node.x() - startPos.x;
+          const dy = node.y() - startPos.y;
+
+          // Performance: Use batch update for group drag (single Yjs transaction)
+          if (onBatchShapeUpdate) {
+            const updates = selectedShapeIds
+              .map((shapeId) => {
+                const startPosition = dragStartPositionsRef.current[shapeId];
+                if (!startPosition) return null;
+                return {
+                  id: shapeId,
+                  updates: {
+                    x: startPosition.x + dx,
+                    y: startPosition.y + dy,
+                  },
+                };
+              })
+              .filter(
+                (u): u is { id: string; updates: Partial<Shape> } => u !== null,
+              );
+
+            if (updates.length > 0) {
+              onBatchShapeUpdate(updates);
+            }
+          } else {
+            // Fallback: individual updates if batch not available
+            for (const shapeId of selectedShapeIds) {
+              const startPosition = dragStartPositionsRef.current[shapeId];
+              if (startPosition) {
+                onShapeUpdate(shapeId, {
+                  x: startPosition.x + dx,
+                  y: startPosition.y + dy,
+                });
+              }
+            }
+          }
+        }
+      } else {
+        // Single shape drag
+        onShapeUpdate(shape.id, {
+          x: node.x(),
+          y: node.y(),
+        });
+      }
+    },
+    [
+      canEdit,
+      selectedTool,
+      selectedShapeIds,
+      onShapeUpdate,
+      onBatchShapeUpdate,
+      onDragMove,
+    ],
+  );
+
+  const handleDragEnd = useCallback(
+    (e: KonvaEventObject<DragEvent>, shape: Shape) => {
+      if (!canEdit || selectedTool !== "select") return;
+
+      const node = e.target as Konva.Shape;
+      const draggedShapeId = shape.id;
+
+      // If multiple shapes are selected and this is one of them, finalize positions for all
+      if (
+        selectedShapeIds.includes(draggedShapeId) &&
+        selectedShapeIds.length > 1
+      ) {
+        const startPos = dragStartPositionsRef.current[draggedShapeId];
+        if (startPos) {
+          // Calculate the final offset
+          const dx = node.x() - startPos.x;
+          const dy = node.y() - startPos.y;
+
+          // Performance: Use batch update for final position (single Yjs transaction)
+          if (onBatchShapeUpdate) {
+            const updates = selectedShapeIds
+              .map((shapeId) => {
+                const startPosition = dragStartPositionsRef.current[shapeId];
+                if (!startPosition) return null;
+                return {
+                  id: shapeId,
+                  updates: {
+                    x: startPosition.x + dx,
+                    y: startPosition.y + dy,
+                  },
+                };
+              })
+              .filter(
+                (u): u is { id: string; updates: Partial<Shape> } => u !== null,
+              );
+
+            if (updates.length > 0) {
+              onBatchShapeUpdate(updates);
+            }
+          } else {
+            // Fallback: individual updates if batch not available
+            for (const shapeId of selectedShapeIds) {
+              const startPosition = dragStartPositionsRef.current[shapeId];
+              if (startPosition) {
+                onShapeUpdate(shapeId, {
+                  x: startPosition.x + dx,
+                  y: startPosition.y + dy,
+                });
+              }
+            }
+          }
+        }
+
+        // Clear drag start positions
+        dragStartPositionsRef.current = {};
+      } else {
+        // Single shape drag end
+        onShapeUpdate(shape.id, {
+          x: node.x(),
+          y: node.y(),
+        });
+      }
+
+      // Clear throttle tracking for this shape
+      delete lastDragUpdateRef.current[shape.id];
+    },
+    [
+      canEdit,
+      selectedTool,
+      selectedShapeIds,
+      onShapeUpdate,
+      onBatchShapeUpdate,
+    ],
+  );
+
+  const handleTransform = useCallback(
+    (shape: Shape) => {
+      if (!canEdit || selectedTool !== "select") return;
+
+      // Set visual indicator
+      if (transformingShapeId !== shape.id) {
+        setTransformingShapeId(shape.id);
+      }
+
+      const now = performance.now();
+      // Performance: Adaptive throttling based on selection size
+      const throttleMs = getAdaptiveThrottleMs(selectedShapeIds.length);
+
+      if (now - lastTransformUpdateRef.current < throttleMs) {
+        return;
+      }
+      lastTransformUpdateRef.current = now;
+
+      // Skip cursor updates for large selections to improve performance
+      if (selectedShapeIds.length < 20 && onDragMove) {
+        const transformer = transformerRef.current;
+        if (transformer) {
+          const stage = transformer.getStage();
+          if (stage) {
+            const pos = stage.getPointerPosition();
+            if (pos) {
+              onDragMove(pos.x, pos.y);
+            }
+          }
+        }
+      }
+
+      // Broadcast throttled transform updates
+      const node = shapeRefs.current[shape.id];
+      if (!node) return;
+
+      const scaleX = node.scaleX();
+      const scaleY = node.scaleY();
+
+      // Prepare updates based on shape type
+      if (isCircle(shape)) {
+        const avgScale = (scaleX + scaleY) / 2;
+        const currentRadius = (node as Konva.Circle).radius();
+        onShapeUpdate(shape.id, {
+          x: node.x(),
+          y: node.y(),
+          radius: Math.max(5, currentRadius * avgScale),
+          rotation: node.rotation(),
+        });
+        // Reset scale after broadcasting
+        node.scaleX(1);
+        node.scaleY(1);
+      } else if (isRectangle(shape)) {
+        onShapeUpdate(shape.id, {
+          x: node.x(),
+          y: node.y(),
+          width: Math.max(5, node.width() * scaleX),
+          height: Math.max(5, node.height() * scaleY),
+          rotation: node.rotation(),
+        });
+        // Reset scale after broadcasting
+        node.scaleX(1);
+        node.scaleY(1);
+      } else if (isText(shape)) {
+        const avgScale = (scaleX + scaleY) / 2;
+        onShapeUpdate(shape.id, {
+          x: node.x(),
+          y: node.y(),
+          fontSize: Math.max(8, shape.fontSize * avgScale),
+          rotation: node.rotation(),
+        });
+        // Reset scale after broadcasting
+        node.scaleX(1);
+        node.scaleY(1);
+      }
+    },
+    [
+      canEdit,
+      selectedTool,
+      selectedShapeIds,
+      onShapeUpdate,
+      onDragMove,
+      transformingShapeId,
+    ],
+  );
+
+  const handleTransformEnd = useCallback(
+    (shape: Shape) => {
+      if (!canEdit || selectedTool !== "select") return;
+
+      // Clear visual indicator
+      setTransformingShapeId(null);
+
+      const node = shapeRefs.current[shape.id];
+      if (!node) return;
+
+      const scaleX = node.scaleX();
+      const scaleY = node.scaleY();
+
+      // Reset scale and apply to dimensions
       node.scaleX(1);
       node.scaleY(1);
-    } else if (isRectangle(shape)) {
-      onShapeUpdate(shape.id, {
-        x: node.x(),
-        y: node.y(),
-        width: Math.max(5, node.width() * scaleX),
-        height: Math.max(5, node.height() * scaleY),
-        rotation: node.rotation(),
-      });
-      // Reset scale after broadcasting
-      node.scaleX(1);
-      node.scaleY(1);
-    } else if (isText(shape)) {
-      const avgScale = (scaleX + scaleY) / 2;
-      onShapeUpdate(shape.id, {
-        x: node.x(),
-        y: node.y(),
-        fontSize: Math.max(8, shape.fontSize * avgScale),
-        rotation: node.rotation(),
-      });
-      // Reset scale after broadcasting
-      node.scaleX(1);
-      node.scaleY(1);
-    }
-  }, [canEdit, selectedTool, selectedShapeIds, onShapeUpdate, onDragMove, transformingShapeId]);
 
-  const handleTransformEnd = useCallback((shape: Shape) => {
-    if (!canEdit || selectedTool !== "select") return;
+      // Handle different shape types
+      if (isCircle(shape)) {
+        // For circles, maintain aspect ratio using the average scale
+        const avgScale = (scaleX + scaleY) / 2;
+        const currentRadius = (node as Konva.Circle).radius();
+        onShapeUpdate(shape.id, {
+          x: node.x(),
+          y: node.y(),
+          radius: Math.max(5, currentRadius * avgScale),
+          rotation: node.rotation(),
+        });
+      } else if (isRectangle(shape)) {
+        // For rectangles, apply scale to width and height
+        onShapeUpdate(shape.id, {
+          x: node.x(),
+          y: node.y(),
+          width: Math.max(5, node.width() * scaleX),
+          height: Math.max(5, node.height() * scaleY),
+          rotation: node.rotation(),
+        });
+      } else if (isText(shape)) {
+        // For text, update fontSize based on scale
+        const avgScale = (scaleX + scaleY) / 2;
+        onShapeUpdate(shape.id, {
+          x: node.x(),
+          y: node.y(),
+          fontSize: Math.max(8, shape.fontSize * avgScale),
+          rotation: node.rotation(),
+        });
+      }
+    },
+    [canEdit, selectedTool, onShapeUpdate],
+  );
 
-    // Clear visual indicator
-    setTransformingShapeId(null);
+  const handleShapeClick = useCallback(
+    (shapeId: string, e: KonvaEventObject<Event>) => {
+      if (selectedTool === "select" && canEdit) {
+        // Check if Shift key is held for additive selection
+        // For touch events, shiftKey won't be available, default to false
+        const evt = e.evt as MouseEvent | TouchEvent;
+        const addToSelection = "shiftKey" in evt ? evt.shiftKey : false;
+        onShapeSelect(shapeId, addToSelection);
+      }
+    },
+    [selectedTool, canEdit, onShapeSelect],
+  );
 
-    const node = shapeRefs.current[shape.id];
-    if (!node) return;
+  const handleTextDoubleClick = useCallback(
+    (shape: Shape) => {
+      if (!canEdit || !isText(shape) || !onTextEdit) return;
 
-    const scaleX = node.scaleX();
-    const scaleY = node.scaleY();
+      // Get the node to find its screen position
+      const node = shapeRefs.current[shape.id];
+      if (!node) return;
 
-    // Reset scale and apply to dimensions
-    node.scaleX(1);
-    node.scaleY(1);
+      const stage = node.getStage();
+      if (!stage) return;
 
-    // Handle different shape types
-    if (isCircle(shape)) {
-      // For circles, maintain aspect ratio using the average scale
-      const avgScale = (scaleX + scaleY) / 2;
-      const currentRadius = (node as Konva.Circle).radius();
-      onShapeUpdate(shape.id, {
-        x: node.x(),
-        y: node.y(),
-        radius: Math.max(5, currentRadius * avgScale),
-        rotation: node.rotation(),
-      });
-    } else if (isRectangle(shape)) {
-      // For rectangles, apply scale to width and height
-      onShapeUpdate(shape.id, {
-        x: node.x(),
-        y: node.y(),
-        width: Math.max(5, node.width() * scaleX),
-        height: Math.max(5, node.height() * scaleY),
-        rotation: node.rotation(),
-      });
-    } else if (isText(shape)) {
-      // For text, update fontSize based on scale
-      const avgScale = (scaleX + scaleY) / 2;
-      onShapeUpdate(shape.id, {
-        x: node.x(),
-        y: node.y(),
-        fontSize: Math.max(8, shape.fontSize * avgScale),
-        rotation: node.rotation(),
-      });
-    }
-  }, [canEdit, selectedTool, onShapeUpdate]);
+      // Convert shape position to screen coordinates
+      const transform = node.getAbsoluteTransform();
+      const pos = transform.point({ x: 0, y: 0 });
 
-  const handleShapeClick = useCallback((shapeId: string, e: KonvaEventObject<Event>) => {
-    if (selectedTool === "select" && canEdit) {
-      // Check if Shift key is held for additive selection
-      // For touch events, shiftKey won't be available, default to false
-      const evt = e.evt as MouseEvent | TouchEvent;
-      const addToSelection = "shiftKey" in evt ? evt.shiftKey : false;
-      onShapeSelect(shapeId, addToSelection);
-    }
-  }, [selectedTool, canEdit, onShapeSelect]);
-
-  const handleTextDoubleClick = (shape: Shape) => {
-    if (!canEdit || !isText(shape) || !onTextEdit) return;
-
-    // Get the node to find its screen position
-    const node = shapeRefs.current[shape.id];
-    if (!node) return;
-
-    const stage = node.getStage();
-    if (!stage) return;
-
-    // Convert shape position to screen coordinates
-    const transform = node.getAbsoluteTransform();
-    const pos = transform.point({ x: 0, y: 0 });
-
-    onTextEdit(shape.id, shape.text, pos);
-  }, [canEdit, onTextEdit]);
+      onTextEdit(shape.id, shape.text, pos);
+    },
+    [canEdit, onTextEdit],
+  );
 
   // Calculate bounding box for large selections (20+ shapes)
   // Used to show visual feedback without expensive Transformer
@@ -710,4 +757,4 @@ export const ShapeLayer = memo(function ShapeLayer({
         )}
     </>
   );
-}
+});

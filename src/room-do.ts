@@ -58,11 +58,6 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
   private readonly connectionRoles = new Map<WebSocket, ClientRole>();
   private readonly pendingConnections: ConnectionContext[] = [];
   private readonly commandCache = new Map<string, CommandResult>();
-  
-  // Performance: Cache frequently accessed data to avoid repeated Yjs queries
-  private shapesCount = 0;
-  private lastShapesCountUpdate = 0;
-  private readonly CACHE_TTL_MS = 5000; // 5 second cache
 
   constructor(state: DurableObjectState, env: Env) {
     super(state, env);
@@ -82,24 +77,25 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
     // Performance: Only schedule commits on actual updates
     // Debouncing already implemented, but this ensures we don't schedule unnecessarily
     let updatePending = false;
-    
+
     this.awareness.on("update", () => {
       if (!updatePending) {
         updatePending = true;
         this.commitScheduler.schedule();
         // Reset flag after a tick to allow batching
-        queueMicrotask(() => { updatePending = false; });
+        queueMicrotask(() => {
+          updatePending = false;
+        });
       }
     });
 
     this.doc.on("update", () => {
-      // Invalidate shapes count cache on document update
-      this.lastShapesCountUpdate = 0;
-      
       if (!updatePending) {
         updatePending = true;
         this.commitScheduler.schedule();
-        queueMicrotask(() => { updatePending = false; });
+        queueMicrotask(() => {
+          updatePending = false;
+        });
       }
     });
   }
@@ -184,7 +180,7 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
    */
   /**
    * RPC Method: Execute AI Command
-   * 
+   *
    * Performance optimizations:
    * - Idempotency via in-memory cache (no storage reads)
    * - Single Yjs transaction for all tools (atomic + single network message)

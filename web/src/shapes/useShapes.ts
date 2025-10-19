@@ -198,7 +198,9 @@ export function useShapes(): UseShapesReturn {
    * Batch update multiple shapes in a single Yjs transaction
    * Used for group operations like multi-select drag
    */
-  const batchUpdateShapes = (updates: Array<{ id: string; updates: Partial<Shape> }>) => {
+  const batchUpdateShapes = (
+    updates: Array<{ id: string; updates: Partial<Shape> }>,
+  ) => {
     if (!isSignedIn) return;
 
     // Use Yjs transaction to batch all updates into single network message

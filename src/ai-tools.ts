@@ -19,13 +19,15 @@ import type { Doc } from "yjs";
 export const AI_TOOLS = [
   {
     name: "createShape",
-    description: "Create shapes on canvas. Pass JSON array in shapes parameter.",
+    description:
+      "Create shapes on canvas. Pass JSON array in shapes parameter.",
     parameters: {
       type: "object",
       properties: {
         shapes: {
           type: "array",
-          description: "Array of shapes. Example: [{type:'circle',x:100,y:200,radius:50,fill:'#FF0000'}]",
+          description:
+            "Array of shapes. Example: [{type:'circle',x:100,y:200,radius:50,fill:'#FF0000'}]",
           items: {
             type: "object",
             properties: {
@@ -40,7 +42,10 @@ export const AI_TOOLS = [
               height: { type: "number", description: "Height (rectangle)" },
               radius: { type: "number", description: "Radius (circle)" },
               text: { type: "string", description: "Text content" },
-              fontSize: { type: "number", description: "Font size (default: 16)" },
+              fontSize: {
+                type: "number",
+                description: "Font size (default: 16)",
+              },
               fill: { type: "string", description: "Hex color (#FF0000)" },
             },
             required: ["type", "x", "y"],
@@ -52,7 +57,8 @@ export const AI_TOOLS = [
   },
   {
     name: "createPattern",
-    description: "Create multiple shapes in a pattern. More efficient than creating shapes individually. Use for grids, rows, columns, or repeated shapes.",
+    description:
+      "Create multiple shapes in a pattern. More efficient than creating shapes individually. Use for grids, rows, columns, or repeated shapes.",
     parameters: {
       type: "object",
       properties: {
@@ -77,11 +83,26 @@ export const AI_TOOLS = [
         },
         startX: { type: "number", description: "Starting X coordinate" },
         startY: { type: "number", description: "Starting Y coordinate" },
-        count: { type: "number", description: "Number of shapes to create (max 50)" },
-        rows: { type: "number", description: "Number of rows (for grid pattern)" },
-        columns: { type: "number", description: "Number of columns (for grid pattern)" },
-        spacing: { type: "number", description: "Spacing between shapes (default: 20)" },
-        radius: { type: "number", description: "Radius for circle_arrangement pattern" },
+        count: {
+          type: "number",
+          description: "Number of shapes to create (max 50)",
+        },
+        rows: {
+          type: "number",
+          description: "Number of rows (for grid pattern)",
+        },
+        columns: {
+          type: "number",
+          description: "Number of columns (for grid pattern)",
+        },
+        spacing: {
+          type: "number",
+          description: "Spacing between shapes (default: 20)",
+        },
+        radius: {
+          type: "number",
+          description: "Radius for circle_arrangement pattern",
+        },
       },
       required: ["pattern", "shape", "startX", "startY"],
     },
@@ -1131,13 +1152,15 @@ export function createPattern(
     // Calculate shape dimensions for spacing
     const getShapeWidth = (): number => {
       if (params.shape.type === "rectangle") return params.shape.width ?? 100;
-      if (params.shape.type === "circle") return (params.shape.radius ?? 50) * 2;
+      if (params.shape.type === "circle")
+        return (params.shape.radius ?? 50) * 2;
       return 100; // text default
     };
 
     const getShapeHeight = (): number => {
       if (params.shape.type === "rectangle") return params.shape.height ?? 100;
-      if (params.shape.type === "circle") return (params.shape.radius ?? 50) * 2;
+      if (params.shape.type === "circle")
+        return (params.shape.radius ?? 50) * 2;
       return 50; // text default
     };
 
@@ -1147,7 +1170,8 @@ export function createPattern(
     switch (params.pattern) {
       case "grid": {
         const rows = params.rows ?? Math.ceil(Math.sqrt(params.count ?? 9));
-        const columns = params.columns ?? Math.ceil(Math.sqrt(params.count ?? 9));
+        const columns =
+          params.columns ?? Math.ceil(Math.sqrt(params.count ?? 9));
         const totalShapes = Math.min(rows * columns, 50); // Cap at 50 shapes
 
         for (let row = 0; row < rows; row++) {

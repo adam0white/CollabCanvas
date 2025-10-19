@@ -39,8 +39,6 @@ export function calculateViewportBounds(
   buffer = 200,
 ): ViewportBounds {
   // Convert screen space to canvas space with buffer
-  const bufferScaled = buffer / scale;
-
   return {
     minX: (-position.x - buffer) / scale,
     maxX: (canvasWidth - position.x + buffer) / scale,
@@ -184,7 +182,8 @@ function getTextBounds(shape: Text): {
 } {
   // Estimate text width based on character count and font size
   // This is approximate but good enough for culling
-  const estimatedWidth = shape.width ?? shape.text.length * shape.fontSize * 0.6;
+  const estimatedWidth =
+    shape.width ?? shape.text.length * shape.fontSize * 0.6;
   const estimatedHeight = shape.fontSize * 1.2; // Line height multiplier
 
   return {

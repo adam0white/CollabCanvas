@@ -47,7 +47,6 @@ export function Canvas({
     canEdit,
     createShape,
     updateShape,
-    deleteShape,
     batchDeleteShapes,
     batchUpdateShapes,
   } = useShapes();
