@@ -200,8 +200,9 @@ test.describe("Canvas Interactions", () => {
       authenticatedPage,
     }) => {
       await navigateToMainCanvas(authenticatedPage);
-      // Create a circle
-      await createCircle(authenticatedPage, 300, 300, 60);
+      // Create a circle using button click
+      await authenticatedPage.getByRole("button", { name: "Circle tool" }).click();
+      await canvasDrag(authenticatedPage, 300, 300, 360, 360);
 
       // Select the shape
       await selectShape(authenticatedPage, 330, 330);
