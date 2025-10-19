@@ -453,6 +453,10 @@ export function ShapeLayer({
               }
               opacity={isTransforming ? 0.8 : 1}
               draggable={isDraggable}
+              // Konva performance optimizations
+              perfectDrawEnabled={false}
+              shadowForStrokeEnabled={false}
+              hitStrokeWidth={0}
               onClick={(e) => {
                 if (selectedTool === "select" && canEdit) {
                   e.cancelBubble = true;
@@ -511,6 +515,10 @@ export function ShapeLayer({
               }
               opacity={isTransforming ? 0.8 : 1}
               draggable={isDraggable}
+              // Konva performance optimizations
+              perfectDrawEnabled={false}
+              shadowForStrokeEnabled={false}
+              hitStrokeWidth={0}
               onClick={(e) => {
                 if (selectedTool === "select" && canEdit) {
                   e.cancelBubble = true;
@@ -569,6 +577,10 @@ export function ShapeLayer({
               }
               opacity={isTransforming ? 0.8 : 1}
               draggable={isDraggable}
+              // Konva performance optimizations
+              perfectDrawEnabled={false}
+              shadowForStrokeEnabled={false}
+              hitStrokeWidth={0}
               onClick={(e) => {
                 if (selectedTool === "select" && canEdit) {
                   e.cancelBubble = true;

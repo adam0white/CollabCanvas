@@ -892,7 +892,8 @@ export function Canvas({
         onWheel={handleWheel}
       >
         {/* Background grid layer */}
-        <Layer listening={false}>
+        {/* Performance: listening=false, perfectDrawEnabled=false for static grid */}
+        <Layer listening={false} perfectDrawEnabled={false}>
           {(() => {
             const gridSize = 20; // Grid cell size in canvas units
             const scaledGridSize = gridSize * scale;
@@ -920,6 +921,8 @@ export function Canvas({
                   width={1 / scale}
                   height={endY - startY}
                   fill="rgba(15, 23, 42, 0.05)"
+                  listening={false}
+                  perfectDrawEnabled={false}
                 />,
               );
             }
@@ -934,6 +937,8 @@ export function Canvas({
                   width={endX - startX}
                   height={1 / scale}
                   fill="rgba(15, 23, 42, 0.05)"
+                  listening={false}
+                  perfectDrawEnabled={false}
                 />,
               );
             }
