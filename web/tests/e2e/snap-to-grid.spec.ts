@@ -3,11 +3,7 @@
  */
 
 import { expect, test } from "./fixtures";
-import {
-  createRectangle,
-  navigateToMainCanvas,
-  waitForSync,
-} from "./helpers";
+import { createRectangle, navigateToMainCanvas, waitForSync } from "./helpers";
 
 test.describe("Snap-to-Grid", () => {
   test("should toggle snap-to-grid with toolbar button", async ({

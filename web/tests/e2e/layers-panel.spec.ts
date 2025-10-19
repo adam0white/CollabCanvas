@@ -3,11 +3,7 @@
  */
 
 import { expect, test } from "./fixtures";
-import {
-  createRectangle,
-  navigateToMainCanvas,
-  waitForSync,
-} from "./helpers";
+import { createRectangle, navigateToMainCanvas, waitForSync } from "./helpers";
 
 test.describe("Layers Panel", () => {
   test("should show layers panel with created shapes", async ({

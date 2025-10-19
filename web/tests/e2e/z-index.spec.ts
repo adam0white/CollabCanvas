@@ -30,12 +30,12 @@ test.describe("Z-Index Management", () => {
     await switchToSelectMode(authenticatedPage);
 
     // Click the first rectangle to select it
-    await authenticatedPage.locator("canvas").click({ position: { x: 150, y: 150 } });
+    await authenticatedPage
+      .locator("canvas")
+      .click({ position: { x: 150, y: 150 } });
 
     // Click "To Front" button
-    await authenticatedPage
-      .getByRole("button", { name: /to front/i })
-      .click();
+    await authenticatedPage.getByRole("button", { name: /to front/i }).click();
 
     // Verify operation completed (no errors)
     await waitForSync(authenticatedPage, 200);
@@ -55,7 +55,9 @@ test.describe("Z-Index Management", () => {
 
     // Switch to select tool and select second rectangle
     await switchToSelectMode(authenticatedPage);
-    await authenticatedPage.locator("canvas").click({ position: { x: 200, y: 200 } });
+    await authenticatedPage
+      .locator("canvas")
+      .click({ position: { x: 200, y: 200 } });
 
     // Press Cmd+[ to send to back
     await authenticatedPage.keyboard.press("Meta+BracketLeft");

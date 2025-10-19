@@ -3,16 +3,10 @@
  */
 
 import { expect, test } from "./fixtures";
-import {
-  createRectangle,
-  navigateToMainCanvas,
-  waitForSync,
-} from "./helpers";
+import { createRectangle, navigateToMainCanvas, waitForSync } from "./helpers";
 
 test.describe("Export Canvas", () => {
-  test("should open export modal with Cmd+E", async ({
-    authenticatedPage,
-  }) => {
+  test("should open export modal with Cmd+E", async ({ authenticatedPage }) => {
     await navigateToMainCanvas(authenticatedPage);
 
     // Press Cmd+E to open export modal
@@ -23,9 +17,7 @@ test.describe("Export Canvas", () => {
     await expect(authenticatedPage.getByText("Export Canvas")).toBeVisible();
   });
 
-  test("should show export options in modal", async ({
-    authenticatedPage,
-  }) => {
+  test("should show export options in modal", async ({ authenticatedPage }) => {
     await navigateToMainCanvas(authenticatedPage);
 
     // Open export modal via toolbar button
@@ -84,7 +76,9 @@ test.describe("Export Canvas", () => {
 
     // Select it
     await authenticatedPage.getByRole("button", { name: /^select/i }).click();
-    await authenticatedPage.locator("canvas").click({ position: { x: 150, y: 150 } });
+    await authenticatedPage
+      .locator("canvas")
+      .click({ position: { x: 150, y: 150 } });
 
     // Open export modal
     await authenticatedPage.getByRole("button", { name: /export/i }).click();
