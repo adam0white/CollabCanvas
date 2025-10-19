@@ -11,6 +11,9 @@ export type PresenceState = {
   imageUrl?: string; // Profile picture URL for authenticated users
   lockedShapeIds?: string[]; // Shape IDs currently locked by this user
   lockTimestamp?: number; // Timestamp when lock was acquired
+  isAIAgent?: boolean; // True if this is an AI agent cursor
+  aiAgentOwner?: string; // User who triggered the AI command
+  aiAgentStatus?: "thinking" | "working" | "idle"; // AI agent activity status
 };
 
 type PresenceHook = {
