@@ -28,8 +28,10 @@ test.describe("Alignment Tools", () => {
     await authenticatedPage.keyboard.press("Meta+A");
     await waitForSync(authenticatedPage, 100);
 
-    // Click align left button
-    await authenticatedPage.getByRole("button", { name: /^left$/i }).click();
+    // Click align left button (icon-only, use title)
+    await authenticatedPage
+      .getByRole("button", { name: /Align Left/i })
+      .click();
 
     // Wait for alignment
     await waitForSync(authenticatedPage, 200);
@@ -52,8 +54,10 @@ test.describe("Alignment Tools", () => {
     await authenticatedPage.keyboard.press("Meta+A");
     await waitForSync(authenticatedPage, 100);
 
-    // Click distribute horizontally
-    await authenticatedPage.getByRole("button", { name: /h-dist/i }).click();
+    // Click distribute horizontally (icon-only, use title)
+    await authenticatedPage
+      .getByRole("button", { name: /Distribute Horizontally/i })
+      .click();
 
     // Wait for distribution
     await waitForSync(authenticatedPage, 200);

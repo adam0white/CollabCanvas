@@ -49,9 +49,11 @@ test.describe("Canvas Interactions", () => {
       const zoomButton = authenticatedPage
         .locator('button[class*="zoomButton"]')
         .nth(1);
-      const zoomInButton = authenticatedPage.getByRole("button", { name: "+" });
+      const zoomInButton = authenticatedPage.getByRole("button", {
+        name: /Zoom in/i,
+      });
       const zoomOutButton = authenticatedPage.getByRole("button", {
-        name: "−",
+        name: /Zoom out/i,
       });
 
       const initialZoom = await zoomButton.textContent();
@@ -75,7 +77,9 @@ test.describe("Canvas Interactions", () => {
       const zoomButton = authenticatedPage
         .locator('button[class*="zoomButton"]')
         .nth(1);
-      const zoomInButton = authenticatedPage.getByRole("button", { name: "+" });
+      const zoomInButton = authenticatedPage.getByRole("button", {
+        name: /Zoom in/i,
+      });
 
       // Zoom in multiple times
       await zoomInButton.click();
@@ -191,8 +195,7 @@ test.describe("Canvas Interactions", () => {
     }) => {
       await navigateToMainCanvas(authenticatedPage);
       // Create a circle
-      await authenticatedPage.getByRole("button", { name: /circle/i }).click();
-      await canvasDrag(authenticatedPage, 300, 300, 360, 360);
+      await createCircle(authenticatedPage, 300, 300, 60);
 
       // Select the shape
       await selectShape(authenticatedPage, 330, 330);
@@ -265,7 +268,7 @@ test.describe("Canvas Interactions", () => {
       await page.waitForLoadState("networkidle");
 
       // Zoom in
-      const zoomInButton = page.getByRole("button", { name: "+" });
+      const zoomInButton = page.getByRole("button", { name: /Zoom in/i });
       await zoomInButton.click();
       await page.waitForTimeout(200);
 
