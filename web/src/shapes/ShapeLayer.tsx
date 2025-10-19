@@ -63,13 +63,20 @@ function ShapeLayerImpl({
   }>({});
 
   // Fast selection membership lookup
-  const selectedSet = useMemo(() => new Set(selectedShapeIds), [selectedShapeIds]);
+  const selectedSet = useMemo(
+    () => new Set(selectedShapeIds),
+    [selectedShapeIds],
+  );
 
   // Attach transformer to selected shapes (multi-select support)
   useEffect(() => {
     // For very large selections, avoid attaching transformer for performance
     const transformer = transformerRef.current;
-    if (transformer && selectedShapeIds.length > 0 && selectedShapeIds.length < 30) {
+    if (
+      transformer &&
+      selectedShapeIds.length > 0 &&
+      selectedShapeIds.length < 30
+    ) {
       const selectedNodes = selectedShapeIds
         .map((id) => shapeRefs.current[id])
         .filter((node): node is Konva.Shape => node !== null);
@@ -133,16 +140,15 @@ function ShapeLayerImpl({
         const dy = node.y() - startPos.y;
 
         // Apply the same offset to all selected shapes in a single transaction
-        const batch = selectedShapeIds
-          .map((shapeId) => {
-            const startPosition = dragStartPositionsRef.current[shapeId];
-            if (!startPosition) return null;
-            return {
-              id: shapeId,
-              updates: { x: startPosition.x + dx, y: startPosition.y + dy },
-            };
-          })
-          .filter((u): u is { id: string; updates: Partial<Shape> } => u !== null);
+        const batch: Array<{ id: string; updates: Partial<Shape> }> = [];
+        for (const shapeId of selectedShapeIds) {
+          const startPosition = dragStartPositionsRef.current[shapeId];
+          if (!startPosition) continue;
+          batch.push({
+            id: shapeId,
+            updates: { x: startPosition.x + dx, y: startPosition.y + dy },
+          });
+        }
         updateShapesBatch(batch);
       }
     } else {
@@ -168,16 +174,15 @@ function ShapeLayerImpl({
         const dx = node.x() - startPos.x;
         const dy = node.y() - startPos.y;
 
-        const batch = selectedShapeIds
-          .map((shapeId) => {
-            const startPosition = dragStartPositionsRef.current[shapeId];
-            if (!startPosition) return null;
-            return {
-              id: shapeId,
-              updates: { x: startPosition.x + dx, y: startPosition.y + dy },
-            };
-          })
-          .filter((u): u is { id: string; updates: Partial<Shape> } => u !== null);
+        const batch: Array<{ id: string; updates: Partial<Shape> }> = [];
+        for (const shapeId of selectedShapeIds) {
+          const startPosition = dragStartPositionsRef.current[shapeId];
+          if (!startPosition) continue;
+          batch.push({
+            id: shapeId,
+            updates: { x: startPosition.x + dx, y: startPosition.y + dy },
+          });
+        }
         updateShapesBatch(batch);
       }
 
@@ -546,37 +551,40 @@ function ShapeLayerImpl({
       })}
 
       {/* Transformer for selected shape */}
-      {canEdit && selectedTool === "select" && selectedShapeIds.length > 0 && selectedShapeIds.length < 30 && (
-        <Transformer
-          ref={transformerRef}
-          boundBoxFunc={(oldBox, newBox) => {
-            // Limit minimum size
-            if (newBox.width < 5 || newBox.height < 5) {
-              return oldBox;
-            }
-            return newBox;
-          }}
-          enabledAnchors={[
-            "top-left",
-            "top-right",
-            "bottom-left",
-            "bottom-right",
-          ]}
-          // Disable rotation for large selections to improve performance
-          rotateEnabled={selectedShapeIds.length < 20}
-          onTransform={() => {
-            // Performance optimization: only transform first shape during interaction
-            // All shapes will be transformed on transformEnd
-            if (selectedShapeIds.length > 0) {
-              const firstShapeId = selectedShapeIds[0];
-              const firstShape = shapes.find((s) => s.id === firstShapeId);
-              if (firstShape) {
-                handleTransform(firstShape);
+      {canEdit &&
+        selectedTool === "select" &&
+        selectedShapeIds.length > 0 &&
+        selectedShapeIds.length < 30 && (
+          <Transformer
+            ref={transformerRef}
+            boundBoxFunc={(oldBox, newBox) => {
+              // Limit minimum size
+              if (newBox.width < 5 || newBox.height < 5) {
+                return oldBox;
               }
-            }
-          }}
-        />
-      )}
+              return newBox;
+            }}
+            enabledAnchors={[
+              "top-left",
+              "top-right",
+              "bottom-left",
+              "bottom-right",
+            ]}
+            // Disable rotation for large selections to improve performance
+            rotateEnabled={selectedShapeIds.length < 20}
+            onTransform={() => {
+              // Performance optimization: only transform first shape during interaction
+              // All shapes will be transformed on transformEnd
+              if (selectedShapeIds.length > 0) {
+                const firstShapeId = selectedShapeIds[0];
+                const firstShape = shapes.find((s) => s.id === firstShapeId);
+                if (firstShape) {
+                  handleTransform(firstShape);
+                }
+              }
+            }}
+          />
+        )}
     </>
   );
 }
@@ -588,31 +596,52 @@ export const ShapeLayer = memo(ShapeLayerImpl, (prev, next) => {
   if (prev.selectedTool !== next.selectedTool) return false;
   if (prev.userId !== next.userId) return false;
   // Compare selection by size and first/last IDs to avoid O(n) cost; fallback if lengths differ
-  if (prev.selectedShapeIds.length !== next.selectedShapeIds.length) return false;
+  if (prev.selectedShapeIds.length !== next.selectedShapeIds.length)
+    return false;
   for (let i = 0; i < prev.selectedShapeIds.length; i++) {
     if (prev.selectedShapeIds[i] !== next.selectedShapeIds[i]) return false;
   }
   // Shallow compare shapes array by length and id/version-critical props
   if (prev.shapes.length !== next.shapes.length) return false;
   for (let i = 0; i < prev.shapes.length; i++) {
-    const a = prev.shapes[i];
-    const b = next.shapes[i];
+    const a = prev.shapes[i] as Shape;
+    const b = next.shapes[i] as Shape;
     if (a.id !== b.id) return false;
     if (a.x !== b.x || a.y !== b.y) return false;
     if (a.rotation !== b.rotation) return false;
     // Size props per type
-    if (("width" in a) !== ("width" in b)) return false;
-    if (("height" in a) !== ("height" in b)) return false;
-    if (("radius" in a) !== ("radius" in b)) return false;
-    if ("width" in a && (a as any).width !== (b as any).width) return false;
-    if ("height" in a && (a as any).height !== (b as any).height) return false;
-    if ("radius" in a && (a as any).radius !== (b as any).radius) return false;
+    if ("width" in a !== "width" in b) return false;
+    if ("height" in a !== "height" in b) return false;
+    if ("radius" in a !== "radius" in b) return false;
+    if (
+      "width" in a &&
+      (a as Record<string, unknown>).width !==
+        (b as Record<string, unknown>).width
+    )
+      return false;
+    if (
+      "height" in a &&
+      (a as Record<string, unknown>).height !==
+        (b as Record<string, unknown>).height
+    )
+      return false;
+    if (
+      "radius" in a &&
+      (a as Record<string, unknown>).radius !==
+        (b as Record<string, unknown>).radius
+    )
+      return false;
     // Visuals that materially affect drawing
     if (a.fill !== b.fill) return false;
     if (a.stroke !== b.stroke) return false;
     if (a.strokeWidth !== b.strokeWidth) return false;
-    if (("text" in a) !== ("text" in b)) return false;
-    if ("text" in a && (a as any).text !== (b as any).text) return false;
+    if ("text" in a !== "text" in b) return false;
+    if (
+      "text" in a &&
+      (a as Record<string, unknown>).text !==
+        (b as Record<string, unknown>).text
+    )
+      return false;
   }
   return true;
 });

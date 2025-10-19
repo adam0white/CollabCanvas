@@ -1200,11 +1200,7 @@ export function dispatchTool(
           userId,
         );
       case "createGrid":
-        return createGrid(
-          doc,
-          toolCall.parameters as CreateGridParams,
-          userId,
-        );
+        return createGrid(doc, toolCall.parameters as CreateGridParams, userId);
       case "computeCenter":
         return computeCenter(
           doc,
@@ -1266,8 +1262,14 @@ export function createGrid(
     const shapesMap = doc.getMap("shapes");
     const createdIds: string[] = [];
 
-    const spacingX = params.spacingX ?? (params.shape.width ?? (params.shape.radius ? params.shape.radius * 2 : 100)) + 20;
-    const spacingY = params.spacingY ?? (params.shape.height ?? (params.shape.radius ? params.shape.radius * 2 : 60)) + 20;
+    const spacingX =
+      params.spacingX ??
+      (params.shape.width ??
+        (params.shape.radius ? params.shape.radius * 2 : 100)) + 20;
+    const spacingY =
+      params.spacingY ??
+      (params.shape.height ??
+        (params.shape.radius ? params.shape.radius * 2 : 60)) + 20;
 
     const baseFill = normalizeColor(params.shape.fill);
 

@@ -13,8 +13,8 @@ import {
   createCircle,
   createRectangle,
   createText,
-  isRectangle,
   isCircle,
+  isRectangle,
   isText,
   type Shape,
 } from "../shapes/types";
@@ -27,7 +27,7 @@ const ZOOM_SPEED = 1.1;
 
 type CanvasProps = {
   presence: Map<number, PresenceState>;
-  setPresence: (state: Partial<PresenceState>) => void;
+  setPresence: (state: Partial<PresenceState>, forceThrottle?: boolean) => void;
   defaultFillColor?: string;
 };
 
@@ -136,7 +136,10 @@ export function Canvas({
       if (isText(shape)) {
         const width =
           shape.width ??
-          Math.max(80, (shape.text?.length ?? 0) * (shape.fontSize ?? 16) * 0.6);
+          Math.max(
+            80,
+            (shape.text?.length ?? 0) * (shape.fontSize ?? 16) * 0.6,
+          );
         const height = Math.max(20, (shape.fontSize ?? 16) * 1.2);
         const left = shape.x;
         const top = shape.y;

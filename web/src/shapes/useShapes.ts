@@ -20,7 +20,9 @@ type UseShapesReturn = {
   isLoading: boolean;
   createShape: (shape: Shape) => void;
   updateShape: (id: string, updates: Partial<Shape>) => void;
-  updateShapesBatch: (updates: Array<{ id: string; updates: Partial<Shape> }>) => void;
+  updateShapesBatch: (
+    updates: Array<{ id: string; updates: Partial<Shape> }>,
+  ) => void;
   deleteShape: (id: string) => void;
 };
 
@@ -194,11 +196,15 @@ export function useShapes(): UseShapesReturn {
         const validated: Partial<Shape> = { ...partial };
         if ("x" in validated) {
           const x = validated.x as number;
-          if (typeof x !== "number" || Number.isNaN(x)) delete (validated as any).x;
+          if (typeof x !== "number" || Number.isNaN(x)) {
+            delete (validated as Record<string, unknown>).x;
+          }
         }
         if ("y" in validated) {
           const y = validated.y as number;
-          if (typeof y !== "number" || Number.isNaN(y)) delete (validated as any).y;
+          if (typeof y !== "number" || Number.isNaN(y)) {
+            delete (validated as Record<string, unknown>).y;
+          }
         }
 
         const next = { ...currentData, ...validated };
