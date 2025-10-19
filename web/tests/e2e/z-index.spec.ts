@@ -29,11 +29,17 @@ test.describe("Z-Index Management", () => {
     // Switch to select tool
     await switchToSelectMode(authenticatedPage);
 
-    // Click the first rectangle to select it
-    await authenticatedPage
-      .locator("canvas")
-      .first()
-      .click({ position: { x: 150, y: 150 } });
+    // Select the first rectangle using select mode + click
+    await switchToSelectMode(authenticatedPage);
+    await waitForSync(authenticatedPage, 200);
+
+    // Click canvas to select (use higher X to avoid any overlays)
+    const canvas = authenticatedPage.locator("canvas").first();
+    const canvasBox = await canvas.boundingBox();
+    if (canvasBox) {
+      await authenticatedPage.mouse.click(canvasBox.x + 350, canvasBox.y + 150);
+    }
+    await waitForSync(authenticatedPage, 200);
 
     // Click "To Front" button
     await authenticatedPage.getByRole("button", { name: /to front/i }).click();
