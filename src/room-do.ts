@@ -179,13 +179,14 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
    * @returns Result object with success status and affected shape IDs
    */
   /**
-   * RPC Method: Execute AI Command
+   * RPC Method: Execute AI Command with Simulated Execution
    *
-   * Performance optimizations:
-   * - Idempotency via in-memory cache (no storage reads)
-   * - Single Yjs transaction for all tools (atomic + single network message)
-   * - Batch shape creation with createPattern tool
-   * - LRU cache cleanup (keep last 50 commands)
+   * Features:
+   * - Creates AI agent cursor in Awareness
+   * - Executes tool calls slowly with delays (theatrical effect)
+   * - Moves cursor between operations
+   * - Shows visual feedback to all users
+   * - Idempotency via in-memory cache
    */
   async executeAICommand(params: {
     commandId: string;
@@ -248,41 +249,98 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
     }
 
     try {
+      // Create AI agent cursor in Awareness
+      // Use deterministic client ID for AI agent so it appears as a separate "user"
+      const agentClientId = Math.abs(
+        Array.from(userId).reduce((acc, c) => acc + c.charCodeAt(0), 0) %
+          1000000,
+      ) + 1000000; // Large positive ID to avoid collision
+
+      const agentPresence: {
+        presence: {
+          userId: string;
+          displayName: string;
+          color: string;
+          cursor: { x: number; y: number };
+          isAIAgent: boolean;
+          aiAgentOwner: string;
+          aiAgentStatus: "thinking" | "working" | "idle";
+        };
+      } = {
+        presence: {
+          userId: `ai-agent-${userId}`,
+          displayName: `🤖 Agent by ${userName}`,
+          color: "#9333ea", // Purple color for AI agent
+          cursor: { x: 1000, y: 1000 }, // Start at canvas center
+          isAIAgent: true,
+          aiAgentOwner: userId,
+          aiAgentStatus: "thinking",
+        },
+      };
+
+      // Set AI agent presence in awareness with a dedicated client ID
+      this.awareness.setLocalState(agentPresence);
+      
+      // Store agent client ID for updates and cleanup
+      const agentState = agentPresence;
+
       const shapesCreated: string[] = [];
       const shapesAffected: string[] = [];
       const toolResults: ToolResult[] = [];
 
-      // Execute all tools within a single Yjs transaction (atomic)
-      this.doc.transact(() => {
-        for (const toolCall of toolCalls) {
-          const result = dispatchTool(this.doc, toolCall, userId);
-          toolResults.push(result);
+      // Execute tools one by one with delays (simulated execution)
+      for (let i = 0; i < toolCalls.length; i++) {
+        const toolCall = toolCalls[i];
 
-          if (result.success) {
-            // Prefer shapeIds array over single shapeId to avoid duplicates
-            if (result.shapeIds && result.shapeIds.length > 0) {
-              // Track created shapes for createShape and createMultipleShapes
-              if (
-                toolCall.name === "createShape" ||
-                toolCall.name === "createMultipleShapes"
-              ) {
-                shapesCreated.push(...result.shapeIds);
-              }
-              shapesAffected.push(...result.shapeIds);
-            } else if (result.shapeId) {
-              // Fallback to single shapeId (for tools that don't return shapeIds array)
-              if (
-                toolCall.name === "createShape" ||
-                toolCall.name === "createMultipleShapes"
-              ) {
-                shapesCreated.push(result.shapeId);
-              }
-              shapesAffected.push(result.shapeId);
+        // Calculate cursor position based on tool operation
+        const cursorPos = this.calculateCursorPosition(toolCall, this.doc);
+
+        // Update AI agent status to "working" and move cursor
+        agentState.presence.aiAgentStatus = "working";
+        agentState.presence.cursor = cursorPos;
+        this.awareness.setLocalState(agentState);
+
+        // Delay before executing (simulate "thinking" time)
+        await this.sleep(this.getDelayForTool(toolCall));
+
+        // Execute the tool
+        const result = dispatchTool(this.doc, toolCall, userId);
+        toolResults.push(result);
+
+        if (result.success) {
+          // Prefer shapeIds array over single shapeId to avoid duplicates
+          if (result.shapeIds && result.shapeIds.length > 0) {
+            // Track created shapes for createShape and createMultipleShapes
+            if (
+              toolCall.name === "createShape" ||
+              toolCall.name === "createMultipleShapes" ||
+              toolCall.name === "createPattern"
+            ) {
+              shapesCreated.push(...result.shapeIds);
             }
+            shapesAffected.push(...result.shapeIds);
+          } else if (result.shapeId) {
+            // Fallback to single shapeId (for tools that don't return shapeIds array)
+            if (
+              toolCall.name === "createShape" ||
+              toolCall.name === "createMultipleShapes" ||
+              toolCall.name === "createPattern"
+            ) {
+              shapesCreated.push(result.shapeId);
+            }
+            shapesAffected.push(result.shapeId);
           }
         }
 
-        // Performance: Append to AI history within same transaction (atomic)
+        // Small delay after each operation for visual effect
+        await this.sleep(50);
+      }
+
+      // Remove AI agent cursor by setting state to null
+      this.awareness.setLocalState(null);
+
+      // Append to AI history
+      this.doc.transact(() => {
         const aiHistory = this.doc.getArray("aiHistory");
 
         // Build concise response message
@@ -348,6 +406,9 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
 
       return result;
     } catch (error) {
+      // Make sure to remove AI agent cursor on error
+      this.awareness.setLocalState(null);
+
       console.error("[RoomDO] ✗ executeAICommand error:", error);
       console.error(
         "[RoomDO] Error stack:",
@@ -366,6 +427,121 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
       });
       return result;
     }
+  }
+
+  /**
+   * Calculate cursor position based on tool operation
+   * Moves cursor to relevant location for visual feedback
+   */
+  private calculateCursorPosition(
+    toolCall: ToolCall,
+    // biome-ignore lint/suspicious/noExplicitAny: Yjs types are complex
+    doc: any,
+  ): { x: number; y: number } {
+    const params = toolCall.parameters;
+
+    // For shape creation, move to the first shape's position
+    if (toolCall.name === "createShape" && "shapes" in params) {
+      const shapes = params.shapes as Array<{ x?: number; y?: number }>;
+      if (shapes.length > 0 && shapes[0].x && shapes[0].y) {
+        return { x: shapes[0].x, y: shapes[0].y };
+      }
+    }
+
+    // For pattern creation, move to start position
+    if (toolCall.name === "createPattern") {
+      const startX = params.startX as number | undefined;
+      const startY = params.startY as number | undefined;
+      if (startX !== undefined && startY !== undefined) {
+        return { x: startX, y: startY };
+      }
+    }
+
+    // For move/update/delete operations, move to shape's position
+    if (
+      (toolCall.name === "moveShape" ||
+        toolCall.name === "updateShapeStyle" ||
+        toolCall.name === "deleteShape") &&
+      "shapeId" in params
+    ) {
+      const shapesMap = doc.getMap("shapes");
+      const shape = shapesMap.get(params.shapeId as string);
+      if (shape && typeof shape === "object" && "x" in shape && "y" in shape) {
+        return { x: shape.x as number, y: shape.y as number };
+      }
+    }
+
+    // For arrange operations, move to first shape
+    if (toolCall.name === "arrangeShapes" && "shapeIds" in params) {
+      const shapeIds = params.shapeIds as string[];
+      if (shapeIds.length > 0) {
+        const shapesMap = doc.getMap("shapes");
+        const shape = shapesMap.get(shapeIds[0]);
+        if (
+          shape &&
+          typeof shape === "object" &&
+          "x" in shape &&
+          "y" in shape
+        ) {
+          return { x: shape.x as number, y: shape.y as number };
+        }
+      }
+    }
+
+    // Default: canvas center
+    return { x: 1000, y: 1000 };
+  }
+
+  /**
+   * Calculate delay for a tool operation
+   * More complex operations get longer delays for better visual feedback
+   */
+  private getDelayForTool(toolCall: ToolCall): number {
+    const params = toolCall.parameters;
+
+    // Pattern creation: longer delay for many shapes
+    if (toolCall.name === "createPattern") {
+      const count =
+        (params.count as number) ??
+        ((params.rows as number) ?? 1) * ((params.columns as number) ?? 1);
+      // Base 200ms + 10ms per shape, capped at 1000ms
+      return Math.min(200 + count * 10, 1000);
+    }
+
+    // Shape creation: delay based on number of shapes
+    if (toolCall.name === "createShape" && "shapes" in params) {
+      const shapes = params.shapes as unknown[];
+      const count = Array.isArray(shapes) ? shapes.length : 1;
+      // Base 150ms + 20ms per shape, capped at 800ms
+      return Math.min(150 + count * 20, 800);
+    }
+
+    // Arrange operations: longer delay for many shapes
+    if (toolCall.name === "arrangeShapes" && "shapeIds" in params) {
+      const count = (params.shapeIds as unknown[]).length;
+      return Math.min(150 + count * 15, 600);
+    }
+
+    // Style updates: short delay
+    if (toolCall.name === "updateShapeStyle") {
+      return 100;
+    }
+
+    // Default delays for other operations
+    return {
+      moveShape: 150,
+      deleteShape: 120,
+      findShapes: 100,
+      rotateShape: 120,
+      resizeShape: 150,
+    }[toolCall.name] ?? 150;
+  }
+
+  /**
+   * Sleep utility for simulated delays
+   */
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
 
