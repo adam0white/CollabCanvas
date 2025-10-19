@@ -129,10 +129,9 @@ test.describe("Conflict Resolution & State Management", () => {
       }
       await waitForSync(user2, 500);
 
-      // No errors, lock handoff worked
-      // Smoke test - verify canvas still functional
-
-      await expect(authenticatedPage.locator("canvas").first()).toBeVisible();
+      // Lock handoff should work - both users have functional canvases
+      await expect(user1.locator("canvas").first()).toBeVisible();
+      await expect(user2.locator("canvas").first()).toBeVisible();
     });
   });
 
@@ -448,11 +447,9 @@ test.describe("Conflict Resolution & State Management", () => {
       await user1.keyboard.press("Escape");
       await waitForSync(user1, 500);
 
-      // User 2 can now edit
-      // Final state should reflect last operation
-      // Smoke test - verify canvas still functional
-
-      await expect(authenticatedPage.locator("canvas").first()).toBeVisible();
+      // User 2 can now edit - final state should reflect last operation
+      await expect(user1.locator("canvas").first()).toBeVisible();
+      await expect(user2.locator("canvas").first()).toBeVisible();
     });
 
     test("no ghost objects after rapid operations", async ({

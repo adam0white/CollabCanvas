@@ -381,9 +381,9 @@ test.describe("Performance & Scalability", () => {
       // Complex command should complete within 25s (allow for slower CI)
       expect(elapsed).toBeLessThan(25000);
 
-      // Verify history shows completion
+      // Verify history shows completion (use .first() to handle multiple matches)
       await expect(
-        authenticatedPage.locator("text=/login|form|Created/i"),
+        authenticatedPage.locator("text=/login|form|Created/i").first(),
       ).toBeVisible({ timeout: 5000 });
     });
 

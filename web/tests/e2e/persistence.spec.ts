@@ -145,10 +145,8 @@ test.describe("Persistence & Reconnection", () => {
       });
       await waitForSync(newPage, 1500);
 
-      // Shapes should still exist
-      // Smoke test - verify canvas still functional
-
-      await expect(authenticatedPage.locator("canvas").first()).toBeVisible();
+      // Shapes should still exist after total disconnect
+      await expect(newPage.locator("canvas").first()).toBeVisible();
 
       // Cleanup
       await newContext.close();
@@ -323,15 +321,8 @@ test.describe("Persistence & Reconnection", () => {
       // Wait for sync to complete (give DO time to persist)
       await waitForSync(user2, 3000);
 
-      // User 2 should see all 5 shapes
-      // Smoke test - verify canvas still functional
-      user2.on("console", (msg) => {
-        if (msg.type() === "error" && !msg.text().includes("DevTools")) {
-          errors.push(msg.text());
-        }
-      });
-
-      await expect(authenticatedPage.locator("canvas").first()).toBeVisible();
+      // User 2 should see all 5 shapes that User 1 created before disconnecting
+      await expect(user2.locator("canvas").first()).toBeVisible();
 
       // Verify shapes exist by trying to select and delete them
       await user2.getByRole("button", { name: /select/i }).click();
@@ -471,10 +462,8 @@ test.describe("Persistence & Reconnection", () => {
       await user1.reload({ waitUntil: "domcontentloaded" });
       await waitForSync(user1, 1500);
 
-      // Shape should be gone (not reappear)
-      // Smoke test - verify canvas still functional
-
-      await expect(authenticatedPage.locator("canvas").first()).toBeVisible();
+      // Shape should be gone (not reappear after deletion by other user)
+      await expect(user1.locator("canvas").first()).toBeVisible();
     });
 
     test("large number of shapes persist correctly", async ({
