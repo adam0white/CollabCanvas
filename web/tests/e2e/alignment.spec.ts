@@ -46,18 +46,21 @@ test.describe("Alignment Tools", () => {
     for (let i = 0; i < 4; i++) {
       const x = 100 + i * 80;
       await createRectangle(authenticatedPage, x, 100, 40, 40);
-      await waitForSync(authenticatedPage, 50);
     }
+    await waitForSync(authenticatedPage, 500);
 
     // Switch to select tool and select all
-    await authenticatedPage.getByRole("button", { name: /^select/i }).click();
+    await authenticatedPage.getByRole("button", { name: /^select$/i }).first().click();
+    await waitForSync(authenticatedPage, 200);
     await authenticatedPage.keyboard.press("Meta+A");
-    await waitForSync(authenticatedPage, 100);
+    await waitForSync(authenticatedPage, 500);
 
-    // Click distribute horizontally (icon-only, use title)
-    await authenticatedPage
-      .getByRole("button", { name: /Distribute Horizontally/i })
-      .click();
+    // Verify button is enabled
+    const distributeButton = authenticatedPage.getByRole("button", { name: /Distribute Horizontally/i });
+    await expect(distributeButton).toBeEnabled({ timeout: 5000 });
+    
+    // Click distribute horizontally
+    await distributeButton.click();
 
     // Wait for distribution
     await waitForSync(authenticatedPage, 200);

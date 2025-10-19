@@ -214,6 +214,7 @@ export function Toolbar({
         onClick={() => isSignedIn && setActiveTool("rectangle")}
         disabled={!isSignedIn}
         title={!isSignedIn ? "Sign in to create shapes" : "Rectangle tool"}
+        aria-label="Rectangle tool"
       >
         <span aria-hidden>▭</span>
         Rectangle
@@ -228,6 +229,7 @@ export function Toolbar({
         onClick={() => isSignedIn && setActiveTool("circle")}
         disabled={!isSignedIn}
         title={!isSignedIn ? "Sign in to create shapes" : "Circle tool"}
+        aria-label="Circle tool"
       >
         <span aria-hidden>⭕</span>
         Circle
@@ -242,6 +244,7 @@ export function Toolbar({
         onClick={() => isSignedIn && setActiveTool("text")}
         disabled={!isSignedIn}
         title={!isSignedIn ? "Sign in to create shapes" : "Text tool"}
+        aria-label="Text tool"
       >
         <span aria-hidden>T</span>
         Text

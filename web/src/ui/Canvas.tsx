@@ -1074,6 +1074,7 @@ export function Canvas({
           onClick={() => setScale(Math.min(MAX_ZOOM, scale * ZOOM_SPEED))}
           className={styles.zoomButton}
           title="Zoom in"
+          aria-label="Zoom in"
         >
           +
         </button>
