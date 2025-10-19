@@ -219,7 +219,9 @@ export function ShortcutsPanel({
               </div>
               <div className={styles.shortcut}>
                 <span className={styles.key}>Cmd/Ctrl+Shift+V</span>
-                <span className={styles.description}>Distribute vertically</span>
+                <span className={styles.description}>
+                  Distribute vertically
+                </span>
               </div>
             </div>
           </section>

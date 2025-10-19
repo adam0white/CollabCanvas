@@ -85,9 +85,7 @@ export function getShapeBounds(shape: Shape): {
 /**
  * Get bounding box for multiple shapes (the enclosing rectangle)
  */
-export function getGroupBounds(
-  shapes: Shape[],
-): {
+export function getGroupBounds(shapes: Shape[]): {
   left: number;
   right: number;
   top: number;

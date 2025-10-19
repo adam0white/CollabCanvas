@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useSelection } from "../hooks/useSelection";
 import { useToolbar } from "../hooks/useToolbar";
 import { useUndoRedo } from "../hooks/useUndoRedo";
-import { useShapes } from "../shapes/useShapes";
 import {
   alignBottom,
   alignCenter,
@@ -16,6 +15,7 @@ import {
   distributeVertically,
   getAvailableAlignmentOperations,
 } from "../shapes/alignment";
+import { useShapes } from "../shapes/useShapes";
 import {
   bringForward,
   bringToFront,

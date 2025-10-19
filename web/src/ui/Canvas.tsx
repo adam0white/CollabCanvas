@@ -8,6 +8,17 @@ import type { PresenceState } from "../hooks/usePresence";
 import { useSelection } from "../hooks/useSelection";
 import { useToolbar } from "../hooks/useToolbar";
 import { useUndoRedo } from "../hooks/useUndoRedo";
+import {
+  alignBottom,
+  alignCenter,
+  alignLeft,
+  alignMiddle,
+  alignRight,
+  alignTop,
+  distributeHorizontally,
+  distributeVertically,
+  getShapeBounds,
+} from "../shapes/alignment";
 import { ShapeLayer } from "../shapes/ShapeLayer";
 import {
   createCircle,
@@ -18,25 +29,14 @@ import {
 } from "../shapes/types";
 import { useShapes } from "../shapes/useShapes";
 import {
-  alignBottom,
-  alignCenter,
-  alignLeft,
-  alignMiddle,
-  alignRight,
-  alignTop,
-  distributeHorizontally,
-  distributeVertically,
-} from "../shapes/alignment";
-import { getShapeBounds } from "../shapes/alignment";
-import {
   bringForward,
   bringToFront,
   sendBackward,
   sendToBack,
 } from "../shapes/zindex";
+import styles from "./Canvas.module.css";
 import type { ExportFormat, ExportQuality, ExportScope } from "./ExportModal";
 import { ExportModal } from "./ExportModal";
-import styles from "./Canvas.module.css";
 
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 5;
