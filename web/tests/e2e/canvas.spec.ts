@@ -277,7 +277,7 @@ test.describe("Canvas Interactions", () => {
       await page.waitForLoadState("networkidle");
 
       // Zoom in
-      const zoomInButton = page.getByRole("button", { name: "+" }).first();
+      const zoomInButton = page.getByRole("button", { name: "Zoom in" });
       await zoomInButton.click();
       await page.waitForTimeout(200);
 

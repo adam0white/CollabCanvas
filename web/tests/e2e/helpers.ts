@@ -170,11 +170,7 @@ export async function createRectangle(
   width: number,
   height: number,
 ): Promise<void> {
-  // Use exact match for toolbar button to avoid collision with layers panel
-  await page
-    .getByRole("button", { name: "Rectangle", exact: true })
-    .first()
-    .click();
+  await page.getByRole("button", { name: "Rectangle tool" }).click();
   await canvasDrag(page, x, y, x + width, y + height);
 }
 
@@ -187,11 +183,7 @@ export async function createCircle(
   y: number,
   radius: number,
 ): Promise<void> {
-  // Use exact match for toolbar button to avoid collision with layers panel
-  await page
-    .getByRole("button", { name: "Circle", exact: true })
-    .first()
-    .click();
+  await page.getByRole("button", { name: "Circle tool" }).click();
 
   // Calculate end position for desired radius
   const endX = x + radius * Math.cos(Math.PI / 4);
@@ -209,8 +201,7 @@ export async function createText(
   y: number,
   text: string,
 ): Promise<void> {
-  // Use exact match for toolbar button to avoid collision with layers panel
-  await page.getByRole("button", { name: "Text", exact: true }).first().click();
+  await page.getByRole("button", { name: "Text tool" }).click();
   await waitForSync(page, 200);
 
   // Click canvas to place text using mouse position
