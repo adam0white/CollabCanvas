@@ -164,9 +164,7 @@ test.describe("Edge Cases & Error Handling", () => {
   });
 
   test.describe("Browser Compatibility", () => {
-    test.skip("canvas loads without errors - KNOWN: Some expected errors from external resources", async ({
-      page,
-    }) => {
+    test("canvas loads without errors", async ({ page }) => {
       const errors: string[] = [];
       page.on("console", (msg) => {
         if (msg.type() === "error") errors.push(msg.text());
@@ -319,35 +317,35 @@ test.describe("Edge Cases & Error Handling", () => {
   });
 
   test.describe("Data Validation", () => {
-    test.skip("empty text shape is not created - KNOWN BUG", async ({
-      authenticatedPage,
-      roomId,
-    }) => {
-      // TODO: This is a known missing feature - pressing Enter on empty text input should close it
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
-        waitUntil: "domcontentloaded",
-      });
-      await waitForSync(authenticatedPage, 500);
+    test.fail(
+      "empty text shape is not created - KNOWN BUG",
+      async ({ authenticatedPage, roomId }) => {
+        // TODO: This is a known missing feature - pressing Enter on empty text input should close it
+        await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+          waitUntil: "domcontentloaded",
+        });
+        await waitForSync(authenticatedPage, 500);
 
-      await authenticatedPage.getByRole("button", { name: /text/i }).click();
-      await waitForSync(authenticatedPage, 200);
+        await authenticatedPage.getByRole("button", { name: /text/i }).click();
+        await waitForSync(authenticatedPage, 200);
 
-      const canvas = await getCanvas(authenticatedPage);
-      const box = await canvas.boundingBox();
-      if (box) await authenticatedPage.mouse.click(box.x + 400, box.y + 300);
+        const canvas = await getCanvas(authenticatedPage);
+        const box = await canvas.boundingBox();
+        if (box) await authenticatedPage.mouse.click(box.x + 400, box.y + 300);
 
-      const textInput = authenticatedPage.locator(
-        'input[placeholder*="Enter text"]',
-      );
-      await textInput.waitFor({ state: "visible", timeout: 3000 });
+        const textInput = authenticatedPage.locator(
+          'input[placeholder*="Enter text"]',
+        );
+        await textInput.waitFor({ state: "visible", timeout: 3000 });
 
-      // Just press Enter without typing
-      await authenticatedPage.keyboard.press("Enter");
-      await waitForSync(authenticatedPage);
+        // Just press Enter without typing
+        await authenticatedPage.keyboard.press("Enter");
+        await waitForSync(authenticatedPage);
 
-      // Input should close, no shape created
-      await expect(textInput).not.toBeVisible();
-    });
+        // Input should close, no shape created
+        await expect(textInput).not.toBeVisible();
+      },
+    );
 
     test("very small shapes (<minimum size) are not created", async ({
       authenticatedPage,

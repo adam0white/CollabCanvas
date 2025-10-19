@@ -64,7 +64,7 @@ test.describe("Persistence & Reconnection", () => {
       await waitForSync(authenticatedPage, 300);
     });
 
-    test.skip("shape position after mid-drag refresh - DIFFICULT TO TEST", async ({
+    test("shape position after mid-drag refresh", async ({
       authenticatedPage,
       roomId,
     }) => {
@@ -152,51 +152,51 @@ test.describe("Persistence & Reconnection", () => {
       await newContext.close();
     });
 
-    test.skip("canvas persists after extended period (30s) - TEST TAKES TOO LONG", async ({
-      authenticatedPage,
-      roomId,
-    }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
-        waitUntil: "domcontentloaded",
-      });
-      await waitForSync(authenticatedPage, 1000);
-
-      // Create shape
-      await createRectangle(authenticatedPage, 300, 300, 120, 100);
-      await waitForSync(authenticatedPage, 2000); // Ensure persistence
-
-      // Close page
-      await authenticatedPage.close();
-
-      // Wait 30 seconds
-      await new Promise((resolve) => setTimeout(resolve, 30000));
-
-      // Open new page to same room
-      const newContext = await authenticatedPage
-        .context()
-        .browser()
-        ?.newContext({
-          storageState: "./playwright/.auth/user.json",
+    test.fail(
+      "canvas persists after extended period (30s) - TEST TAKES TOO LONG",
+      async ({ authenticatedPage, roomId }) => {
+        await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+          waitUntil: "domcontentloaded",
         });
-      if (!newContext) throw new Error("Could not create new context");
+        await waitForSync(authenticatedPage, 1000);
 
-      const newPage = await newContext.newPage();
-      await newPage.goto(`/c/main?roomId=${roomId}`, {
-        waitUntil: "domcontentloaded",
-      });
-      await waitForSync(newPage, 1500);
+        // Create shape
+        await createRectangle(authenticatedPage, 300, 300, 120, 100);
+        await waitForSync(authenticatedPage, 2000); // Ensure persistence
 
-      // Shape should persist
-      // Smoke test - verify canvas still functional
+        // Close page
+        await authenticatedPage.close();
 
-      await expect(authenticatedPage.locator("canvas").first()).toBeVisible();
+        // Wait 30 seconds
+        await new Promise((resolve) => setTimeout(resolve, 30000));
 
-      await newContext.close();
-    });
+        // Open new page to same room
+        const newContext = await authenticatedPage
+          .context()
+          .browser()
+          ?.newContext({
+            storageState: "./playwright/.auth/user.json",
+          });
+        if (!newContext) throw new Error("Could not create new context");
+
+        const newPage = await newContext.newPage();
+        await newPage.goto(`/c/main?roomId=${roomId}`, {
+          waitUntil: "domcontentloaded",
+        });
+        await waitForSync(newPage, 1500);
+
+        // Shape should persist
+        // Smoke test - verify canvas still functional
+
+        await expect(authenticatedPage.locator("canvas").first()).toBeVisible();
+
+        await newContext.close();
+      },
+    );
   });
 
   test.describe("Scenario 3: Network Simulation", () => {
-    test.skip("auto-reconnect after network drop - NEEDS NETWORK EMULATION", async ({
+    test("auto-reconnect after network drop", async ({
       authenticatedPage,
       roomId,
     }) => {
@@ -233,7 +233,7 @@ test.describe("Persistence & Reconnection", () => {
       await expect(authenticatedPage.locator("canvas").first()).toBeVisible();
     });
 
-    test.skip("connection status indicator shows offline/online - UI ELEMENT CHECK", async ({
+    test("connection status indicator shows offline/online", async ({
       authenticatedPage,
       roomId,
     }) => {
@@ -260,7 +260,7 @@ test.describe("Persistence & Reconnection", () => {
       // await expect(page.locator('text=/online|connected/i')).toBeVisible();
     });
 
-    test.skip("operations during offline queue and sync on reconnect", async ({
+    test("operations during offline queue and sync on reconnect", async ({
       authenticatedPage,
       roomId,
     }) => {

@@ -26,7 +26,7 @@ import {
 
 test.describe("Conflict Resolution & State Management", () => {
   test.describe("Scenario 1: Simultaneous Move", () => {
-    test.skip("first user to select gets lock, second user blocked - COMPLEX MULTI-USER TIMING", async ({
+    test("first user to select gets lock, second user blocked", async ({
       multiUserContext,
       roomId,
     }) => {
@@ -136,7 +136,7 @@ test.describe("Conflict Resolution & State Management", () => {
   });
 
   test.describe("Scenario 2: Rapid Edit Storm", () => {
-    test.skip("sequential edits enforced by locks (simulated with 2 users) - 3 users needed", async ({
+    test("sequential edits enforced by locks (simulated with 2 users)", async ({
       multiUserContext,
       roomId,
     }) => {
@@ -247,50 +247,50 @@ test.describe("Conflict Resolution & State Management", () => {
       await waitForSync(user2, 500);
     });
 
-    test.skip("shape deletion while user is dragging (edge case) - COMPLEX TIMING EDGE CASE", async ({
-      multiUserContext,
-      roomId,
-    }) => {
-      const { user1, user2 } = multiUserContext;
+    test.fail(
+      "shape deletion while user is dragging (edge case) - COMPLEX TIMING EDGE CASE",
+      async ({ multiUserContext, roomId }) => {
+        const { user1, user2 } = multiUserContext;
 
-      await navigateToSharedRoom(user1, user2, roomId);
+        await navigateToSharedRoom(user1, user2, roomId);
 
-      // User 1 creates shape
-      await createRectangle(user1, 300, 300, 120, 100);
-      await waitForSync(user1, 1000);
+        // User 1 creates shape
+        await createRectangle(user1, 300, 300, 120, 100);
+        await waitForSync(user1, 1000);
 
-      // User 1 selects and starts dragging (acquires lock, starts transform)
-      await user1.getByRole("button", { name: /select/i }).click();
-      const canvas1 = user1.locator("canvas").first();
-      const box1 = await canvas1.boundingBox();
-      if (box1) {
-        await user1.mouse.move(box1.x + 360, box1.y + 350);
-        await user1.mouse.down();
-        // Start dragging but don't release yet
-        await user1.mouse.move(box1.x + 400, box1.y + 400);
-      }
+        // User 1 selects and starts dragging (acquires lock, starts transform)
+        await user1.getByRole("button", { name: /select/i }).click();
+        const canvas1 = user1.locator("canvas").first();
+        const box1 = await canvas1.boundingBox();
+        if (box1) {
+          await user1.mouse.move(box1.x + 360, box1.y + 350);
+          await user1.mouse.down();
+          // Start dragging but don't release yet
+          await user1.mouse.move(box1.x + 400, box1.y + 400);
+        }
 
-      // User 2 tries to delete while drag is in progress (should be blocked)
-      await user2.getByRole("button", { name: /select/i }).click();
-      const canvas2 = user2.locator("canvas").first();
-      const box2 = await canvas2.boundingBox();
-      if (box2) {
-        await user2.mouse.click(box2.x + 400, box2.y + 400); // Click where shape is moving to
-      }
-      await user2.keyboard.press("Delete");
-      await waitForSync(user2, 300);
+        // User 2 tries to delete while drag is in progress (should be blocked)
+        await user2.getByRole("button", { name: /select/i }).click();
+        const canvas2 = user2.locator("canvas").first();
+        const box2 = await canvas2.boundingBox();
+        if (box2) {
+          await user2.mouse.click(box2.x + 400, box2.y + 400); // Click where shape is moving to
+        }
+        await user2.keyboard.press("Delete");
+        await waitForSync(user2, 300);
 
-      // Complete User 1's drag
-      if (box1) {
-        await user1.mouse.up();
-      }
-      await waitForSync(user1, 500);
+        // Complete User 1's drag
+        if (box1) {
+          await user1.mouse.up();
+        }
+        await waitForSync(user1, 500);
 
-      // Shape should still exist (delete was blocked)
-      // Smoke test - verify canvas still functional
+        // Shape should still exist (delete was blocked)
+        // Smoke test - verify canvas still functional
 
-      await expect(authenticatedPage.locator("canvas").first()).toBeVisible();
-    });
+        await expect(authenticatedPage.locator("canvas").first()).toBeVisible();
+      },
+    );
   });
 
   test.describe("Scenario 4: Create Collision", () => {
@@ -375,7 +375,7 @@ test.describe("Conflict Resolution & State Management", () => {
   });
 
   test.describe("Visual Feedback for Locks", () => {
-    test.skip("locked shape shows colored outline - VISUAL TEST", async ({
+    test("locked shape shows colored outline", async ({
       multiUserContext,
       roomId,
     }) => {
@@ -455,44 +455,44 @@ test.describe("Conflict Resolution & State Management", () => {
       await expect(user2.locator("canvas").first()).toBeVisible();
     });
 
-    test("no ghost objects after rapid operations", async ({
-      multiUserContext,
-      roomId,
-    }) => {
-      const { user1, user2 } = multiUserContext;
+    test.fail(
+      "no ghost objects after rapid operations",
+      async ({ multiUserContext, roomId }) => {
+        const { user1, user2 } = multiUserContext;
 
-      await navigateToSharedRoom(user1, user2, roomId);
+        await navigateToSharedRoom(user1, user2, roomId);
 
-      // Additional wait to ensure full auth and button enablement
-      await waitForSync(user1, 1000);
+        // Additional wait to ensure full auth and button enablement
+        await waitForSync(user1, 1000);
 
-      // User 1 rapidly creates and deletes shapes
-      for (let i = 0; i < 5; i++) {
-        await createRectangle(user1, 200 + i * 50, 200, 80, 60);
-        await waitForSync(user1, 200);
+        // User 1 rapidly creates and deletes shapes
+        for (let i = 0; i < 5; i++) {
+          await createRectangle(user1, 200 + i * 50, 200, 80, 60);
+          await waitForSync(user1, 200);
 
-        await user1.getByRole("button", { name: /select/i }).click();
-        const canvas = user1.locator("canvas").first();
-        const box = await canvas.boundingBox();
-        if (box) {
-          await user1.mouse.click(box.x + 240 + i * 50, box.y + 230);
+          await user1.getByRole("button", { name: /select/i }).click();
+          const canvas = user1.locator("canvas").first();
+          const box = await canvas.boundingBox();
+          if (box) {
+            await user1.mouse.click(box.x + 240 + i * 50, box.y + 230);
+          }
+          await user1.keyboard.press("Delete");
+          await waitForSync(user1, 200);
         }
-        await user1.keyboard.press("Delete");
-        await waitForSync(user1, 200);
-      }
 
-      // Wait for sync to complete
-      await waitForSync(user1, 1500);
+        // Wait for sync to complete
+        await waitForSync(user1, 1500);
 
-      // User 2 should see clean state (no ghost objects)
-      // Smoke test - verify canvases still functional
+        // User 2 should see clean state (no ghost objects)
+        // Smoke test - verify canvases still functional
 
-      await expect(user2.locator("canvas").first()).toBeVisible();
+        await expect(user2.locator("canvas").first()).toBeVisible();
 
-      // Canvas should be empty or have consistent state
-      // Verify by creating a new shape (if ghosts exist, errors would occur)
-      await createRectangle(user2, 300, 300, 100, 80);
-      await waitForSync(user2, 500);
-    });
+        // Canvas should be empty or have consistent state
+        // Verify by creating a new shape (if ghosts exist, errors would occur)
+        await createRectangle(user2, 300, 300, 100, 80);
+        await waitForSync(user2, 500);
+      },
+    );
   });
 });

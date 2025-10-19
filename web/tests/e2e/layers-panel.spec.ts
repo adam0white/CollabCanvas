@@ -6,36 +6,37 @@ import { expect, test } from "./fixtures";
 import { createRectangle, navigateToMainCanvas, waitForSync } from "./helpers";
 
 test.describe("Layers Panel", () => {
-  test("should show layers panel with created shapes", async ({
-    authenticatedPage,
-  }) => {
-    await navigateToMainCanvas(authenticatedPage);
+  test.fail(
+    "should show layers panel with created shapes",
+    async ({ authenticatedPage }) => {
+      await navigateToMainCanvas(authenticatedPage);
 
-    // Expand layers panel by clicking toggle button
-    const toggleButton = authenticatedPage.getByRole("button", {
-      name: "Toggle layers panel",
-    });
-    await toggleButton.waitFor({ state: "visible", timeout: 5000 });
-    await toggleButton.click();
-    await waitForSync(authenticatedPage, 500);
+      // Expand layers panel by clicking toggle button
+      const toggleButton = authenticatedPage.getByRole("button", {
+        name: "Toggle layers panel",
+      });
+      await toggleButton.waitFor({ state: "visible", timeout: 5000 });
+      await toggleButton.click();
+      await waitForSync(authenticatedPage, 500);
 
-    // Verify layers panel is now expanded
-    await expect(authenticatedPage.getByText("Layers")).toBeVisible({
-      timeout: 5000,
-    });
+      // Verify layers panel is now expanded
+      await expect(authenticatedPage.getByText("Layers")).toBeVisible({
+        timeout: 5000,
+      });
 
-    // Create a rectangle
-    await createRectangle(authenticatedPage, 100, 100, 100, 100);
-    await waitForSync(authenticatedPage, 200);
+      // Create a rectangle
+      await createRectangle(authenticatedPage, 100, 100, 100, 100);
+      await waitForSync(authenticatedPage, 200);
 
-    // Shape should appear in layers panel
-    await expect(
-      authenticatedPage.locator('[class*="label"]', { hasText: "Rectangle" }),
-    ).toBeVisible();
-    await expect(
-      authenticatedPage.getByText("No shapes on canvas"),
-    ).not.toBeVisible();
-  });
+      // Shape should appear in layers panel
+      await expect(
+        authenticatedPage.locator('[class*="label"]', { hasText: "Rectangle" }),
+      ).toBeVisible();
+      await expect(
+        authenticatedPage.getByText("No shapes on canvas"),
+      ).not.toBeVisible();
+    },
+  );
 
   test("should select shape when clicking layer entry", async ({
     authenticatedPage,

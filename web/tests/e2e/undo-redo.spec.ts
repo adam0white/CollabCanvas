@@ -154,10 +154,7 @@ test.describe("Undo/Redo Operations", () => {
       await expect(authenticatedPage.locator("canvas").first()).toBeVisible();
     });
 
-    test.skip("undo text editing - NEEDS TEXT EDIT TRACKING", async ({
-      authenticatedPage,
-      roomId,
-    }) => {
+    test("undo text editing", async ({ authenticatedPage, roomId }) => {
       await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
         waitUntil: "domcontentloaded",
       });
@@ -293,7 +290,7 @@ test.describe("Undo/Redo Operations", () => {
   });
 
   test.describe("Undo Scope (Local Only)", () => {
-    test.skip("cannot undo other user's changes - COMPLEX MULTI-USER UNDO SCOPING", async ({
+    test("cannot undo other user's changes", async ({
       multiUserContext,
       roomId,
     }) => {
@@ -395,7 +392,7 @@ test.describe("Undo/Redo Operations", () => {
   });
 
   test.describe("Undo Persistence", () => {
-    test.skip("undo history persists across page refresh - YICS FEATURE", async ({
+    test("undo history persists across page refresh", async ({
       authenticatedPage,
       roomId,
     }) => {

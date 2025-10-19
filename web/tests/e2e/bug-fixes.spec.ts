@@ -236,75 +236,75 @@ test.describe("Bug Fix Regression Tests", () => {
   });
 
   test.describe("Empty Text Shape Prevention", () => {
-    test.skip("pressing enter without text does not create shape - KNOWN BUG", async ({
-      authenticatedPage,
-      roomId,
-    }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
-        waitUntil: "domcontentloaded",
-      });
-      await waitForSync(authenticatedPage, 500);
+    test.fail(
+      "pressing enter without text does not create shape - KNOWN BUG",
+      async ({ authenticatedPage, roomId }) => {
+        await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+          waitUntil: "domcontentloaded",
+        });
+        await waitForSync(authenticatedPage, 500);
 
-      // Activate text tool
-      await authenticatedPage.getByRole("button", { name: /text/i }).click();
-      await waitForSync(authenticatedPage, 200);
+        // Activate text tool
+        await authenticatedPage.getByRole("button", { name: /text/i }).click();
+        await waitForSync(authenticatedPage, 200);
 
-      // Click on canvas
-      const canvas = await getCanvas(authenticatedPage);
-      const box = await canvas.boundingBox();
-      if (box) {
-        await authenticatedPage.mouse.click(box.x + 400, box.y + 300);
-      }
+        // Click on canvas
+        const canvas = await getCanvas(authenticatedPage);
+        const box = await canvas.boundingBox();
+        if (box) {
+          await authenticatedPage.mouse.click(box.x + 400, box.y + 300);
+        }
 
-      // Text input should appear
-      const textInput = authenticatedPage.locator(
-        'input[placeholder*="Enter text"]',
-      );
-      await textInput.waitFor({ state: "visible", timeout: 3000 });
+        // Text input should appear
+        const textInput = authenticatedPage.locator(
+          'input[placeholder*="Enter text"]',
+        );
+        await textInput.waitFor({ state: "visible", timeout: 3000 });
 
-      // Press Enter without typing anything
-      await authenticatedPage.keyboard.press("Enter");
-      await waitForSync(authenticatedPage, 300);
+        // Press Enter without typing anything
+        await authenticatedPage.keyboard.press("Enter");
+        await waitForSync(authenticatedPage, 300);
 
-      // Input should close
-      await expect(textInput).not.toBeVisible();
+        // Input should close
+        await expect(textInput).not.toBeVisible();
 
-      // No text shape should exist (canvas should be empty)
-      // We verify this by checking that switching to select tool works
-      await switchToSelectMode(authenticatedPage);
-      await waitForSync(authenticatedPage, 200);
-    });
+        // No text shape should exist (canvas should be empty)
+        // We verify this by checking that switching to select tool works
+        await switchToSelectMode(authenticatedPage);
+        await waitForSync(authenticatedPage, 200);
+      },
+    );
 
-    test.skip("pressing escape on empty text input closes without creating - KNOWN BUG", async ({
-      authenticatedPage,
-      roomId,
-    }) => {
-      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
-        waitUntil: "domcontentloaded",
-      });
-      await waitForSync(authenticatedPage, 500);
+    test.fail(
+      "pressing escape on empty text input closes without creating - KNOWN BUG",
+      async ({ authenticatedPage, roomId }) => {
+        await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+          waitUntil: "domcontentloaded",
+        });
+        await waitForSync(authenticatedPage, 500);
 
-      await authenticatedPage.getByRole("button", { name: /text/i }).click();
-      await waitForSync(authenticatedPage, 200);
+        await authenticatedPage.getByRole("button", { name: /text/i }).click();
+        await waitForSync(authenticatedPage, 200);
 
-      const canvas = await getCanvas(authenticatedPage);
-      const box = await canvas.boundingBox();
-      if (box) {
-        await authenticatedPage.mouse.click(box.x + 400, box.y + 300);
-      }
+        const canvas = await getCanvas(authenticatedPage);
+        const box = await canvas.boundingBox();
+        if (box) {
+          await authenticatedPage.mouse.click(box.x + 400, box.y + 300);
+        }
 
-      const textInput = authenticatedPage.locator(
-        'input[placeholder*="Enter text"]',
-      );
-      await textInput.waitFor({ state: "visible", timeout: 3000 });
+        const textInput = authenticatedPage.locator(
+          'input[placeholder*="Enter text"]',
+        );
+        await textInput.waitFor({ state: "visible", timeout: 3000 });
 
-      // Press Escape
-      await authenticatedPage.keyboard.press("Escape");
-      await waitForSync(authenticatedPage, 300);
+        // Press Escape
+        await authenticatedPage.keyboard.press("Escape");
+        await waitForSync(authenticatedPage, 300);
 
-      // Input should close
-      await expect(textInput).not.toBeVisible();
-    });
+        // Input should close
+        await expect(textInput).not.toBeVisible();
+      },
+    );
   });
 
   test.describe("Keyboard Shortcut Fixes", () => {
