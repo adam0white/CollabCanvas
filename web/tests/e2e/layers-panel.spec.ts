@@ -69,16 +69,25 @@ test.describe("Layers Panel", () => {
     await visibilityButton.click();
     await waitForSync(authenticatedPage, 100);
 
-    // Shape should be hidden from canvas but still in panel (use layers panel selector)
+    // Shape should be hidden from canvas but still in panel (use first match)
     await expect(
-      authenticatedPage.locator('[class*="layerMain"]', {
-        hasText: "Rectangle",
-      }),
+      authenticatedPage
+        .locator('[class*="layerMain"]', {
+          hasText: "Rectangle",
+        })
+        .first(),
     ).toBeVisible();
   });
 
   test("should show layer count", async ({ authenticatedPage }) => {
     await navigateToMainCanvas(authenticatedPage);
+
+    // Expand layers panel for this test
+    await authenticatedPage.evaluate(() => {
+      localStorage.setItem("layersPanelCollapsed", "false");
+    });
+    await authenticatedPage.reload({ waitUntil: "domcontentloaded" });
+    await waitForSync(authenticatedPage, 1000);
 
     // Create 3 shapes
     for (let i = 0; i < 3; i++) {

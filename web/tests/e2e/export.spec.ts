@@ -9,16 +9,11 @@ test.describe("Export Canvas", () => {
   test("should open export modal with Cmd+E", async ({ authenticatedPage }) => {
     await navigateToMainCanvas(authenticatedPage);
 
-    // Focus on the canvas to ensure keyboard shortcuts work
-    const canvas = authenticatedPage.locator("canvas").first();
-    await canvas.click();
-    await waitForSync(authenticatedPage, 100);
-
-    // Press Cmd+E to open export modal
+    // Press Cmd+E to open export modal (no canvas click needed)
     await authenticatedPage.keyboard.press("Meta+E");
 
     // Verify modal appears
-    await waitForSync(authenticatedPage, 200);
+    await waitForSync(authenticatedPage, 300);
     await expect(authenticatedPage.getByText("Export Canvas")).toBeVisible();
   });
 
@@ -100,14 +95,9 @@ test.describe("Export Canvas", () => {
   test("should close modal on cancel", async ({ authenticatedPage }) => {
     await navigateToMainCanvas(authenticatedPage);
 
-    // Focus on the canvas to ensure keyboard shortcuts work
-    const canvas = authenticatedPage.locator("canvas").first();
-    await canvas.click();
-    await waitForSync(authenticatedPage, 100);
-
-    // Open modal
+    // Open modal via keyboard shortcut
     await authenticatedPage.keyboard.press("Meta+E");
-    await waitForSync(authenticatedPage, 200);
+    await waitForSync(authenticatedPage, 300);
     await expect(authenticatedPage.getByText("Export Canvas")).toBeVisible();
 
     // Click cancel
