@@ -32,6 +32,7 @@ test.describe("Z-Index Management", () => {
     // Click the first rectangle to select it
     await authenticatedPage
       .locator("canvas")
+      .first()
       .click({ position: { x: 150, y: 150 } });
 
     // Click "To Front" button
@@ -57,6 +58,7 @@ test.describe("Z-Index Management", () => {
     await switchToSelectMode(authenticatedPage);
     await authenticatedPage
       .locator("canvas")
+      .first()
       .click({ position: { x: 200, y: 200 } });
 
     // Press Cmd+[ to send to back

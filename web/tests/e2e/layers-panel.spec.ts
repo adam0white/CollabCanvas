@@ -14,17 +14,20 @@ test.describe("Layers Panel", () => {
     // Verify layers panel is visible
     await expect(authenticatedPage.getByText("Layers")).toBeVisible();
 
-    // Initially should show "No shapes"
+    // Initially should show "No shapes" - wait for panel to fully render
+    await waitForSync(authenticatedPage, 500);
     await expect(
       authenticatedPage.getByText("No shapes on canvas"),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 10000 });
 
     // Create a rectangle
     await createRectangle(authenticatedPage, 100, 100, 100, 100);
     await waitForSync(authenticatedPage, 200);
 
-    // Shape should appear in layers panel
-    await expect(authenticatedPage.getByText("Rectangle")).toBeVisible();
+    // Shape should appear in layers panel (use more specific selector)
+    await expect(
+      authenticatedPage.locator('[class*="label"]', { hasText: "Rectangle" }),
+    ).toBeVisible();
     await expect(
       authenticatedPage.getByText("No shapes on canvas"),
     ).not.toBeVisible();
@@ -66,8 +69,12 @@ test.describe("Layers Panel", () => {
     await visibilityButton.click();
     await waitForSync(authenticatedPage, 100);
 
-    // Shape should be hidden from canvas but still in panel
-    await expect(authenticatedPage.getByText("Rectangle")).toBeVisible();
+    // Shape should be hidden from canvas but still in panel (use layers panel selector)
+    await expect(
+      authenticatedPage.locator('[class*="layerMain"]', {
+        hasText: "Rectangle",
+      }),
+    ).toBeVisible();
   });
 
   test("should show layer count", async ({ authenticatedPage }) => {
@@ -82,7 +89,9 @@ test.describe("Layers Panel", () => {
 
     await waitForSync(authenticatedPage, 200);
 
-    // Should show count of 3
-    await expect(authenticatedPage.getByText("3")).toBeVisible();
+    // Should show count of 3 (use count badge selector)
+    await expect(
+      authenticatedPage.locator('[class*="count"]', { hasText: "3" }),
+    ).toBeVisible();
   });
 });

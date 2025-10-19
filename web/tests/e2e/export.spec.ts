@@ -83,6 +83,7 @@ test.describe("Export Canvas", () => {
     await authenticatedPage.getByRole("button", { name: /^select/i }).click();
     await authenticatedPage
       .locator("canvas")
+      .first()
       .click({ position: { x: 150, y: 150 } });
 
     // Open export modal

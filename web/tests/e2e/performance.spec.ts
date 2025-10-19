@@ -96,7 +96,7 @@ test.describe("Performance & Scalability", () => {
 
       // Test zoom operation
       const zoomInButton = authenticatedPage.getByRole("button", {
-        name: "+",
+        name: /Zoom in/i,
       });
       const zoomStart = Date.now();
       await zoomInButton.click();
@@ -153,7 +153,7 @@ test.describe("Performance & Scalability", () => {
 
       // Test zoom
       const zoomInButton = authenticatedPage.getByRole("button", {
-        name: "+",
+        name: /Zoom in/i,
       });
       const zoomStart = Date.now();
       await zoomInButton.click();
