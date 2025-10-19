@@ -443,7 +443,7 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
     // For shape creation, move to the first shape's position
     if (toolCall.name === "createShape" && "shapes" in params) {
       const shapes = params.shapes as Array<{ x?: number; y?: number }>;
-      if (shapes.length > 0 && shapes[0].x && shapes[0].y) {
+      if (shapes.length > 0 && shapes[0].x != null && shapes[0].y != null) {
         return { x: shapes[0].x, y: shapes[0].y };
       }
     }
@@ -510,15 +510,14 @@ export class RoomDO extends YDurableObjects<DurableBindings> {
 
     // Shape creation: delay based on number of shapes
     if (toolCall.name === "createShape" && "shapes" in params) {
-      const shapes = params.shapes as unknown[];
-      const count = Array.isArray(shapes) ? shapes.length : 1;
+      const count = Array.isArray(params.shapes) ? params.shapes.length : 1;
       // Base 150ms + 20ms per shape, capped at 800ms
       return Math.min(150 + count * 20, 800);
     }
 
     // Arrange operations: longer delay for many shapes
     if (toolCall.name === "arrangeShapes" && "shapeIds" in params) {
-      const count = (params.shapeIds as unknown[]).length;
+      const count = Array.isArray(params.shapeIds) ? params.shapeIds.length : 0;
       return Math.min(150 + count * 15, 600);
     }
 
