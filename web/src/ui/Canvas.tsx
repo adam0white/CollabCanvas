@@ -1,7 +1,7 @@
 import { useUser } from "@clerk/clerk-react";
 import type Konva from "konva";
 import type { KonvaEventObject } from "konva/lib/Node";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Circle, Group, Layer, Rect, Stage, Text } from "react-konva";
 import { useLocking } from "../hooks/useLocking";
 import type { PresenceState } from "../hooks/usePresence";
@@ -17,6 +17,11 @@ import {
   type Shape,
 } from "../shapes/types";
 import { useShapes } from "../shapes/useShapes";
+import {
+  calculateViewportBounds,
+  filterVisibleShapes,
+  getViewportStats,
+} from "../utils/viewport";
 import styles from "./Canvas.module.css";
 
 const MIN_ZOOM = 0.1;
@@ -691,6 +696,48 @@ export function Canvas({
     }
   };
 
+  // Viewport culling: Only render shapes visible in current viewport
+  // This dramatically improves performance with 500+ shapes
+  const viewportBounds = useMemo(
+    () =>
+      calculateViewportBounds(
+        canvasSize.width,
+        canvasSize.height,
+        scale,
+        position,
+      ),
+    [canvasSize.width, canvasSize.height, scale, position],
+  );
+
+  const visibleShapes = useMemo(() => {
+    // Always render selected shapes even if off-screen (for transformer)
+    const selectedShapes = shapes.filter((s) =>
+      selectedShapeIds.includes(s.id),
+    );
+    const unselectedShapes = shapes.filter(
+      (s) => !selectedShapeIds.includes(s.id),
+    );
+
+    // Filter unselected shapes by viewport
+    const visibleUnselected = filterVisibleShapes(
+      unselectedShapes,
+      viewportBounds,
+    );
+
+    // Combine selected and visible shapes
+    return [...selectedShapes, ...visibleUnselected];
+  }, [shapes, selectedShapeIds, viewportBounds]);
+
+  // Log viewport culling stats in development (helps with performance debugging)
+  useEffect(() => {
+    if (import.meta.env.DEV && shapes.length > 50) {
+      const stats = getViewportStats(shapes.length, visibleShapes.length);
+      console.debug(
+        `[Viewport Culling] ${stats.visibleShapes}/${stats.totalShapes} shapes visible (${stats.cullPercentage}% culled)`,
+      );
+    }
+  }, [shapes.length, visibleShapes.length]);
+
   const remoteCursors = Array.from(presence.values()).filter(
     (participant) => participant.cursor,
   );
@@ -897,9 +944,9 @@ export function Canvas({
 
         {/* Main content layer */}
         <Layer>
-          {/* Render persisted shapes from Yjs */}
+          {/* Render persisted shapes from Yjs (with viewport culling) */}
           <ShapeLayer
-            shapes={shapes}
+            shapes={visibleShapes}
             canEdit={canEdit}
             selectedTool={activeTool}
             selectedShapeIds={selectedShapeIds}
