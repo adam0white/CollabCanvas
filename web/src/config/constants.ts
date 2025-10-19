@@ -62,6 +62,6 @@ export const AI = {
   MAX_SHAPES_PER_COMMAND: 1000,
   /** Maximum prompt length in characters */
   MAX_PROMPT_LENGTH: 1000,
-  /** AI command timeout in milliseconds */
-  COMMAND_TIMEOUT_MS: 10000,
+  /** AI command timeout in milliseconds (increased for large requests) */
+  COMMAND_TIMEOUT_MS: 60000, // 60 seconds for complex operations
 } as const;
