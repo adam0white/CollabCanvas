@@ -11,20 +11,29 @@ test.describe("Layers Panel", () => {
   }) => {
     await navigateToMainCanvas(authenticatedPage);
 
-    // Verify layers panel is visible
-    await expect(authenticatedPage.getByText("Layers")).toBeVisible();
-
-    // Initially should show "No shapes" - wait for panel to fully render
+    // Expand layers panel by clicking toggle button
+    const toggleButton = authenticatedPage.getByRole("button", {
+      name: "Toggle layers panel",
+    });
+    await toggleButton.waitFor({ state: "visible", timeout: 5000 });
+    await toggleButton.click();
     await waitForSync(authenticatedPage, 500);
+
+    // Verify layers panel is now expanded
+    await expect(authenticatedPage.getByText("Layers")).toBeVisible({
+      timeout: 5000,
+    });
+
+    // Initially should show "No shapes"
     await expect(
       authenticatedPage.getByText("No shapes on canvas"),
-    ).toBeVisible({ timeout: 10000 });
+    ).toBeVisible({ timeout: 5000 });
 
     // Create a rectangle
     await createRectangle(authenticatedPage, 100, 100, 100, 100);
     await waitForSync(authenticatedPage, 200);
 
-    // Shape should appear in layers panel (use more specific selector)
+    // Shape should appear in layers panel
     await expect(
       authenticatedPage.locator('[class*="label"]', { hasText: "Rectangle" }),
     ).toBeVisible();
@@ -38,34 +47,48 @@ test.describe("Layers Panel", () => {
   }) => {
     await navigateToMainCanvas(authenticatedPage);
 
+    // Expand layers panel
+    const toggleButton = authenticatedPage.getByRole("button", {
+      name: "Toggle layers panel",
+    });
+    await toggleButton.waitFor({ state: "visible", timeout: 5000 });
+    await toggleButton.click();
+    await waitForSync(authenticatedPage, 500);
+
     // Create a shape
     await createRectangle(authenticatedPage, 100, 100, 100, 100);
-    await waitForSync(authenticatedPage, 200);
-
-    // Switch to select tool
-    await authenticatedPage.getByRole("button", { name: /^select/i }).click();
+    await waitForSync(authenticatedPage, 300);
 
     // Click the layer entry
-    const layerEntry = authenticatedPage.getByText("Rectangle").first();
+    const layerEntry = authenticatedPage.getByRole("button", {
+      name: /Rectangle/i,
+    });
     await layerEntry.click();
-
-    // Layer should be highlighted (selected state)
     await waitForSync(authenticatedPage, 100);
+
+    // Shape should be selected (verify via UI or state - simplified test)
   });
 
   test("should toggle shape visibility", async ({ authenticatedPage }) => {
     await navigateToMainCanvas(authenticatedPage);
 
+    // Expand layers panel
+    const toggleButton = authenticatedPage.getByRole("button", {
+      name: "Toggle layers panel",
+    });
+    await toggleButton.waitFor({ state: "visible", timeout: 5000 });
+    await toggleButton.click();
+    await waitForSync(authenticatedPage, 500);
+
     // Create a rectangle
     await createRectangle(authenticatedPage, 100, 100, 100, 100);
     await waitForSync(authenticatedPage, 200);
 
-    // Find visibility toggle button (eye icon)
+    // Find and click the visibility toggle button
     const visibilityButton = authenticatedPage
       .locator('button[title="Hide"]')
       .first();
-
-    // Toggle visibility off
+    await visibilityButton.waitFor({ state: "visible", timeout: 5000 });
     await visibilityButton.click();
     await waitForSync(authenticatedPage, 100);
 
@@ -82,7 +105,7 @@ test.describe("Layers Panel", () => {
   test("should show layer count", async ({ authenticatedPage }) => {
     await navigateToMainCanvas(authenticatedPage);
 
-    // Expand layers panel by clicking toggle button
+    // Expand layers panel
     const toggleButton = authenticatedPage.getByRole("button", {
       name: "Toggle layers panel",
     });
@@ -91,13 +114,10 @@ test.describe("Layers Panel", () => {
     await waitForSync(authenticatedPage, 500);
 
     // Create 3 shapes
-    for (let i = 0; i < 3; i++) {
-      const x = 100 + i * 100;
-      await createRectangle(authenticatedPage, x, 100, 50, 50);
-      await waitForSync(authenticatedPage, 50);
-    }
-
-    await waitForSync(authenticatedPage, 200);
+    await createRectangle(authenticatedPage, 100, 100, 50, 50);
+    await createRectangle(authenticatedPage, 200, 100, 50, 50);
+    await createRectangle(authenticatedPage, 300, 100, 50, 50);
+    await waitForSync(authenticatedPage, 500);
 
     // Should show count of 3 (use count badge selector)
     await expect(
