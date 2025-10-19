@@ -153,6 +153,28 @@ export function ShortcutsPanel({
           </section>
 
           <section className={styles.section}>
+            <h3>Arrange</h3>
+            <div className={styles.shortcutList}>
+              <div className={styles.shortcut}>
+                <span className={styles.key}>Cmd/Ctrl+]</span>
+                <span className={styles.description}>Bring to front</span>
+              </div>
+              <div className={styles.shortcut}>
+                <span className={styles.key}>Cmd/Ctrl+[</span>
+                <span className={styles.description}>Send to back</span>
+              </div>
+              <div className={styles.shortcut}>
+                <span className={styles.key}>Cmd/Ctrl+Shift+]</span>
+                <span className={styles.description}>Bring forward</span>
+              </div>
+              <div className={styles.shortcut}>
+                <span className={styles.key}>Cmd/Ctrl+Shift+[</span>
+                <span className={styles.description}>Send backward</span>
+              </div>
+            </div>
+          </section>
+
+          <section className={styles.section}>
             <h3>AI</h3>
             <div className={styles.shortcutList}>
               <div className={styles.shortcut}>

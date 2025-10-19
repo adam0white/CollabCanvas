@@ -17,6 +17,12 @@ import {
   type Shape,
 } from "../shapes/types";
 import { useShapes } from "../shapes/useShapes";
+import {
+  bringForward,
+  bringToFront,
+  sendBackward,
+  sendToBack,
+} from "../shapes/zindex";
 import styles from "./Canvas.module.css";
 
 const MIN_ZOOM = 0.1;
@@ -350,6 +356,66 @@ export function Canvas({
         // Select pasted shapes
         setSelectedShapeIds(pastedShapeIds);
         setPasteCount(pasteCount + 1);
+      }
+
+      // Z-Index: Bring to Front with Cmd+]
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.key === "]" &&
+        !e.shiftKey &&
+        canEdit &&
+        selectedShapeIds.length > 0
+      ) {
+        e.preventDefault();
+        const updates = bringToFront(selectedShapeIds, shapes);
+        for (const [shapeId, zIndex] of updates.entries()) {
+          updateShape(shapeId, { zIndex });
+        }
+      }
+
+      // Z-Index: Send to Back with Cmd+[
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.key === "[" &&
+        !e.shiftKey &&
+        canEdit &&
+        selectedShapeIds.length > 0
+      ) {
+        e.preventDefault();
+        const updates = sendToBack(selectedShapeIds, shapes);
+        for (const [shapeId, zIndex] of updates.entries()) {
+          updateShape(shapeId, { zIndex });
+        }
+      }
+
+      // Z-Index: Bring Forward with Cmd+Shift+]
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.key === "]" &&
+        e.shiftKey &&
+        canEdit &&
+        selectedShapeIds.length > 0
+      ) {
+        e.preventDefault();
+        const updates = bringForward(selectedShapeIds, shapes);
+        for (const [shapeId, zIndex] of updates.entries()) {
+          updateShape(shapeId, { zIndex });
+        }
+      }
+
+      // Z-Index: Send Backward with Cmd+Shift+[
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.key === "[" &&
+        e.shiftKey &&
+        canEdit &&
+        selectedShapeIds.length > 0
+      ) {
+        e.preventDefault();
+        const updates = sendBackward(selectedShapeIds, shapes);
+        for (const [shapeId, zIndex] of updates.entries()) {
+          updateShape(shapeId, { zIndex });
+        }
       }
     };
 

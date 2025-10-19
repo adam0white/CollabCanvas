@@ -5,6 +5,13 @@ import { useSelection } from "../hooks/useSelection";
 import { useToolbar } from "../hooks/useToolbar";
 import { useUndoRedo } from "../hooks/useUndoRedo";
 import { useShapes } from "../shapes/useShapes";
+import {
+  bringForward,
+  bringToFront,
+  getAvailableZIndexOperations,
+  sendBackward,
+  sendToBack,
+} from "../shapes/zindex";
 import { ColorPicker } from "./ColorPicker";
 import styles from "./Toolbar.module.css";
 
@@ -65,6 +72,41 @@ export function Toolbar({
       for (const shapeId of selectedShapeIds) {
         updateShape(shapeId, { fill: color });
       }
+    }
+  };
+
+  // Z-index operations
+  const zIndexOps = getAvailableZIndexOperations(selectedShapeIds, shapes);
+
+  const handleBringToFront = () => {
+    if (!canEdit || selectedShapeIds.length === 0) return;
+    const updates = bringToFront(selectedShapeIds, shapes);
+    for (const [shapeId, zIndex] of updates.entries()) {
+      updateShape(shapeId, { zIndex });
+    }
+  };
+
+  const handleSendToBack = () => {
+    if (!canEdit || selectedShapeIds.length === 0) return;
+    const updates = sendToBack(selectedShapeIds, shapes);
+    for (const [shapeId, zIndex] of updates.entries()) {
+      updateShape(shapeId, { zIndex });
+    }
+  };
+
+  const handleBringForward = () => {
+    if (!canEdit || selectedShapeIds.length === 0) return;
+    const updates = bringForward(selectedShapeIds, shapes);
+    for (const [shapeId, zIndex] of updates.entries()) {
+      updateShape(shapeId, { zIndex });
+    }
+  };
+
+  const handleSendBackward = () => {
+    if (!canEdit || selectedShapeIds.length === 0) return;
+    const updates = sendBackward(selectedShapeIds, shapes);
+    for (const [shapeId, zIndex] of updates.entries()) {
+      updateShape(shapeId, { zIndex });
     }
   };
 
@@ -157,6 +199,97 @@ export function Toolbar({
         onColorChange={handleColorChange}
         disabled={!canEdit && !isSignedIn}
       />
+
+      <div className={styles.toolDivider} />
+
+      {/* Z-Index controls */}
+      <button
+        type="button"
+        className={clsx(styles.toolButton, {
+          [styles.toolButtonDisabled]:
+            !canEdit ||
+            !isSignedIn ||
+            selectedShapeIds.length === 0 ||
+            !zIndexOps.canBringToFront,
+        })}
+        onClick={handleBringToFront}
+        disabled={
+          !canEdit ||
+          !isSignedIn ||
+          selectedShapeIds.length === 0 ||
+          !zIndexOps.canBringToFront
+        }
+        title="Bring to Front (Cmd+])"
+      >
+        <span aria-hidden>⬆️</span>
+        To Front
+      </button>
+
+      <button
+        type="button"
+        className={clsx(styles.toolButton, {
+          [styles.toolButtonDisabled]:
+            !canEdit ||
+            !isSignedIn ||
+            selectedShapeIds.length === 0 ||
+            !zIndexOps.canBringForward,
+        })}
+        onClick={handleBringForward}
+        disabled={
+          !canEdit ||
+          !isSignedIn ||
+          selectedShapeIds.length === 0 ||
+          !zIndexOps.canBringForward
+        }
+        title="Bring Forward (Cmd+Shift+])"
+      >
+        <span aria-hidden>⤴️</span>
+        Forward
+      </button>
+
+      <button
+        type="button"
+        className={clsx(styles.toolButton, {
+          [styles.toolButtonDisabled]:
+            !canEdit ||
+            !isSignedIn ||
+            selectedShapeIds.length === 0 ||
+            !zIndexOps.canSendBackward,
+        })}
+        onClick={handleSendBackward}
+        disabled={
+          !canEdit ||
+          !isSignedIn ||
+          selectedShapeIds.length === 0 ||
+          !zIndexOps.canSendBackward
+        }
+        title="Send Backward (Cmd+Shift+[)"
+      >
+        <span aria-hidden>⤵️</span>
+        Backward
+      </button>
+
+      <button
+        type="button"
+        className={clsx(styles.toolButton, {
+          [styles.toolButtonDisabled]:
+            !canEdit ||
+            !isSignedIn ||
+            selectedShapeIds.length === 0 ||
+            !zIndexOps.canSendToBack,
+        })}
+        onClick={handleSendToBack}
+        disabled={
+          !canEdit ||
+          !isSignedIn ||
+          selectedShapeIds.length === 0 ||
+          !zIndexOps.canSendToBack
+        }
+        title="Send to Back (Cmd+[)"
+      >
+        <span aria-hidden>⬇️</span>
+        To Back
+      </button>
 
       <div className={styles.toolDivider} />
       <button

@@ -16,6 +16,7 @@ import { THROTTLE } from "../config/constants";
 import type { LockingHook } from "../hooks/useLocking";
 import type { Shape } from "./types";
 import { isCircle, isRectangle, isText } from "./types";
+import { sortShapesByZIndex } from "./zindex";
 
 type ShapeLayerProps = {
   shapes: Shape[];
@@ -345,9 +346,12 @@ export function ShapeLayer({
     onTextEdit(shape.id, shape.text, pos);
   };
 
+  // Sort shapes by zIndex before rendering (lower zIndex renders first)
+  const sortedShapes = sortShapesByZIndex(shapes);
+
   return (
     <>
-      {shapes.map((shape) => {
+      {sortedShapes.map((shape) => {
         const isHovered = hoveredShapeId === shape.id;
         const isSelected = selectedShapeIds.includes(shape.id);
         const isTransforming = transformingShapeId === shape.id;

@@ -17,6 +17,7 @@ export type BaseShape = {
   x: number;
   y: number;
   rotation?: number; // Rotation in degrees
+  zIndex?: number; // Stacking order (higher = front, default: 0)
   createdBy: string;
   createdAt: number;
   aiGenerated?: boolean; // True if created by AI assistant

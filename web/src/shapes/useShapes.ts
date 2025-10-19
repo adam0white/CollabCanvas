@@ -110,6 +110,7 @@ export function useShapes(): UseShapesReturn {
       createdBy: shape.createdBy,
       createdAt: shape.createdAt,
       rotation: shape.rotation,
+      zIndex: shape.zIndex ?? 0,
       aiGenerated: shape.aiGenerated,
     };
 
