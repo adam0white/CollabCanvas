@@ -27,12 +27,15 @@ import {
   distributeHorizontally,
   distributeVertically,
 } from "../shapes/alignment";
+import { getShapeBounds } from "../shapes/alignment";
 import {
   bringForward,
   bringToFront,
   sendBackward,
   sendToBack,
 } from "../shapes/zindex";
+import type { ExportFormat, ExportQuality, ExportScope } from "./ExportModal";
+import { ExportModal } from "./ExportModal";
 import styles from "./Canvas.module.css";
 
 const MIN_ZOOM = 0.1;
@@ -108,6 +111,9 @@ export function Canvas({
   // State for copy/paste
   const [clipboard, setClipboard] = useState<Shape[]>([]);
   const [pasteCount, setPasteCount] = useState(0);
+
+  // State for export modal
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   // Use prop for default fill color (controlled by App.tsx via Toolbar)
   const defaultFillColor = propDefaultFillColor;
@@ -572,6 +578,12 @@ export function Canvas({
           updateShape(shapeId, shapeUpdates);
         }
       }
+
+      // Export with Cmd+E
+      if ((e.metaKey || e.ctrlKey) && e.key === "e" && !e.shiftKey) {
+        e.preventDefault();
+        setIsExportModalOpen(true);
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
@@ -1018,6 +1030,75 @@ export function Canvas({
     setIsCreatingText(true);
   };
 
+  // Handle export
+  const handleExport = (options: {
+    format: ExportFormat;
+    scope: ExportScope;
+    quality: ExportQuality;
+    filename: string;
+  }) => {
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    let dataURL: string;
+
+    if (options.scope === "selection" && selectedShapeIds.length > 0) {
+      // Export selected shapes only
+      const selectedShapes = shapes.filter((s) =>
+        selectedShapeIds.includes(s.id),
+      );
+
+      // Calculate bounding box of selected shapes
+      const bounds = selectedShapes.map(getShapeBounds);
+      const minX = Math.min(...bounds.map((b) => b.left));
+      const minY = Math.min(...bounds.map((b) => b.top));
+      const maxX = Math.max(...bounds.map((b) => b.right));
+      const maxY = Math.max(...bounds.map((b) => b.bottom));
+
+      // Add padding
+      const padding = 20;
+      const exportWidth = maxX - minX + padding * 2;
+      const exportHeight = maxY - minY + padding * 2;
+
+      // Get the main layer
+      const layer = stage.findOne("Layer");
+      if (!layer) return;
+
+      // Export with cropping to selection
+      dataURL = layer.toDataURL({
+        x: minX - padding,
+        y: minY - padding,
+        width: exportWidth,
+        height: exportHeight,
+        pixelRatio: options.quality,
+      });
+    } else {
+      // Export entire canvas
+      dataURL = stage.toDataURL({
+        pixelRatio: options.quality,
+      });
+    }
+
+    // Trigger download
+    const link = document.createElement("a");
+    link.download = options.filename;
+    link.href = dataURL;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Expose export function via window for Toolbar to access
+  useEffect(() => {
+    (window as { openExportModal?: () => void }).openExportModal = () => {
+      setIsExportModalOpen(true);
+    };
+
+    return () => {
+      delete (window as { openExportModal?: () => void }).openExportModal;
+    };
+  }, []);
+
   return (
     <div ref={containerRef} className={styles.canvasWrapper}>
       {/* Zoom controls */}
@@ -1338,6 +1419,14 @@ export function Canvas({
           />
         </div>
       )}
+
+      {/* Export Modal */}
+      <ExportModal
+        isOpen={isExportModalOpen}
+        hasSelection={selectedShapeIds.length > 0}
+        onClose={() => setIsExportModalOpen(false)}
+        onExport={handleExport}
+      />
     </div>
   );
 }

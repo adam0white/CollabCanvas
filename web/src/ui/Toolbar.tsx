@@ -486,6 +486,26 @@ export function Toolbar({
       </button>
 
       <div className={styles.toolDivider} />
+
+      {/* Export button */}
+      <button
+        type="button"
+        className={styles.toolButton}
+        onClick={() => {
+          // Call the export modal trigger from Canvas
+          const openExportModal = (window as { openExportModal?: () => void })
+            .openExportModal;
+          if (openExportModal) {
+            openExportModal();
+          }
+        }}
+        title="Export canvas (Cmd+E)"
+      >
+        <span aria-hidden>💾</span>
+        Export
+      </button>
+
+      <div className={styles.toolDivider} />
       <button
         type="button"
         className={styles.toolButton}

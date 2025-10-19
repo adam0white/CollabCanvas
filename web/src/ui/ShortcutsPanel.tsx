@@ -149,6 +149,10 @@ export function ShortcutsPanel({
                 <span className={styles.key}>Cmd/Ctrl+Shift+Z</span>
                 <span className={styles.description}>Redo</span>
               </div>
+              <div className={styles.shortcut}>
+                <span className={styles.key}>Cmd/Ctrl+E</span>
+                <span className={styles.description}>Export canvas</span>
+              </div>
             </div>
           </section>
 
