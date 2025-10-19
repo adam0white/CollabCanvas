@@ -268,7 +268,11 @@ export async function deleteSelectedShape(page: Page): Promise<void> {
  * Switch to select mode
  */
 export async function switchToSelectMode(page: Page): Promise<void> {
-  await page.getByRole("button", { name: /select/i }).click();
+  // Use exact match for Select button (shouldn't collide but be consistent)
+  await page
+    .getByRole("button", { name: "Select", exact: true })
+    .first()
+    .click();
   await waitForSync(page, 100);
 }
 

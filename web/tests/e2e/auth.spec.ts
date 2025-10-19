@@ -76,8 +76,8 @@ test.describe("Authentication & Authorization", () => {
     const zoomButton = page.locator('button[class*="zoomButton"]').nth(1);
     await expect(zoomButton).toBeVisible();
 
-    // Zoom in
-    await page.getByRole("button", { name: "+" }).click();
+    // Zoom in (use title to avoid collision)
+    await page.getByRole("button", { name: /Zoom in/i }).click();
 
     // Check zoom level changed
     await waitForSync(page, 100);
