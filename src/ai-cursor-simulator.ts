@@ -85,25 +85,32 @@ export async function executeWithSimulation(
 
   try {
     // Create AI agent cursor in Awareness
+    // Note: We directly manipulate the awareness states Map since we're on the server
+    // This creates a virtual client that all connected users will see
     const agentState = {
-      presence: {
-        userId: aiAgentId,
-        displayName: userName,
-        color: "#8b5cf6", // Purple for AI
-        cursor: { x: 1000, y: 1000 }, // Start at canvas center
-        isAIAgent: true,
-        aiAgentOwner: userId,
-        aiProgress: {
-          current: 0,
-          total: toolCalls.length,
-          message: "Starting...",
-        },
+      userId: aiAgentId,
+      displayName: userName,
+      color: "#8b5cf6", // Purple for AI
+      cursor: { x: 1000, y: 1000 }, // Start at canvas center
+      isAIAgent: true,
+      aiAgentOwner: userId,
+      aiProgress: {
+        current: 0,
+        total: toolCalls.length,
+        message: "Starting...",
       },
     };
 
-    // Manually set awareness state for AI agent
-    // We simulate a client by using awareness's internal state map
-    awareness.setLocalStateField("aiAgent", agentState);
+    // Set state in awareness for the AI agent client
+    // Format matches what clients expect: { presence: {...} }
+    awareness.states.set(aiClientId, { presence: agentState });
+    
+    // Trigger awareness update to broadcast to all clients
+    // This uses the internal emit mechanism to notify all connected clients
+    awareness.emit("update", [
+      { added: [aiClientId], updated: [], removed: [] },
+      "local",
+    ]);
 
     // Small delay to ensure awareness update is broadcast
     await sleep(100);
@@ -113,19 +120,29 @@ export async function executeWithSimulation(
       const toolCall = toolCalls[i];
 
       // Update progress
-      agentState.presence.aiProgress = {
+      agentState.aiProgress = {
         current: i + 1,
         total: toolCalls.length,
         message: getOperationMessage(toolCall.name),
       };
-      awareness.setLocalStateField("aiAgent", agentState);
+      
+      // Update awareness state
+      awareness.states.set(aiClientId, { presence: agentState });
+      awareness.emit("update", [
+        { added: [], updated: [aiClientId], removed: [] },
+        "local",
+      ]);
 
       // Calculate target position for cursor movement
       const targetPosition = getOperationPosition(toolCall);
       if (targetPosition) {
         // Move cursor to operation position
-        agentState.presence.cursor = targetPosition;
-        awareness.setLocalStateField("aiAgent", agentState);
+        agentState.cursor = targetPosition;
+        awareness.states.set(aiClientId, { presence: agentState });
+        awareness.emit("update", [
+          { added: [], updated: [aiClientId], removed: [] },
+          "local",
+        ]);
         await sleep(TIMING.CURSOR_MOVE);
 
         // Brief "thinking" pause
@@ -170,12 +187,16 @@ export async function executeWithSimulation(
     }
 
     // Final progress update
-    agentState.presence.aiProgress = {
+    agentState.aiProgress = {
       current: toolCalls.length,
       total: toolCalls.length,
       message: "Complete!",
     };
-    awareness.setLocalStateField("aiAgent", agentState);
+    awareness.states.set(aiClientId, { presence: agentState });
+    awareness.emit("update", [
+      { added: [], updated: [aiClientId], removed: [] },
+      "local",
+    ]);
     await sleep(500); // Brief pause to show completion
 
     return {
@@ -187,7 +208,11 @@ export async function executeWithSimulation(
     };
   } finally {
     // Remove AI agent cursor from Awareness
-    awareness.setLocalStateField("aiAgent", null);
+    awareness.states.delete(aiClientId);
+    awareness.emit("update", [
+      { added: [], updated: [], removed: [aiClientId] },
+      "local",
+    ]);
   }
 }
 

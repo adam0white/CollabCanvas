@@ -312,10 +312,11 @@ export class AIAgent extends Agent {
       const ai = env.AI;
 
       // Performance: Call Workers AI through AI Gateway with optimized settings
-      // Use llama-3.3-70b-instruct-fp8-fast for better function calling accuracy and speed
+      // Use Mistral Small for superior function calling capability
+      // Mistral models excel at structured output and tool usage
       // Note: Workers AI has internal timeout of ~60s, we optimize for speed within that constraint
       const response = await ai.run(
-        "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+        "@cf/mistralai/mistral-small-3.1-24b-instruct",
         {
           messages: [
             { role: "system", content: systemPrompt },
