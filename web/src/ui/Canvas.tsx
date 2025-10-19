@@ -18,6 +18,16 @@ import {
 } from "../shapes/types";
 import { useShapes } from "../shapes/useShapes";
 import {
+  alignBottom,
+  alignCenter,
+  alignLeft,
+  alignMiddle,
+  alignRight,
+  alignTop,
+  distributeHorizontally,
+  distributeVertically,
+} from "../shapes/alignment";
+import {
   bringForward,
   bringToFront,
   sendBackward,
@@ -415,6 +425,151 @@ export function Canvas({
         const updates = sendBackward(selectedShapeIds, shapes);
         for (const [shapeId, zIndex] of updates.entries()) {
           updateShape(shapeId, { zIndex });
+        }
+      }
+
+      // Alignment: Align Left with Cmd+Shift+L
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.shiftKey &&
+        e.key === "l" &&
+        canEdit &&
+        selectedShapeIds.length >= 2
+      ) {
+        e.preventDefault();
+        const selectedShapes = shapes.filter((s) =>
+          selectedShapeIds.includes(s.id),
+        );
+        const updates = alignLeft(selectedShapes);
+        for (const [shapeId, shapeUpdates] of updates.entries()) {
+          updateShape(shapeId, shapeUpdates);
+        }
+      }
+
+      // Alignment: Align Center with Cmd+Shift+H
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.shiftKey &&
+        e.key === "h" &&
+        canEdit &&
+        selectedShapeIds.length >= 2
+      ) {
+        e.preventDefault();
+        const selectedShapes = shapes.filter((s) =>
+          selectedShapeIds.includes(s.id),
+        );
+        const updates = alignCenter(selectedShapes);
+        for (const [shapeId, shapeUpdates] of updates.entries()) {
+          updateShape(shapeId, shapeUpdates);
+        }
+      }
+
+      // Alignment: Align Right with Cmd+Shift+R (override tool shortcut R)
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.shiftKey &&
+        e.key === "r" &&
+        canEdit &&
+        selectedShapeIds.length >= 2
+      ) {
+        e.preventDefault();
+        const selectedShapes = shapes.filter((s) =>
+          selectedShapeIds.includes(s.id),
+        );
+        const updates = alignRight(selectedShapes);
+        for (const [shapeId, shapeUpdates] of updates.entries()) {
+          updateShape(shapeId, shapeUpdates);
+        }
+      }
+
+      // Alignment: Align Top with Cmd+Shift+T (override tool shortcut T)
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.shiftKey &&
+        e.key === "t" &&
+        canEdit &&
+        selectedShapeIds.length >= 2
+      ) {
+        e.preventDefault();
+        const selectedShapes = shapes.filter((s) =>
+          selectedShapeIds.includes(s.id),
+        );
+        const updates = alignTop(selectedShapes);
+        for (const [shapeId, shapeUpdates] of updates.entries()) {
+          updateShape(shapeId, shapeUpdates);
+        }
+      }
+
+      // Alignment: Align Middle with Cmd+Shift+M
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.shiftKey &&
+        e.key === "m" &&
+        canEdit &&
+        selectedShapeIds.length >= 2
+      ) {
+        e.preventDefault();
+        const selectedShapes = shapes.filter((s) =>
+          selectedShapeIds.includes(s.id),
+        );
+        const updates = alignMiddle(selectedShapes);
+        for (const [shapeId, shapeUpdates] of updates.entries()) {
+          updateShape(shapeId, shapeUpdates);
+        }
+      }
+
+      // Alignment: Align Bottom with Cmd+Shift+B
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.shiftKey &&
+        e.key === "b" &&
+        canEdit &&
+        selectedShapeIds.length >= 2
+      ) {
+        e.preventDefault();
+        const selectedShapes = shapes.filter((s) =>
+          selectedShapeIds.includes(s.id),
+        );
+        const updates = alignBottom(selectedShapes);
+        for (const [shapeId, shapeUpdates] of updates.entries()) {
+          updateShape(shapeId, shapeUpdates);
+        }
+      }
+
+      // Distribution: Distribute Horizontally with Cmd+Shift+D (override Duplicate)
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.shiftKey &&
+        e.key === "d" &&
+        canEdit &&
+        selectedShapeIds.length >= 3
+      ) {
+        e.preventDefault();
+        const selectedShapes = shapes.filter((s) =>
+          selectedShapeIds.includes(s.id),
+        );
+        const updates = distributeHorizontally(selectedShapes);
+        for (const [shapeId, shapeUpdates] of updates.entries()) {
+          updateShape(shapeId, shapeUpdates);
+        }
+      }
+
+      // Distribution: Distribute Vertically with Cmd+Shift+V (override Paste)
+      // Note: Only trigger if 3+ shapes selected to avoid conflicts
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.shiftKey &&
+        e.key === "v" &&
+        canEdit &&
+        selectedShapeIds.length >= 3
+      ) {
+        e.preventDefault();
+        const selectedShapes = shapes.filter((s) =>
+          selectedShapeIds.includes(s.id),
+        );
+        const updates = distributeVertically(selectedShapes);
+        for (const [shapeId, shapeUpdates] of updates.entries()) {
+          updateShape(shapeId, shapeUpdates);
         }
       }
     };

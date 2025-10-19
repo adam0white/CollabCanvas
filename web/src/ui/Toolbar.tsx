@@ -6,6 +6,17 @@ import { useToolbar } from "../hooks/useToolbar";
 import { useUndoRedo } from "../hooks/useUndoRedo";
 import { useShapes } from "../shapes/useShapes";
 import {
+  alignBottom,
+  alignCenter,
+  alignLeft,
+  alignMiddle,
+  alignRight,
+  alignTop,
+  distributeHorizontally,
+  distributeVertically,
+  getAvailableAlignmentOperations,
+} from "../shapes/alignment";
+import {
   bringForward,
   bringToFront,
   getAvailableZIndexOperations,
@@ -107,6 +118,74 @@ export function Toolbar({
     const updates = sendBackward(selectedShapeIds, shapes);
     for (const [shapeId, zIndex] of updates.entries()) {
       updateShape(shapeId, { zIndex });
+    }
+  };
+
+  // Alignment operations
+  const selectedShapes = shapes.filter((s) => selectedShapeIds.includes(s.id));
+  const alignOps = getAvailableAlignmentOperations(selectedShapes);
+
+  const handleAlignLeft = () => {
+    if (!canEdit || !alignOps.canAlign) return;
+    const updates = alignLeft(selectedShapes);
+    for (const [shapeId, shapeUpdates] of updates.entries()) {
+      updateShape(shapeId, shapeUpdates);
+    }
+  };
+
+  const handleAlignCenter = () => {
+    if (!canEdit || !alignOps.canAlign) return;
+    const updates = alignCenter(selectedShapes);
+    for (const [shapeId, shapeUpdates] of updates.entries()) {
+      updateShape(shapeId, shapeUpdates);
+    }
+  };
+
+  const handleAlignRight = () => {
+    if (!canEdit || !alignOps.canAlign) return;
+    const updates = alignRight(selectedShapes);
+    for (const [shapeId, shapeUpdates] of updates.entries()) {
+      updateShape(shapeId, shapeUpdates);
+    }
+  };
+
+  const handleAlignTop = () => {
+    if (!canEdit || !alignOps.canAlign) return;
+    const updates = alignTop(selectedShapes);
+    for (const [shapeId, shapeUpdates] of updates.entries()) {
+      updateShape(shapeId, shapeUpdates);
+    }
+  };
+
+  const handleAlignMiddle = () => {
+    if (!canEdit || !alignOps.canAlign) return;
+    const updates = alignMiddle(selectedShapes);
+    for (const [shapeId, shapeUpdates] of updates.entries()) {
+      updateShape(shapeId, shapeUpdates);
+    }
+  };
+
+  const handleAlignBottom = () => {
+    if (!canEdit || !alignOps.canAlign) return;
+    const updates = alignBottom(selectedShapes);
+    for (const [shapeId, shapeUpdates] of updates.entries()) {
+      updateShape(shapeId, shapeUpdates);
+    }
+  };
+
+  const handleDistributeHorizontally = () => {
+    if (!canEdit || !alignOps.canDistribute) return;
+    const updates = distributeHorizontally(selectedShapes);
+    for (const [shapeId, shapeUpdates] of updates.entries()) {
+      updateShape(shapeId, shapeUpdates);
+    }
+  };
+
+  const handleDistributeVertically = () => {
+    if (!canEdit || !alignOps.canDistribute) return;
+    const updates = distributeVertically(selectedShapes);
+    for (const [shapeId, shapeUpdates] of updates.entries()) {
+      updateShape(shapeId, shapeUpdates);
     }
   };
 
@@ -289,6 +368,121 @@ export function Toolbar({
       >
         <span aria-hidden>⬇️</span>
         To Back
+      </button>
+
+      <div className={styles.toolDivider} />
+
+      {/* Alignment controls */}
+      <button
+        type="button"
+        className={clsx(styles.toolButton, {
+          [styles.toolButtonDisabled]:
+            !canEdit || !isSignedIn || !alignOps.canAlign,
+        })}
+        onClick={handleAlignLeft}
+        disabled={!canEdit || !isSignedIn || !alignOps.canAlign}
+        title="Align Left (Cmd+Shift+L)"
+      >
+        <span aria-hidden>⬅️</span>
+        Left
+      </button>
+
+      <button
+        type="button"
+        className={clsx(styles.toolButton, {
+          [styles.toolButtonDisabled]:
+            !canEdit || !isSignedIn || !alignOps.canAlign,
+        })}
+        onClick={handleAlignCenter}
+        disabled={!canEdit || !isSignedIn || !alignOps.canAlign}
+        title="Align Center (Cmd+Shift+H)"
+      >
+        <span aria-hidden>↔️</span>
+        Center
+      </button>
+
+      <button
+        type="button"
+        className={clsx(styles.toolButton, {
+          [styles.toolButtonDisabled]:
+            !canEdit || !isSignedIn || !alignOps.canAlign,
+        })}
+        onClick={handleAlignRight}
+        disabled={!canEdit || !isSignedIn || !alignOps.canAlign}
+        title="Align Right (Cmd+Shift+R)"
+      >
+        <span aria-hidden>➡️</span>
+        Right
+      </button>
+
+      <button
+        type="button"
+        className={clsx(styles.toolButton, {
+          [styles.toolButtonDisabled]:
+            !canEdit || !isSignedIn || !alignOps.canAlign,
+        })}
+        onClick={handleAlignTop}
+        disabled={!canEdit || !isSignedIn || !alignOps.canAlign}
+        title="Align Top (Cmd+Shift+T)"
+      >
+        <span aria-hidden>⬆️</span>
+        Top
+      </button>
+
+      <button
+        type="button"
+        className={clsx(styles.toolButton, {
+          [styles.toolButtonDisabled]:
+            !canEdit || !isSignedIn || !alignOps.canAlign,
+        })}
+        onClick={handleAlignMiddle}
+        disabled={!canEdit || !isSignedIn || !alignOps.canAlign}
+        title="Align Middle (Cmd+Shift+M)"
+      >
+        <span aria-hidden>↕️</span>
+        Middle
+      </button>
+
+      <button
+        type="button"
+        className={clsx(styles.toolButton, {
+          [styles.toolButtonDisabled]:
+            !canEdit || !isSignedIn || !alignOps.canAlign,
+        })}
+        onClick={handleAlignBottom}
+        disabled={!canEdit || !isSignedIn || !alignOps.canAlign}
+        title="Align Bottom (Cmd+Shift+B)"
+      >
+        <span aria-hidden>⬇️</span>
+        Bottom
+      </button>
+
+      <button
+        type="button"
+        className={clsx(styles.toolButton, {
+          [styles.toolButtonDisabled]:
+            !canEdit || !isSignedIn || !alignOps.canDistribute,
+        })}
+        onClick={handleDistributeHorizontally}
+        disabled={!canEdit || !isSignedIn || !alignOps.canDistribute}
+        title="Distribute Horizontally (Cmd+Shift+D)"
+      >
+        <span aria-hidden>⬌</span>
+        H-Dist
+      </button>
+
+      <button
+        type="button"
+        className={clsx(styles.toolButton, {
+          [styles.toolButtonDisabled]:
+            !canEdit || !isSignedIn || !alignOps.canDistribute,
+        })}
+        onClick={handleDistributeVertically}
+        disabled={!canEdit || !isSignedIn || !alignOps.canDistribute}
+        title="Distribute Vertically (Cmd+Shift+V)"
+      >
+        <span aria-hidden>⬍</span>
+        V-Dist
       </button>
 
       <div className={styles.toolDivider} />

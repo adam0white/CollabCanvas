@@ -175,6 +175,52 @@ export function ShortcutsPanel({
           </section>
 
           <section className={styles.section}>
+            <h3>Align (2+ shapes)</h3>
+            <div className={styles.shortcutList}>
+              <div className={styles.shortcut}>
+                <span className={styles.key}>Cmd/Ctrl+Shift+L</span>
+                <span className={styles.description}>Align left</span>
+              </div>
+              <div className={styles.shortcut}>
+                <span className={styles.key}>Cmd/Ctrl+Shift+H</span>
+                <span className={styles.description}>Align center</span>
+              </div>
+              <div className={styles.shortcut}>
+                <span className={styles.key}>Cmd/Ctrl+Shift+R</span>
+                <span className={styles.description}>Align right</span>
+              </div>
+              <div className={styles.shortcut}>
+                <span className={styles.key}>Cmd/Ctrl+Shift+T</span>
+                <span className={styles.description}>Align top</span>
+              </div>
+              <div className={styles.shortcut}>
+                <span className={styles.key}>Cmd/Ctrl+Shift+M</span>
+                <span className={styles.description}>Align middle</span>
+              </div>
+              <div className={styles.shortcut}>
+                <span className={styles.key}>Cmd/Ctrl+Shift+B</span>
+                <span className={styles.description}>Align bottom</span>
+              </div>
+            </div>
+          </section>
+
+          <section className={styles.section}>
+            <h3>Distribute (3+ shapes)</h3>
+            <div className={styles.shortcutList}>
+              <div className={styles.shortcut}>
+                <span className={styles.key}>Cmd/Ctrl+Shift+D</span>
+                <span className={styles.description}>
+                  Distribute horizontally
+                </span>
+              </div>
+              <div className={styles.shortcut}>
+                <span className={styles.key}>Cmd/Ctrl+Shift+V</span>
+                <span className={styles.description}>Distribute vertically</span>
+              </div>
+            </div>
+          </section>
+
+          <section className={styles.section}>
             <h3>AI</h3>
             <div className={styles.shortcutList}>
               <div className={styles.shortcut}>
