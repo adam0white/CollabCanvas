@@ -10,7 +10,7 @@
 
 import type Konva from "konva";
 import type { KonvaEventObject } from "konva/lib/Node";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Circle, Rect, Text, Transformer } from "react-konva";
 import { THROTTLE } from "../config/constants";
 import type { LockingHook } from "../hooks/useLocking";
@@ -61,18 +61,25 @@ export function ShapeLayer({
   }>({});
 
   // Attach transformer to selected shapes (multi-select support)
+  // Performance optimization: For large selections (20+ shapes), disable transformer
+  // and use a simple bounding box indicator instead
   useEffect(() => {
-    if (transformerRef.current && selectedShapeIds.length > 0) {
-      const selectedNodes = selectedShapeIds
-        .map((id) => shapeRefs.current[id])
-        .filter((node): node is Konva.Shape => node !== null);
+    if (transformerRef.current) {
+      if (selectedShapeIds.length > 0 && selectedShapeIds.length < 20) {
+        // Normal transformer for selections < 20 shapes
+        const selectedNodes = selectedShapeIds
+          .map((id) => shapeRefs.current[id])
+          .filter((node): node is Konva.Shape => node !== null);
 
-      if (selectedNodes.length > 0) {
-        transformerRef.current.nodes(selectedNodes);
-        transformerRef.current.getLayer()?.batchDraw();
+        if (selectedNodes.length > 0) {
+          transformerRef.current.nodes(selectedNodes);
+          transformerRef.current.getLayer()?.batchDraw();
+        }
+      } else {
+        // Disable transformer for large selections (20+ shapes)
+        // Transformer overhead with many shapes causes frame drops
+        transformerRef.current.nodes([]);
       }
-    } else if (transformerRef.current) {
-      transformerRef.current.nodes([]);
     }
   }, [selectedShapeIds]);
 
@@ -345,6 +352,57 @@ export function ShapeLayer({
     onTextEdit(shape.id, shape.text, pos);
   };
 
+  // Calculate bounding box for large selections (20+ shapes)
+  // Used to show visual feedback without expensive Transformer
+  const selectionBounds = useMemo(() => {
+    if (selectedShapeIds.length < 20) return null;
+
+    let minX = Number.POSITIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+
+    for (const shapeId of selectedShapeIds) {
+      const shape = shapes.find((s) => s.id === shapeId);
+      if (!shape) continue;
+
+      // Calculate shape bounds based on type
+      let x1 = shape.x;
+      let y1 = shape.y;
+      let x2 = shape.x;
+      let y2 = shape.y;
+
+      if (isRectangle(shape)) {
+        x2 = shape.x + shape.width;
+        y2 = shape.y + shape.height;
+      } else if (isCircle(shape)) {
+        x1 = shape.x - shape.radius;
+        y1 = shape.y - shape.radius;
+        x2 = shape.x + shape.radius;
+        y2 = shape.y + shape.radius;
+      } else if (isText(shape)) {
+        const width = shape.width ?? shape.text.length * shape.fontSize * 0.6;
+        const height = shape.fontSize * 1.2;
+        x2 = shape.x + width;
+        y2 = shape.y + height;
+      }
+
+      minX = Math.min(minX, x1);
+      minY = Math.min(minY, y1);
+      maxX = Math.max(maxX, x2);
+      maxY = Math.max(maxY, y2);
+    }
+
+    if (minX === Number.POSITIVE_INFINITY) return null;
+
+    return {
+      x: minX,
+      y: minY,
+      width: maxX - minX,
+      height: maxY - minY,
+    };
+  }, [selectedShapeIds, shapes]);
+
   return (
     <>
       {shapes.map((shape) => {
@@ -539,7 +597,9 @@ export function ShapeLayer({
       })}
 
       {/* Transformer for selected shape */}
-      {canEdit && selectedTool === "select" && (
+      {/* Performance: Only show transformer for selections < 20 shapes */}
+      {/* Large selections use drag-only mode for better performance */}
+      {canEdit && selectedTool === "select" && selectedShapeIds.length < 20 && (
         <Transformer
           ref={transformerRef}
           boundBoxFunc={(oldBox, newBox) => {
@@ -555,8 +615,8 @@ export function ShapeLayer({
             "bottom-left",
             "bottom-right",
           ]}
-          // Disable rotation for large selections to improve performance
-          rotateEnabled={selectedShapeIds.length < 20}
+          // Disable rotation for selections with 10+ shapes to improve performance
+          rotateEnabled={selectedShapeIds.length < 10}
           onTransform={() => {
             // Performance optimization: only transform first shape during interaction
             // All shapes will be transformed on transformEnd
@@ -570,6 +630,25 @@ export function ShapeLayer({
           }}
         />
       )}
+
+      {/* Simple bounding box for large selections (20+ shapes) */}
+      {/* Shows visual feedback without Transformer overhead */}
+      {canEdit &&
+        selectedTool === "select" &&
+        selectedShapeIds.length >= 20 &&
+        selectionBounds && (
+          <Rect
+            x={selectionBounds.x}
+            y={selectionBounds.y}
+            width={selectionBounds.width}
+            height={selectionBounds.height}
+            stroke="#0ea5e9"
+            strokeWidth={2}
+            dash={[8, 4]}
+            listening={false}
+            perfectDrawEnabled={false}
+          />
+        )}
     </>
   );
 }
