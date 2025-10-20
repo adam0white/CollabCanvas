@@ -1,8 +1,8 @@
 .toolbar {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.6rem;
+  gap: 0.25rem;
+  padding: 0.4rem 0.5rem;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.85);
   border: 1px solid rgba(15, 23, 42, 0.08);
@@ -19,11 +19,11 @@
 .toolButton {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  font-size: 0.8rem;
+  gap: 0.25rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: rgba(15, 23, 42, 0.72);
-  padding: 0.4rem 0.65rem;
+  padding: 0.3rem 0.5rem;
   border-radius: 999px;
   border: 1px solid transparent;
   background: transparent;
@@ -58,14 +58,14 @@
 }
 
 .toolButton span {
-  font-size: 0.95rem;
+  font-size: 0.85rem;
 }
 
 .toolDivider {
   width: 1px;
-  height: 1.5rem;
+  height: 1.2rem;
   background: rgba(15, 23, 42, 0.15);
-  margin: 0 0.25rem;
+  margin: 0 0.15rem;
 }
 
 .gridSizeSelect {

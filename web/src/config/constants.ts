@@ -16,7 +16,7 @@ export const THROTTLE = {
   /** Cursor/presence updates in milliseconds */
   PRESENCE_MS: 50,
   /** Per-shape overhead in milliseconds (adds to base) */
-  PER_SHAPE_MS: 4,
+  PER_SHAPE_MS: 1,
   /** Maximum throttle delay (cap at 500ms for UX) */
   MAX_MS: 500,
   /** Color/style changes in milliseconds */

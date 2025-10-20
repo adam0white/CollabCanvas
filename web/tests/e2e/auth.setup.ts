@@ -41,7 +41,7 @@ setup("authenticate", async ({ page }) => {
     await signInButton.click();
 
     // Wait for the Clerk email input and fill it
-    const emailInput = page.getByPlaceholder(/enter your email address/i);
+    const emailInput = page.getByPlaceholder(/enter email or username/i);
     await emailInput.waitFor({ state: "visible", timeout: 8000 });
     await emailInput.fill(testEmail);
 
