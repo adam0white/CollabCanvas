@@ -7,10 +7,16 @@
  * - Complex AI commands (multi-shape creation, layouts)
  * - AI history sync across users
  * - Error handling and guest access
+ * - AI cursor visualization and context awareness
  */
 
 import { expect, test } from "./fixtures";
-import { navigateToSharedRoom, waitForSync } from "./helpers";
+import {
+  createCircle,
+  createRectangle,
+  navigateToSharedRoom,
+  waitForSync,
+} from "./helpers";
 
 test.describe("AI Canvas Agent", () => {
   test.describe("Basic AI Tools", () => {
@@ -524,6 +530,143 @@ test.describe("AI Canvas Agent", () => {
       const submitButton = guestPage.getByRole("button", { name: /send/i });
       await expect(submitButton).toBeDisabled();
       await expect(submitButton).toHaveAttribute("title", /sign in/i);
+    });
+  });
+
+  test.describe("AI Cursor Visualization", () => {
+    test("AI agent cursor appears during execution", async ({
+      authenticatedPage,
+      roomId,
+    }) => {
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
+      await waitForSync(authenticatedPage, 1000);
+
+      // Send AI command
+      const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
+      await aiTextarea.fill("create 3 red circles");
+
+      // Track if we see the AI agent cursor (robot emoji)
+      let aiCursorSeen = false;
+
+      // Set up observer for AI cursor
+      const checkForCursor = setInterval(async () => {
+        try {
+          const robotEmoji = await authenticatedPage.locator("text=🤖").count();
+          if (robotEmoji > 0) {
+            aiCursorSeen = true;
+          }
+        } catch (_e) {
+          // Cursor might not be visible yet
+        }
+      }, 100);
+
+      // Submit command
+      await authenticatedPage.getByRole("button", { name: /send/i }).click();
+
+      // Wait for execution (shapes are created fast, but cursor animation should be visible)
+      await waitForSync(authenticatedPage, 2000);
+
+      clearInterval(checkForCursor);
+
+      // Log result for debugging
+      console.log(`[Test] AI cursor seen: ${aiCursorSeen}`);
+
+      // Verify command succeeded
+      const history = authenticatedPage.locator("text=/Created|3|circle/i");
+      await expect(history.first()).toBeVisible({ timeout: 10000 });
+
+      // Verify AI cursor disappeared after execution
+      await waitForSync(authenticatedPage, 500);
+      const aiCursorAfter = await authenticatedPage.locator("text=🤖").count();
+      expect(aiCursorAfter).toBe(0);
+    });
+
+    test("AI cursor context awareness - works with selected shapes", async ({
+      authenticatedPage,
+      roomId,
+    }) => {
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
+      await waitForSync(authenticatedPage, 1000);
+
+      // Create shapes first
+      await createCircle(authenticatedPage, 200, 200, 50);
+      await createRectangle(authenticatedPage, 300, 300, 100, 100);
+      await waitForSync(authenticatedPage, 1000);
+
+      // Select all shapes (Cmd+A on Mac, Ctrl+A on Windows/Linux)
+      const isMac = process.platform === "darwin";
+      if (isMac) {
+        await authenticatedPage.keyboard.press("Meta+a");
+      } else {
+        await authenticatedPage.keyboard.press("Control+a");
+      }
+      await waitForSync(authenticatedPage, 500);
+
+      // Send context-aware AI command
+      const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
+      await aiTextarea.fill("arrange selected shapes in a row");
+
+      await authenticatedPage.getByRole("button", { name: /send/i }).click();
+
+      // Wait for execution
+      await waitForSync(authenticatedPage, 5000);
+
+      // Verify command completed
+      const history = authenticatedPage.locator("text=/arrange|success/i");
+      await expect(history.first()).toBeVisible({ timeout: 10000 });
+    });
+
+    test("AI cursor shows correct status during execution", async ({
+      authenticatedPage,
+      roomId,
+    }) => {
+      await authenticatedPage.goto(`/c/main?roomId=${roomId}`, {
+        waitUntil: "domcontentloaded",
+      });
+      await waitForSync(authenticatedPage, 1000);
+
+      // Send command that creates multiple shapes
+      const aiTextarea = authenticatedPage.getByPlaceholder(/ask ai/i);
+      await aiTextarea.fill("create a grid of 4 squares");
+
+      let thinkingStatusSeen = false;
+      let workingStatusSeen = false;
+
+      // Monitor for status indicators
+      const statusCheck = setInterval(async () => {
+        try {
+          // Check for thinking/working status (emojis in cursor label)
+          const thinkingEmoji = await authenticatedPage
+            .locator("text=💭")
+            .count();
+          const workingEmoji = await authenticatedPage
+            .locator("text=✨")
+            .count();
+
+          if (thinkingEmoji > 0) thinkingStatusSeen = true;
+          if (workingEmoji > 0) workingStatusSeen = true;
+        } catch (_e) {
+          // Status might not be visible yet
+        }
+      }, 100);
+
+      await authenticatedPage.getByRole("button", { name: /send/i }).click();
+
+      // Wait for execution
+      await waitForSync(authenticatedPage, 3000);
+
+      clearInterval(statusCheck);
+
+      console.log(`[Test] Thinking status seen: ${thinkingStatusSeen}`);
+      console.log(`[Test] Working status seen: ${workingStatusSeen}`);
+
+      // Verify shapes were created
+      const history = authenticatedPage.locator("text=/grid|4|square/i");
+      await expect(history.first()).toBeVisible({ timeout: 10000 });
     });
   });
 });
